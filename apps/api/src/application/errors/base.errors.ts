@@ -548,3 +548,4 @@ export function getCorrelationId(error: Error): string | undefined {
   }
   return undefined;
 }
+

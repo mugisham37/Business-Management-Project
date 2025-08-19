@@ -53,3 +53,4 @@ export const requestLoggingPlugin: FastifyPluginAsync = async (fastify) => {
     });
   });
 };
+

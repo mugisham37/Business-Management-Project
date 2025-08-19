@@ -682,3 +682,4 @@ export class DisasterRecoveryManager extends EventEmitter {
     this.logger.info('Disaster recovery manager shut down');
   }
 }
+

@@ -79,3 +79,4 @@ export class LoggerFactory {
     LoggerFactory.instance = logger;
   }
 }
+

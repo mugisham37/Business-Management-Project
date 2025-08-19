@@ -203,3 +203,4 @@ async function initializeScalingSystem(server: FastifyInstance): Promise<void> {
     throw error;
   }
 }
+

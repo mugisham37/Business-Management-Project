@@ -853,3 +853,4 @@ export class AuditHelpers {
 export const auditTrailManager = new AuditTrailManager(
   ENV.AUDIT_SECRET_KEY
 );
+

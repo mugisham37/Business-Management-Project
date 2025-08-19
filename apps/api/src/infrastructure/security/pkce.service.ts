@@ -86,3 +86,4 @@ export class PKCEService {
     return pattern.test(codeChallenge);
   }
 }
+

@@ -829,3 +829,4 @@ export class TamperProtectionService {
 
 // Export singleton instance
 export const tamperProtectionService = new TamperProtectionService();
+

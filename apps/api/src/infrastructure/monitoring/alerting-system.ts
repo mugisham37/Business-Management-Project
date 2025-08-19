@@ -889,3 +889,4 @@ class AnomalyDetector {
 
 // Export singleton instance
 export const alertingSystem = new AlertingSystem();
+

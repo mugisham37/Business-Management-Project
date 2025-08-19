@@ -357,3 +357,4 @@ export function setupAuthRoutes(app: any, authService: AuthenticationService) {
     }
   );
 }
+

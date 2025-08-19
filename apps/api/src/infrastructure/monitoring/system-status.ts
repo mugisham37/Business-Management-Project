@@ -610,3 +610,4 @@ export function registerStatusEndpoints(fastify: FastifyInstance): void {
 
 // Export singleton instance
 export const systemStatusManager = new SystemStatusManager();
+

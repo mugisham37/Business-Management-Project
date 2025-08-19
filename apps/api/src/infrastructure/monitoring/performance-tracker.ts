@@ -796,3 +796,4 @@ export function trackPerformance(operation?: string, component?: string) {
     return descriptor;
   };
 }
+

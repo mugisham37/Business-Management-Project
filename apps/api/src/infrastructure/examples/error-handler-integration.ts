@@ -191,3 +191,4 @@ export class ExampleService {
 }
 
 export default exampleErrorHandlingPlugin;
+

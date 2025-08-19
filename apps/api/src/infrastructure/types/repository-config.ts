@@ -64,3 +64,4 @@ export const createDefaultCacheConfig = (): CacheConfiguration => ({
   defaultTtl: 3600,
   maxMemoryItems: 1000,
 });
+

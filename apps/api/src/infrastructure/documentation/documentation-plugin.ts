@@ -477,3 +477,4 @@ async function generatePostmanCollection(
 }
 
 export default documentationPlugin;
+

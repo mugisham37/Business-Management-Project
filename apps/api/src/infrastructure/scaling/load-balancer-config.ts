@@ -725,3 +725,4 @@ backend health_backend
 // Export singleton instance
 export const loadBalancerConfigManager =
   LoadBalancerConfigManager.getInstance();
+

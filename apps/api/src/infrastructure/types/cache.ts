@@ -15,3 +15,4 @@ export interface ICache {
   getStats(): any;
   destroy?(): void;
 }
+

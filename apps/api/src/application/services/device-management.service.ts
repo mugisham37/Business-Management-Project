@@ -7,7 +7,7 @@ import { Logger } from 'winston';
 import { SecureIdGenerator, SecureTokenGenerator } from '@company/auth';
 import { WebAuthnService } from '@company/auth';
 // import { PrismaUserRepository } from '@company/database'; // TODO: Remove if not needed
-import { DeviceInfo } from "@company/shared/entities/user';
+import { DeviceInfo } from "@company/shared/entities/user";
 
 export interface DeviceRegistration {
   id: string;
@@ -755,6 +755,7 @@ export class DeviceManagementService {
     return browser;
   }
 }
+
 
 
 

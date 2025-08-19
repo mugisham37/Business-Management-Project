@@ -17,7 +17,7 @@ import {
   Webhook,
   WebhookConfig,
   WebhookEvent,
-} from "@company/shared"entities/webhook';
+} from "@company/shared/entities/webhook";
 import { WebhookSignatureService } from '@company/auth';
 import { logger } from '@company/logger';
 
@@ -479,5 +479,6 @@ export class WebhookService implements IWebhookService {
     ];
   }
 }
+
 
 

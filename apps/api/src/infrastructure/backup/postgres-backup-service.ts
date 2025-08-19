@@ -489,3 +489,4 @@ export class PostgresBackupService extends EventEmitter {
     this.logger.info('PostgreSQL backup service shut down');
   }
 }
+

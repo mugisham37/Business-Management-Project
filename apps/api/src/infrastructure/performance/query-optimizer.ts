@@ -703,3 +703,4 @@ export class QueryOptimizer {
     logger.info('Query optimizer shutdown complete');
   }
 }
+

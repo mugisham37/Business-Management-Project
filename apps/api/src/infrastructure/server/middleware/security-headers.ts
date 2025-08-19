@@ -621,3 +621,4 @@ export const developmentSecurityHeaders =
     },
     reportOnly: true, // Use report-only mode in development
   });
+

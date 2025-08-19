@@ -90,3 +90,4 @@ if (require.main === module) {
   const isValid = validateErrorHandler();
   process.exit(isValid ? 0 : 1);
 }
+

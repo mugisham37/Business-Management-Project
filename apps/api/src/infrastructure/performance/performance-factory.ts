@@ -360,3 +360,4 @@ export const defaultPerformanceConfig: PerformanceModuleConfig = {
     scheduledBenchmarks: true,
   },
 };
+

@@ -4,14 +4,14 @@
  */
 
 import { Logger } from 'winston';
-import { User } from "@company/shared"entities/user';
+import { User } from "@company/shared/entities/user";
 import { SecureIdGenerator } from '@company/auth';
 import { SecureTokenGenerator } from '@company/auth';
 import { MFAService } from './mfa.service';
 import { EmailMFAService } from '@company/auth';
 import { PrismaUserRepository } from '@company/database';
 import { MFAChallengeRepository } from '@company/database';
-import { DeviceInfo } from "@company/shared"entities/user';
+import { DeviceInfo } from "@company/shared/entities/user";
 
 export interface FallbackAuthRequest {
   email: string;
@@ -834,5 +834,6 @@ export class FallbackAuthService {
     return `${maskedLocal}@${domain}`;
   }
 }
+
 
 

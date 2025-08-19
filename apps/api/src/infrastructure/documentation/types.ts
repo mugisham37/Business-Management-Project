@@ -364,3 +364,4 @@ export const HTTP_METHOD_COLORS: Record<string, string> = {
   HEAD: '#9012fe',
   OPTIONS: '#0d5aa7'
 };
+

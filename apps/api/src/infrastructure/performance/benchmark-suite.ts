@@ -854,3 +854,4 @@ export class WeightedEndpointSelector {
 
 // Export singleton instance
 export const benchmarkSuite = new BenchmarkSuite();
+

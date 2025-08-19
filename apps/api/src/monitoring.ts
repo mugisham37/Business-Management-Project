@@ -49,3 +49,4 @@ export async function getMetrics(monitor: ApplicationMonitor) {
 export async function getPerformanceMetrics(monitor: ApplicationMonitor) {
   return await monitor.getPerformanceMetrics();
 }
+

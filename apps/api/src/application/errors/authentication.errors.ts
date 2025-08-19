@@ -314,3 +314,4 @@ export function createAuthenticationError(
       return new InternalAuthenticationError(message, correlationId);
   }
 }
+

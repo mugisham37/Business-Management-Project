@@ -126,3 +126,4 @@ function getErrorName(statusCode: number): string {
 
   return errorNames[statusCode] || 'Unknown Error';
 }
+

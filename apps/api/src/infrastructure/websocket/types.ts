@@ -153,3 +153,4 @@ export interface WebSocketNotification {
   expiresAt?: Date | undefined;
   read?: boolean | undefined;
 }
+

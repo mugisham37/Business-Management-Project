@@ -25,3 +25,4 @@ export const correlationIdPlugin: FastifyPluginAsync = async (fastify) => {
     return payload;
   });
 };
+

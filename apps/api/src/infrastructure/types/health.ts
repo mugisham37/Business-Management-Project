@@ -74,3 +74,4 @@ export const aggregateHealthStatus = (statuses: HealthStatus[]): HealthStatus =>
   if (statuses.includes('degraded')) return 'degraded';
   return 'healthy';
 };
+

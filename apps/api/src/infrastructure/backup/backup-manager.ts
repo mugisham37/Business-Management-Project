@@ -555,3 +555,4 @@ export class BackupManager extends EventEmitter {
     this.logger.info('Backup manager shut down successfully');
   }
 }
+

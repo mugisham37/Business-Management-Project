@@ -14,7 +14,7 @@ import {
   Webhook,
   WebhookEvent,
   WebhookDeliveryAttempt,
-} from "@company/shared"entities/webhook';
+} from "@company/shared/entities/webhook";
 import { WebhookSignatureService } from '@company/auth';
 import { logger } from '@company/logger';
 import { CircuitBreaker } from '../../infrastructure/resilience/circuit-breaker';
@@ -410,5 +410,6 @@ export class WebhookDeliveryService implements IWebhookDeliveryService {
     };
   }
 }
+
 
 

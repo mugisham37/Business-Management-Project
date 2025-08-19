@@ -812,3 +812,4 @@ function wrapInHTMLTemplate(content: string, title: string): string {
 </body>
 </html>`;
 }
+

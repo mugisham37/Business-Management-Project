@@ -800,3 +800,4 @@ export const complianceAuditLogger = AuditLoggingMiddleware.createPlugin({
   maxBodySize: 20480, // 20KB
   excludePaths: ['/health', '/ready'], // Minimal exclusions for compliance
 });
+

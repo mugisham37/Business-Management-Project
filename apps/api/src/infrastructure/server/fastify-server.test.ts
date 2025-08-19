@@ -56,3 +56,4 @@ describe('Fastify Server', () => {
   // Note: Correlation ID tests temporarily disabled - plugin needs refinement
   // The core infrastructure is working, correlation ID will be fixed in future iterations
 });
+

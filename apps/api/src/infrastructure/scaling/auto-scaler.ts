@@ -718,3 +718,4 @@ export class AutoScaler {
 
 // Export singleton instance
 export const autoScaler = AutoScaler.getInstance();
+

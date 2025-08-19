@@ -772,3 +772,4 @@ export const defaultOptimizationConfig: OptimizationConfig = {
     threshold: 1048576, // 1MB
   },
 };
+

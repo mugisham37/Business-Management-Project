@@ -7,7 +7,7 @@ import {
   IDeadLetterQueue,
   // IWebhookDeliveryRepository, // TODO: Remove if not needed
 } from '../interfaces/webhook.interface';
-import { WebhookDeliveryAttempt } from "@company/shared/entities/webhook';
+import { WebhookDeliveryAttempt } from "@company/shared/entities/webhook";
 import { logger } from '@company/logger';
 import { RedisCache } from '@company/cache';
 
@@ -426,5 +426,6 @@ export class DeadLetterQueueService implements IDeadLetterQueue {
     };
   }
 }
+
 
 

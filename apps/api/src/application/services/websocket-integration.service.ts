@@ -58,7 +58,7 @@
  */
 
 import { IEventPublisher } from '../interfaces/webhook.interface';
-import { WebhookEvent } from "@company/shared"entities/webhook';
+import { WebhookEvent } from "@company/shared/entities/webhook";
 import { logger } from '@company/logger';
 import {
   WebSocketServer,
@@ -579,5 +579,6 @@ export class WebSocketIntegrationService {
     return `event_${timestamp}_${random}`;
   }
 }
+
 
 

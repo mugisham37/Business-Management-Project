@@ -906,3 +906,4 @@ export class GDPRComplianceService {
 
 // Export singleton instance
 export const gdprComplianceService = new GDPRComplianceService();
+

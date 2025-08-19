@@ -490,3 +490,4 @@ export class ErrorHandler {
 
 // Global error handler instance
 export const errorHandler = new ErrorHandler();
+

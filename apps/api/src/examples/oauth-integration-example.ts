@@ -388,3 +388,4 @@ if (require.main === module) {
   const example = new CompleteOAuthExample();
   example.runExamples().catch(console.error);
 }
+

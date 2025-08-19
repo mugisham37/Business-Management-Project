@@ -596,3 +596,4 @@ export class MetricsManager {
 export const metricsManager = MetricsManager.getInstance();
 
 // All metrics are already exported above, no need to re-export
+

@@ -610,3 +610,4 @@ export const adminZeroTrust = ZeroTrustAuthMiddleware.createPlugin({
   sessionValidationInterval: 1, // Very frequent validation
   excludePaths: ['/health', '/ready'], // Minimal exclusions
 });
+

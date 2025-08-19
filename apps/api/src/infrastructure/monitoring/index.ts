@@ -528,3 +528,4 @@ export class MonitoringSystem {
 
 // Export singleton instance
 export const monitoringSystem = MonitoringSystem.getInstance();
+

@@ -416,3 +416,4 @@ export class ScalingSystem {
 
 // Export singleton instance
 export const scalingSystem = ScalingSystem.getInstance();
+

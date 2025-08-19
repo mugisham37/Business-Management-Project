@@ -984,3 +984,4 @@ Generate comprehensive security compliance report
 
 // Export singleton instance
 export const complianceReportingService = new ComplianceReportingService();
+

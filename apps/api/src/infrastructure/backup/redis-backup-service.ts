@@ -464,3 +464,4 @@ export class RedisBackupService extends EventEmitter {
     this.logger.info('Redis backup service shut down');
   }
 }
+
