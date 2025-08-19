@@ -37,6 +37,15 @@ export * from './encryption/password-hashing.service';
 export * from './validation/device-fingerprinting.service';
 export * from './validation/risk-scoring.service';
 
+// Security services
+export * from './security/enterprise-security-monitor.service';
+export * from './security/security-audit.service';
+export * from './security/security-event-logger.service';
+export * from './security/security-monitoring.service';
+
+// Compliance services
+export * from './compliance/gdpr-compliance.service';
+
 // Middleware
 export * from './middleware/auth.middleware';
 

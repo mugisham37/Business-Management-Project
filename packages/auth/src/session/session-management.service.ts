@@ -5,18 +5,18 @@
  * session refresh mechanisms, and device tracking with suspicious activity detection
  */
 
-import { Logger } from 'winston';
-import { Session } from "@company/shared"entities/session';
-import { DeviceInfo } from "@company/shared"entities/user';
 import { DrizzleSessionRepository } from '@company/database';
+import { Session } from '@company/shared/entities/session';
+import { DeviceInfo } from '@company/shared/entities/user';
+import { Logger } from 'winston';
 import { SessionStorage } from '../../infrastructure/cache/session-storage';
-import { SecureIdGenerator } from '../../infrastructure/security/secure-id-generator.service';
-import { RiskScoringService } from '../../infrastructure/security/risk-scoring.service';
 import { DeviceFingerprintingService } from '../../infrastructure/security/device-fingerprinting.service';
+import { RiskScoringService } from '../../infrastructure/security/risk-scoring.service';
+import { SecureIdGenerator } from '../../infrastructure/security/secure-id-generator.service';
 import {
-  SecurityContext,
-  RiskAssessment,
   DeviceFingerprint,
+  RiskAssessment,
+  SecurityContext,
 } from '../../infrastructure/security/types';
 
 export interface SessionCreationRequest {
@@ -64,11 +64,7 @@ export interface ConcurrentSessionConfig {
 }
 
 export interface SuspiciousActivityAlert {
-  type:
-    | 'device_change'
-    | 'location_change'
-    | 'rapid_requests'
-    | 'unusual_pattern';
+  type: 'device_change' | 'location_change' | 'rapid_requests' | 'unusual_pattern';
   severity: 'low' | 'medium' | 'high' | 'critical';
   sessionId: string;
   userId: string;
@@ -151,18 +147,13 @@ export class SessionManagementService {
 
       const now = new Date();
       const expiresAt = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour
-      const refreshExpiresAt = new Date(
-        now.getTime() + 7 * 24 * 60 * 60 * 1000
-      ); // 7 days
+      const refreshExpiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
       // Enforce concurrent session limits
       await this.enforceSessionLimits(request.userId, request.deviceInfo);
 
       // Perform risk assessment
-      const riskAssessment = await this.assessSessionRisk(
-        request,
-        correlationId
-      );
+      const riskAssessment = await this.assessSessionRisk(request, correlationId);
 
       // Create session data
       const sessionData = {
@@ -247,8 +238,7 @@ export class SessionManagementService {
 
       if (!sessionData) {
         // Fallback to database
-        const dbValidation =
-          await this.sessionRepository.validateSession(sessionId);
+        const dbValidation = await this.sessionRepository.validateSession(sessionId);
         if (!dbValidation.isValid || !dbValidation.session) {
           return {
             valid: false,
@@ -347,9 +337,7 @@ export class SessionManagementService {
   /**
    * Refresh session with security validation
    */
-  async refreshSession(
-    request: SessionRefreshRequest
-  ): Promise<SessionRefreshResult> {
+  async refreshSession(request: SessionRefreshRequest): Promise<SessionRefreshResult> {
     const correlationId = SecureIdGenerator.generateCorrelationId();
 
     try {
@@ -404,11 +392,7 @@ export class SessionManagementService {
       }
 
       // Perform risk assessment for refresh
-      const riskAssessment = await this.assessRefreshRisk(
-        session,
-        request,
-        correlationId
-      );
+      const riskAssessment = await this.assessRefreshRisk(session, request, correlationId);
 
       // Update session risk score
       session.calculateRiskScore(request.ipAddress, request.deviceInfo);
@@ -426,9 +410,7 @@ export class SessionManagementService {
       });
 
       // Update session in storage
-      const refreshResult = await this.sessionStorage.refreshSession(
-        request.sessionId
-      );
+      const refreshResult = await this.sessionStorage.refreshSession(request.sessionId);
       if (!refreshResult) {
         return {
           success: false,
@@ -535,7 +517,7 @@ export class SessionManagementService {
 
       if (cachedSessions.length > 0) {
         return cachedSessions.map(
-          (sessionData) =>
+          sessionData =>
             new Session({
               id: sessionData.id,
               userId: sessionData.userId,
@@ -558,11 +540,10 @@ export class SessionManagementService {
       }
 
       // Fallback to database
-      const dbSessions =
-        await this.sessionRepository.getUserActiveSessions(userId);
+      const dbSessions = await this.sessionRepository.getUserActiveSessions(userId);
 
       return dbSessions.map(
-        (session) =>
+        session =>
           new Session({
             id: session.id,
             userId: session.userId,
@@ -570,8 +551,7 @@ export class SessionManagementService {
             refreshToken: session.refreshToken || '',
             expiresAt: session.expiresAt,
             refreshExpiresAt:
-              session.refreshExpiresAt ||
-              new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+              session.refreshExpiresAt || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             createdAt: session.createdAt || new Date(),
             lastActivity: session.lastActivity || new Date(),
             deviceInfo: session.deviceFingerprint
@@ -609,10 +589,7 @@ export class SessionManagementService {
   /**
    * Terminate all sessions for a user
    */
-  async terminateUserSessions(
-    userId: string,
-    excludeSessionId?: string
-  ): Promise<number> {
+  async terminateUserSessions(userId: string, excludeSessionId?: string): Promise<number> {
     const correlationId = SecureIdGenerator.generateCorrelationId();
 
     try {
@@ -623,8 +600,7 @@ export class SessionManagementService {
       });
 
       // Terminate in Redis cache
-      const cacheTerminated =
-        await this.sessionStorage.deleteUserSessions(userId);
+      const cacheTerminated = await this.sessionStorage.deleteUserSessions(userId);
 
       // Terminate in database
       const dbTerminated = await this.sessionRepository.terminateUserSessions(
@@ -657,13 +633,13 @@ export class SessionManagementService {
   async getActiveSessions(options?: { limit?: number; offset?: number }): Promise<Session[]> {
     try {
       const allSessions = await this.getAllActiveSessions();
-      
+
       if (options?.limit || options?.offset) {
         const offset = options.offset || 0;
         const limit = options.limit || 100;
         return allSessions.slice(offset, offset + limit);
       }
-      
+
       return allSessions;
     } catch (error) {
       this.logger.error('Failed to get active sessions', {
@@ -676,10 +652,7 @@ export class SessionManagementService {
   /**
    * Extend session expiration time
    */
-  async extendSession(
-    sessionId: string,
-    extensionMinutes: number = 30
-  ): Promise<void> {
+  async extendSession(sessionId: string, extensionMinutes: number = 30): Promise<void> {
     const correlationId = SecureIdGenerator.generateCorrelationId();
 
     try {
@@ -696,16 +669,14 @@ export class SessionManagementService {
       }
 
       // Calculate new expiration time
-      const newExpiresAt = new Date(
-        sessionData.expiresAt + extensionMinutes * 60 * 1000
-      );
+      const newExpiresAt = new Date(sessionData.expiresAt + extensionMinutes * 60 * 1000);
 
       // Update in cache
       const updatedSessionData = {
         ...sessionData,
         expiresAt: newExpiresAt.getTime(),
       };
-      
+
       await this.sessionStorage.updateSession(sessionId, updatedSessionData);
 
       // Update in database
@@ -729,10 +700,7 @@ export class SessionManagementService {
   /**
    * Terminate all sessions for a user (alias for terminateUserSessions)
    */
-  async terminateAllUserSessions(
-    userId: string,
-    excludeSessionId?: string
-  ): Promise<number> {
+  async terminateAllUserSessions(userId: string, excludeSessionId?: string): Promise<number> {
     return this.terminateUserSessions(userId, excludeSessionId);
   }
 
@@ -747,12 +715,7 @@ export class SessionManagementService {
   ): Promise<void> {
     try {
       // Update in Redis cache
-      await this.sessionStorage.updateSessionActivity(
-        sessionId,
-        ipAddress,
-        userAgent,
-        riskScore
-      );
+      await this.sessionStorage.updateSessionActivity(sessionId, ipAddress, userAgent, riskScore);
 
       // Update in database
       await this.sessionRepository.updateLastActivity(sessionId);
@@ -817,13 +780,11 @@ export class SessionManagementService {
 
       for (const session of allSessions) {
         // Sessions per user
-        sessionsPerUser[session.userId] =
-          (sessionsPerUser[session.userId] || 0) + 1;
+        sessionsPerUser[session.userId] = (sessionsPerUser[session.userId] || 0) + 1;
 
         // Device distribution
         const deviceType = session.deviceInfo?.isMobile ? 'mobile' : 'desktop';
-        deviceDistribution[deviceType] =
-          (deviceDistribution[deviceType] || 0) + 1;
+        deviceDistribution[deviceType] = (deviceDistribution[deviceType] || 0) + 1;
 
         // Risk distribution
         const riskLevel = this.getRiskLevel(session.riskScore);
@@ -836,10 +797,9 @@ export class SessionManagementService {
       // Get top risky users
       const topRiskyUsers = Object.entries(sessionsPerUser)
         .map(([userId, sessionCount]) => {
-          const userSessions = allSessions.filter((s) => s.userId === userId);
+          const userSessions = allSessions.filter(s => s.userId === userId);
           const avgRiskScore =
-            userSessions.reduce((sum, s) => sum + s.riskScore, 0) /
-            userSessions.length;
+            userSessions.reduce((sum, s) => sum + s.riskScore, 0) / userSessions.length;
           return { userId, riskScore: avgRiskScore, sessionCount };
         })
         .sort((a, b) => b.riskScore - a.riskScore)
@@ -851,8 +811,7 @@ export class SessionManagementService {
         deviceDistribution,
         riskDistribution,
         suspiciousActivities: [], // Would be populated from a separate tracking system
-        averageSessionDuration:
-          allSessions.length > 0 ? totalDuration / allSessions.length : 0,
+        averageSessionDuration: allSessions.length > 0 ? totalDuration / allSessions.length : 0,
         topRiskyUsers,
       };
     } catch (error) {
@@ -885,22 +844,15 @@ export class SessionManagementService {
 
   // Private helper methods
 
-  private async enforceSessionLimits(
-    userId: string,
-    deviceInfo: DeviceInfo
-  ): Promise<void> {
+  private async enforceSessionLimits(userId: string, deviceInfo: DeviceInfo): Promise<void> {
     const userSessions = await this.getUserSessions(userId);
 
     // Check user session limit
-    if (
-      userSessions.length >= this.concurrentSessionConfig.maxSessionsPerUser
-    ) {
+    if (userSessions.length >= this.concurrentSessionConfig.maxSessionsPerUser) {
       const sessionsToRemove = this.selectSessionsToRemove(
         userSessions,
         this.concurrentSessionConfig.sessionLimitStrategy,
-        userSessions.length -
-          this.concurrentSessionConfig.maxSessionsPerUser +
-          1
+        userSessions.length - this.concurrentSessionConfig.maxSessionsPerUser + 1
       );
 
       for (const session of sessionsToRemove) {
@@ -917,19 +869,14 @@ export class SessionManagementService {
     // Check device session limit if configured
     if (this.concurrentSessionConfig.maxSessionsPerDevice > 0) {
       const deviceSessions = userSessions.filter(
-        (s) => s.deviceInfo?.fingerprint === deviceInfo.fingerprint
+        s => s.deviceInfo?.fingerprint === deviceInfo.fingerprint
       );
 
-      if (
-        deviceSessions.length >=
-        this.concurrentSessionConfig.maxSessionsPerDevice
-      ) {
+      if (deviceSessions.length >= this.concurrentSessionConfig.maxSessionsPerDevice) {
         const sessionsToRemove = this.selectSessionsToRemove(
           deviceSessions,
           'oldest_first',
-          deviceSessions.length -
-            this.concurrentSessionConfig.maxSessionsPerDevice +
-            1
+          deviceSessions.length - this.concurrentSessionConfig.maxSessionsPerDevice + 1
         );
 
         for (const session of sessionsToRemove) {
@@ -954,14 +901,10 @@ export class SessionManagementService {
 
     switch (strategy) {
       case 'oldest_first':
-        sortedSessions.sort(
-          (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
-        );
+        sortedSessions.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
         break;
       case 'lowest_activity':
-        sortedSessions.sort(
-          (a, b) => a.lastActivity.getTime() - b.lastActivity.getTime()
-        );
+        sortedSessions.sort((a, b) => a.lastActivity.getTime() - b.lastActivity.getTime());
         break;
       case 'highest_risk':
         sortedSessions.sort((a, b) => b.riskScore - a.riskScore);
@@ -1045,8 +988,7 @@ export class SessionManagementService {
         failedAttempts: 0, // Would be retrieved
       };
 
-      const assessment =
-        await this.riskScoringService.assessRisk(securityContext);
+      const assessment = await this.riskScoringService.assessRisk(securityContext);
 
       // Add refresh-specific risk factors
       if (session.ipAddress !== request.ipAddress) {
@@ -1138,7 +1080,7 @@ export class SessionManagementService {
     const words1 = ua1.toLowerCase().split(/\s+/);
     const words2 = ua2.toLowerCase().split(/\s+/);
 
-    const commonWords = words1.filter((word) => words2.includes(word));
+    const commonWords = words1.filter(word => words2.includes(word));
     const totalWords = new Set([...words1, ...words2]).size;
 
     return commonWords.length / totalWords;
@@ -1155,7 +1097,7 @@ export class SessionManagementService {
       // Check for rapid session creation
       const recentSessions = await this.getUserSessions(request.userId);
       const recentSessionsCount = recentSessions.filter(
-        (s) => Date.now() - s.createdAt.getTime() < 60 * 1000 // Last minute
+        s => Date.now() - s.createdAt.getTime() < 60 * 1000 // Last minute
       ).length;
 
       if (recentSessionsCount > 3) {
@@ -1171,9 +1113,9 @@ export class SessionManagementService {
       }
 
       // Check for device changes
-      const otherSessions = recentSessions.filter((s) => s.id !== session.id);
+      const otherSessions = recentSessions.filter(s => s.id !== session.id);
       const differentDevices = otherSessions.filter(
-        (s) => s.deviceInfo?.fingerprint !== request.deviceInfo.fingerprint
+        s => s.deviceInfo?.fingerprint !== request.deviceInfo.fingerprint
       );
 
       if (differentDevices.length > 0) {
@@ -1197,10 +1139,7 @@ export class SessionManagementService {
               timeWindow: this.suspiciousActivityThresholds.deviceChangeWindow,
             },
             timestamp: new Date(),
-            recommendations: [
-              'Verify device ownership',
-              'Consider MFA challenge',
-            ],
+            recommendations: ['Verify device ownership', 'Consider MFA challenge'],
           });
         }
       }
@@ -1229,8 +1168,7 @@ export class SessionManagementService {
       refreshToken: dbSession.refreshToken || '',
       expiresAt: dbSession.expiresAt.getTime(),
       refreshExpiresAt:
-        dbSession.refreshExpiresAt?.getTime() ||
-        Date.now() + 7 * 24 * 60 * 60 * 1000,
+        dbSession.refreshExpiresAt?.getTime() || Date.now() + 7 * 24 * 60 * 60 * 1000,
       createdAt: dbSession.createdAt?.getTime() || Date.now(),
       lastActivity: dbSession.lastActivity?.getTime() || Date.now(),
       deviceInfo: dbSession.deviceFingerprint
@@ -1270,4 +1208,3 @@ export class SessionManagementService {
     return 'critical';
   }
 }
-

@@ -3,16 +3,16 @@
  * Implements TOTP, SMS, email, and WebAuthn MFA with risk-based triggering
  */
 
+import { User } from '@company/shared/entities/user';
 import { Logger } from 'winston';
-import { User } from "@company/shared"entities/user';
-import { SecureIdGenerator } from '../../infrastructure/security/secure-id-generator.service';
-import { SecureTokenGenerator } from '../../infrastructure/security/secure-token-generator.service';
-import { TOTPService } from '../../infrastructure/security/totp.service';
-import { SMSService } from '../../infrastructure/security/sms.service';
-import { EmailMFAService } from '../../infrastructure/security/email-mfa.service';
-import { WebAuthnService } from '../../infrastructure/security/webauthn.service';
 import { MFAChallengeRepository } from '../../infrastructure/database/repositories/mfa-challenge.repository';
 import { PrismaUserRepository } from '../../infrastructure/database/repositories/prisma-user-repository';
+import { EmailMFAService } from '../../infrastructure/security/email-mfa.service';
+import { SecureIdGenerator } from '../../infrastructure/security/secure-id-generator.service';
+import { SecureTokenGenerator } from '../../infrastructure/security/secure-token-generator.service';
+import { SMSService } from '../../infrastructure/security/sms.service';
+import { TOTPService } from '../../infrastructure/security/totp.service';
+import { WebAuthnService } from '../../infrastructure/security/webauthn.service';
 
 export interface MFASetupResult {
   success: boolean;
@@ -26,17 +26,21 @@ export interface MFAVerificationResult {
   success: boolean;
   user?: User | undefined;
   backupCodeUsed?: boolean | undefined;
-  tokens?: {
-    accessToken: string;
-    refreshToken: string;
-    expiresIn: number;
-    tokenType: string;
-  } | undefined;
-  session?: {
-    id: string;
-    expiresAt: string;
-    deviceInfo: any;
-  } | undefined;
+  tokens?:
+    | {
+        accessToken: string;
+        refreshToken: string;
+        expiresIn: number;
+        tokenType: string;
+      }
+    | undefined;
+  session?:
+    | {
+        id: string;
+        expiresAt: string;
+        deviceInfo: any;
+      }
+    | undefined;
   riskScore?: number | undefined;
   error?: MFAError | undefined;
 }
@@ -382,10 +386,7 @@ export class MFAService {
       }
 
       // Generate TOTP secret and setup
-      const totpSetup = await this.totpService.generateSecret(
-        user.email,
-        serviceName
-      );
+      const totpSetup = await this.totpService.generateSecret(user.email, serviceName);
 
       // Generate backup codes
       const backupCodes = SecureTokenGenerator.generateBackupCodes(10);
@@ -430,10 +431,7 @@ export class MFAService {
   /**
    * Verify TOTP code and enable MFA
    */
-  async verifyTOTP(
-    userId: string,
-    code: string
-  ): Promise<MFAVerificationResult> {
+  async verifyTOTP(userId: string, code: string): Promise<MFAVerificationResult> {
     const correlationId = SecureIdGenerator.generateCorrelationId();
 
     try {
@@ -458,7 +456,7 @@ export class MFAService {
       // Check if it's a backup code
       if (code.length > 6 && user.backupCodes.includes(code)) {
         // Use backup code
-        const updatedBackupCodes = user.backupCodes.filter((c) => c !== code);
+        const updatedBackupCodes = user.backupCodes.filter(c => c !== code);
         await this.userRepository.updateUser(userId, {
           backupCodes: updatedBackupCodes,
           mfaEnabled: true,
@@ -479,10 +477,7 @@ export class MFAService {
       }
 
       // Verify TOTP code
-      const verificationResult = await this.totpService.verifyToken(
-        user.totpSecret,
-        code
-      );
+      const verificationResult = await this.totpService.verifyToken(user.totpSecret, code);
       if (!verificationResult.valid) {
         this.logger.warn('TOTP verification failed', {
           correlationId,
@@ -548,8 +543,7 @@ export class MFAService {
 
       // Generate 6-digit code
       const code = SecureTokenGenerator.generateOTP(6);
-      const challengeId =
-        request.challengeId || SecureIdGenerator.generateSecureId();
+      const challengeId = request.challengeId || SecureIdGenerator.generateSecureId();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
       // Store challenge
@@ -567,10 +561,7 @@ export class MFAService {
       });
 
       // Send SMS
-      const smsResult = await this.smsService.sendMFACode(
-        request.phoneNumber,
-        code
-      );
+      const smsResult = await this.smsService.sendMFACode(request.phoneNumber, code);
       if (!smsResult.success) {
         return {
           success: false,
@@ -613,10 +604,7 @@ export class MFAService {
   /**
    * Verify SMS-based MFA code
    */
-  async verifySMSCode(
-    challengeId: string,
-    code: string
-  ): Promise<MFAVerificationResult> {
+  async verifySMSCode(challengeId: string, code: string): Promise<MFAVerificationResult> {
     const correlationId = SecureIdGenerator.generateCorrelationId();
 
     try {
@@ -743,8 +731,7 @@ export class MFAService {
 
       // Generate 6-digit code
       const code = SecureTokenGenerator.generateOTP(6);
-      const challengeId =
-        request.challengeId || SecureIdGenerator.generateSecureId();
+      const challengeId = request.challengeId || SecureIdGenerator.generateSecureId();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
       // Store challenge
@@ -762,10 +749,7 @@ export class MFAService {
       });
 
       // Send email
-      const emailResult = await this.emailMFAService.sendMFACode(
-        request.email,
-        code
-      );
+      const emailResult = await this.emailMFAService.sendMFACode(request.email, code);
       if (!emailResult.success) {
         return {
           success: false,
@@ -808,10 +792,7 @@ export class MFAService {
   /**
    * Verify email-based MFA code
    */
-  async verifyEmailCode(
-    challengeId: string,
-    code: string
-  ): Promise<MFAVerificationResult> {
+  async verifyEmailCode(challengeId: string, code: string): Promise<MFAVerificationResult> {
     const correlationId = SecureIdGenerator.generateCorrelationId();
 
     try {
@@ -926,7 +907,11 @@ export class MFAService {
    */
   async registerWebAuthn(
     request: WebAuthnRegistrationRequest
-  ): Promise<{ success: boolean; credentialId?: string | undefined; error?: MFAError | undefined }> {
+  ): Promise<{
+    success: boolean;
+    credentialId?: string | undefined;
+    error?: MFAError | undefined;
+  }> {
     const correlationId = SecureIdGenerator.generateCorrelationId();
 
     try {
@@ -986,9 +971,7 @@ export class MFAService {
   /**
    * Verify WebAuthn authentication
    */
-  async verifyWebAuthn(
-    request: WebAuthnAuthenticationRequest
-  ): Promise<MFAVerificationResult> {
+  async verifyWebAuthn(request: WebAuthnAuthenticationRequest): Promise<MFAVerificationResult> {
     const correlationId = SecureIdGenerator.generateCorrelationId();
 
     try {
@@ -1000,9 +983,7 @@ export class MFAService {
       });
 
       // Get challenge
-      const challenge = await this.challengeRepository.findById(
-        request.challengeId
-      );
+      const challenge = await this.challengeRepository.findById(request.challengeId);
       if (!challenge) {
         return {
           success: false,
@@ -1014,7 +995,8 @@ export class MFAService {
       }
 
       // Verify with WebAuthn service
-      const expectedChallenge = (challenge.metadata as { challenge?: string } | undefined)?.challenge;
+      const expectedChallenge = (challenge.metadata as { challenge?: string } | undefined)
+        ?.challenge;
       if (!expectedChallenge) {
         return {
           success: false,
@@ -1168,9 +1150,7 @@ export class MFAService {
   /**
    * Disable MFA for a user
    */
-  async disableMFA(
-    userId: string
-  ): Promise<{ success: boolean; error?: MFAError }> {
+  async disableMFA(userId: string): Promise<{ success: boolean; error?: MFAError }> {
     const correlationId = SecureIdGenerator.generateCorrelationId();
 
     try {
@@ -1266,8 +1246,7 @@ export class MFAService {
       const methods: string[] = [];
       if (user.totpSecret) methods.push('totp');
 
-      const webAuthnCredentials =
-        await this.webAuthnService.getUserCredentials(userId);
+      const webAuthnCredentials = await this.webAuthnService.getUserCredentials(userId);
       if (webAuthnCredentials.length > 0) methods.push('webauthn');
 
       // SMS and email are always available as fallback methods
@@ -1303,4 +1282,3 @@ export class MFAService {
     return user as User;
   }
 }
-

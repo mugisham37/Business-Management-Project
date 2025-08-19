@@ -202,6 +202,24 @@ jobs:
           head: HEAD
           extra_args: --debug --only-verified
 
+      - name: Run Semgrep for secret detection
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/owasp-top-ten
+            p/nodejs
+            p/typescript
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      - name: Upload Semgrep results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+
   # License Compliance
   license-check:
     name: License Compliance Check

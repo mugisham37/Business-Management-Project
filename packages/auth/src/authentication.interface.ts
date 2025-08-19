@@ -3,9 +3,8 @@
  * Defines the contract for authentication operations
  */
 
-import { User } from "@company/shared"entities/user';
-import { Session } from "@company/shared"entities/session';
-import { DeviceInfo } from "@company/shared"entities/user';
+import { Session } from '@company/shared/entities/session';
+import { DeviceInfo, User } from '@company/shared/entities/user';
 import { TokenPair } from '../../infrastructure/security/jwt-token.service';
 import { RiskAssessment } from '../../infrastructure/security/types';
 
@@ -82,4 +81,3 @@ export interface IAuthenticationService {
    */
   logout(sessionId: string): Promise<void>;
 }
-

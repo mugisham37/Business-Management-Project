@@ -3,20 +3,20 @@
  * Provides permission checking and authorization functionality
  */
 
+import { Permission } from '@company/shared/entities/permission';
+import { Role } from '@company/shared/entities/role';
 import { Logger } from 'winston';
-import { Permission } from "@company/shared"entities/permission';
-import { Role } from "@company/shared"entities/role';
-import { PrismaUserRepository } from '../../infrastructure/database/repositories/prisma-user-repository';
-import { PrismaRoleRepository } from '../../infrastructure/database/repositories/prisma-role-repository';
 import { PrismaPermissionRepository } from '../../infrastructure/database/repositories/prisma-permission-repository';
+import { PrismaRoleRepository } from '../../infrastructure/database/repositories/prisma-role-repository';
+import { PrismaUserRepository } from '../../infrastructure/database/repositories/prisma-user-repository';
 import {
-  IAuthorizationService,
   AuthorizationContext,
   AuthorizationRequest,
   AuthorizationResult,
-  RoleBasedCheck,
+  IAuthorizationService,
   PermissionBasedCheck,
   ResourceAccessCheck,
+  RoleBasedCheck,
 } from '../interfaces/authorization.interface';
 
 export class AuthorizationService implements IAuthorizationService {
@@ -71,9 +71,7 @@ export class AuthorizationService implements IAuthorizationService {
 
       // Check if any permission matches
       for (const permission of userPermissions) {
-        if (
-          permission.matches(request.resource, request.action, request.context)
-        ) {
+        if (permission.matches(request.resource, request.action, request.context)) {
           result.matchedPermissions.push(permission);
         }
       }
@@ -81,9 +79,9 @@ export class AuthorizationService implements IAuthorizationService {
       // Determine if access is allowed
       if (request.requireAll) {
         // All required permissions must match
-        result.allowed = result.requiredPermissions.every((reqPerm) =>
+        result.allowed = result.requiredPermissions.every(reqPerm =>
           result.matchedPermissions.some(
-            (matched) =>
+            matched =>
               matched.name === reqPerm ||
               matched.matches(request.resource, request.action, request.context)
           )
@@ -96,10 +94,7 @@ export class AuthorizationService implements IAuthorizationService {
       // Set missing permissions
       if (!result.allowed) {
         result.missingPermissions = result.requiredPermissions.filter(
-          (reqPerm) =>
-            !result.matchedPermissions.some(
-              (matched) => matched.name === reqPerm
-            )
+          reqPerm => !result.matchedPermissions.some(matched => matched.name === reqPerm)
         );
         result.reason = `Missing required permissions: ${result.missingPermissions.join(', ')}`;
       }
@@ -166,19 +161,12 @@ export class AuthorizationService implements IAuthorizationService {
     }
   }
 
-  async hasRole(
-    context: AuthorizationContext,
-    roleCheck: RoleBasedCheck
-  ): Promise<boolean> {
+  async hasRole(context: AuthorizationContext, roleCheck: RoleBasedCheck): Promise<boolean> {
     try {
       if (roleCheck.requireAll) {
-        return roleCheck.requiredRoles.every((role) =>
-          context.roles.includes(role)
-        );
+        return roleCheck.requiredRoles.every(role => context.roles.includes(role));
       } else {
-        return roleCheck.requiredRoles.some((role) =>
-          context.roles.includes(role)
-        );
+        return roleCheck.requiredRoles.some(role => context.roles.includes(role));
       }
     } catch (error) {
       this.logger.error('Failed to check role', { error, context, roleCheck });
@@ -186,17 +174,11 @@ export class AuthorizationService implements IAuthorizationService {
     }
   }
 
-  async hasAnyRole(
-    context: AuthorizationContext,
-    roles: string[]
-  ): Promise<boolean> {
+  async hasAnyRole(context: AuthorizationContext, roles: string[]): Promise<boolean> {
     return this.hasRole(context, { requiredRoles: roles, requireAll: false });
   }
 
-  async hasAllRoles(
-    context: AuthorizationContext,
-    roles: string[]
-  ): Promise<boolean> {
+  async hasAllRoles(context: AuthorizationContext, roles: string[]): Promise<boolean> {
     return this.hasRole(context, { requiredRoles: roles, requireAll: true });
   }
 
@@ -206,11 +188,11 @@ export class AuthorizationService implements IAuthorizationService {
   ): Promise<boolean> {
     try {
       if (permissionCheck.requireAll) {
-        return permissionCheck.requiredPermissions.every((permission) =>
+        return permissionCheck.requiredPermissions.every(permission =>
           context.permissions.includes(permission)
         );
       } else {
-        return permissionCheck.requiredPermissions.some((permission) =>
+        return permissionCheck.requiredPermissions.some(permission =>
           context.permissions.includes(permission)
         );
       }
@@ -224,20 +206,14 @@ export class AuthorizationService implements IAuthorizationService {
     }
   }
 
-  async hasAnyPermission(
-    context: AuthorizationContext,
-    permissions: string[]
-  ): Promise<boolean> {
+  async hasAnyPermission(context: AuthorizationContext, permissions: string[]): Promise<boolean> {
     return this.hasPermission(context, {
       requiredPermissions: permissions,
       requireAll: false,
     });
   }
 
-  async hasAllPermissions(
-    context: AuthorizationContext,
-    permissions: string[]
-  ): Promise<boolean> {
+  async hasAllPermissions(context: AuthorizationContext, permissions: string[]): Promise<boolean> {
     return this.hasPermission(context, {
       requiredPermissions: permissions,
       requireAll: true,
@@ -249,23 +225,21 @@ export class AuthorizationService implements IAuthorizationService {
     resourceCheck: ResourceAccessCheck
   ): Promise<AuthorizationResult> {
     try {
-      const requests: AuthorizationRequest[] = resourceCheck.actions.map(
-        (action) => ({
-          resource: resourceCheck.resource,
-          action,
-          context: resourceCheck.context,
-          requireAll: false,
-        })
-      );
+      const requests: AuthorizationRequest[] = resourceCheck.actions.map(action => ({
+        resource: resourceCheck.resource,
+        action,
+        context: resourceCheck.context,
+        requireAll: false,
+      }));
 
       const results = await this.authorizeMultiple(context, requests);
 
       // Combine results
       const combinedResult: AuthorizationResult = {
-        allowed: results.every((r) => r.allowed),
-        matchedPermissions: results.flatMap((r) => r.matchedPermissions),
-        requiredPermissions: results.flatMap((r) => r.requiredPermissions),
-        missingPermissions: results.flatMap((r) => r.missingPermissions),
+        allowed: results.every(r => r.allowed),
+        matchedPermissions: results.flatMap(r => r.matchedPermissions),
+        requiredPermissions: results.flatMap(r => r.requiredPermissions),
+        missingPermissions: results.flatMap(r => r.missingPermissions),
       };
 
       if (!combinedResult.allowed) {
@@ -318,9 +292,7 @@ export class AuthorizationService implements IAuthorizationService {
 
       // Check for admin permissions
       const adminPermissions = ['admin:*', '*:*'];
-      return adminPermissions.some((permission) =>
-        context.permissions.includes(permission)
-      );
+      return adminPermissions.some(permission => context.permissions.includes(permission));
     } catch (error) {
       this.logger.error('Failed to check admin status', { error, context });
       return false;
@@ -345,10 +317,7 @@ export class AuthorizationService implements IAuthorizationService {
     }
   }
 
-  async canManageUser(
-    context: AuthorizationContext,
-    targetUserId: string
-  ): Promise<boolean> {
+  async canManageUser(context: AuthorizationContext, targetUserId: string): Promise<boolean> {
     try {
       // Admins can manage all users
       if (await this.isAdmin(context)) {
@@ -374,10 +343,7 @@ export class AuthorizationService implements IAuthorizationService {
     }
   }
 
-  async canManageRole(
-    context: AuthorizationContext,
-    roleId: string
-  ): Promise<boolean> {
+  async canManageRole(context: AuthorizationContext, roleId: string): Promise<boolean> {
     try {
       // Admins can manage all roles
       if (await this.isAdmin(context)) {
@@ -398,17 +364,10 @@ export class AuthorizationService implements IAuthorizationService {
     }
   }
 
-  async canAssignRole(
-    context: AuthorizationContext,
-    roleId: string
-  ): Promise<boolean> {
+  async canAssignRole(context: AuthorizationContext, roleId: string): Promise<boolean> {
     try {
       // Check if user can assign roles in general
-      const canAssignRoles = await this.canPerformAction(
-        context,
-        'roles',
-        'assign'
-      );
+      const canAssignRoles = await this.canPerformAction(context, 'roles', 'assign');
       if (!canAssignRoles) {
         return false;
       }
@@ -422,9 +381,7 @@ export class AuthorizationService implements IAuthorizationService {
       }
 
       // Get highest user role level
-      const userMaxLevel = Math.max(
-        ...userRoles.map((role) => (role as any).getHierarchyLevel())
-      );
+      const userMaxLevel = Math.max(...userRoles.map(role => (role as any).getHierarchyLevel()));
       const targetRoleLevel = (targetRole as any).getHierarchyLevel();
 
       return userMaxLevel > targetRoleLevel;
@@ -438,10 +395,7 @@ export class AuthorizationService implements IAuthorizationService {
     }
   }
 
-  async canRevokeRole(
-    context: AuthorizationContext,
-    roleId: string
-  ): Promise<boolean> {
+  async canRevokeRole(context: AuthorizationContext, roleId: string): Promise<boolean> {
     try {
       // Same logic as assign role
       return await this.canAssignRole(context, roleId);
@@ -458,13 +412,11 @@ export class AuthorizationService implements IAuthorizationService {
   async getAssignableRoles(context: AuthorizationContext): Promise<Role[]> {
     try {
       const userRoles = await this.getUserRoles(context.userId);
-      const userMaxLevel = Math.max(
-        ...userRoles.map((role) => (role as any).getHierarchyLevel())
-      );
+      const userMaxLevel = Math.max(...userRoles.map(role => (role as any).getHierarchyLevel()));
 
       const allRoles = await this.roleRepository.findMany({});
 
-      return allRoles.roles.filter((role) => {
+      return allRoles.roles.filter(role => {
         const roleLevel = (role as any).getHierarchyLevel();
         return roleLevel < userMaxLevel && (role as any).canBeAssigned();
       }) as Role[];
@@ -479,7 +431,7 @@ export class AuthorizationService implements IAuthorizationService {
     context: Record<string, any>
   ): Promise<Permission[]> {
     try {
-      return permissions.filter((permission) => {
+      return permissions.filter(permission => {
         if (!permission.conditions) {
           return true; // No conditions means always valid
         }
@@ -526,9 +478,7 @@ export class AuthorizationService implements IAuthorizationService {
       // Check risk score
       if (context.riskScore && context.riskScore > 75) {
         issues.push('High risk score detected');
-        recommendations.push(
-          'Review user activity and consider additional authentication'
-        );
+        recommendations.push('Review user activity and consider additional authentication');
       }
 
       return {
@@ -660,13 +610,11 @@ export class AuthorizationService implements IAuthorizationService {
   }
 
   private async getUserPermissions(userId: string): Promise<Permission[]> {
-    const permissionNames =
-      await this.userRepository.getUserPermissions(userId);
+    const permissionNames = await this.userRepository.getUserPermissions(userId);
     const permissions: Permission[] = [];
 
     for (const permissionName of permissionNames) {
-      const permission =
-        await this.permissionRepository.findByName(permissionName);
+      const permission = await this.permissionRepository.findByName(permissionName);
       if (permission) {
         permissions.push(permission);
       }
@@ -684,9 +632,7 @@ export class AuthorizationService implements IAuthorizationService {
     return userWithRelations.roles.map((userRole: any) => userRole.role);
   }
 
-  private async buildAuthorizationContext(
-    userId: string
-  ): Promise<AuthorizationContext> {
+  private async buildAuthorizationContext(userId: string): Promise<AuthorizationContext> {
     const userWithRelations = await this.userRepository.findById(userId, true);
     if (!userWithRelations) {
       throw new Error('User not found');
@@ -715,14 +661,10 @@ export class AuthorizationService implements IAuthorizationService {
     for (const permission of permissions) {
       if (permission.conditions) {
         // This is a simplified validation - in reality, you'd use the permission's condition matching
-        for (const [key, expectedValue] of Object.entries(
-          permission.conditions
-        )) {
+        for (const [key, expectedValue] of Object.entries(permission.conditions)) {
           const actualValue = context[key];
           if (actualValue !== expectedValue) {
-            failedConditions.push(
-              `${key}: expected ${expectedValue}, got ${actualValue}`
-            );
+            failedConditions.push(`${key}: expected ${expectedValue}, got ${actualValue}`);
           }
         }
       }
@@ -734,10 +676,7 @@ export class AuthorizationService implements IAuthorizationService {
     };
   }
 
-  private generateCacheKey(
-    context: AuthorizationContext,
-    request: AuthorizationRequest
-  ): string {
+  private generateCacheKey(context: AuthorizationContext, request: AuthorizationRequest): string {
     return `${context.userId}:${request.resource}:${request.action}:${JSON.stringify(request.context || {})}`;
   }
 
@@ -760,4 +699,3 @@ export class AuthorizationService implements IAuthorizationService {
     }
   }
 }
-

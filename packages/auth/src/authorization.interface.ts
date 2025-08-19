@@ -3,8 +3,8 @@
  * Defines permission checking and authorization middleware functionality
  */
 
-import { Permission } from "@company/shared"entities/permission';
-import { Role } from "@company/shared"entities/role';
+import { Permission } from '@company/shared/entities/permission';
+import { Role } from '@company/shared/entities/role';
 
 export interface AuthorizationContext {
   userId: string;
@@ -65,10 +65,7 @@ export interface IAuthorizationService {
   ): Promise<AuthorizationResult[]>;
 
   // Role-based authorization
-  hasRole(
-    context: AuthorizationContext,
-    roleCheck: RoleBasedCheck
-  ): Promise<boolean>;
+  hasRole(context: AuthorizationContext, roleCheck: RoleBasedCheck): Promise<boolean>;
   hasAnyRole(context: AuthorizationContext, roles: string[]): Promise<boolean>;
   hasAllRoles(context: AuthorizationContext, roles: string[]): Promise<boolean>;
 
@@ -77,14 +74,8 @@ export interface IAuthorizationService {
     context: AuthorizationContext,
     permissionCheck: PermissionBasedCheck
   ): Promise<boolean>;
-  hasAnyPermission(
-    context: AuthorizationContext,
-    permissions: string[]
-  ): Promise<boolean>;
-  hasAllPermissions(
-    context: AuthorizationContext,
-    permissions: string[]
-  ): Promise<boolean>;
+  hasAnyPermission(context: AuthorizationContext, permissions: string[]): Promise<boolean>;
+  hasAllPermissions(context: AuthorizationContext, permissions: string[]): Promise<boolean>;
 
   // Resource-based authorization
   canAccessResource(
@@ -101,24 +92,12 @@ export interface IAuthorizationService {
   // Administrative checks
   isAdmin(context: AuthorizationContext): Promise<boolean>;
   isSuperAdmin(context: AuthorizationContext): Promise<boolean>;
-  canManageUser(
-    context: AuthorizationContext,
-    targetUserId: string
-  ): Promise<boolean>;
-  canManageRole(
-    context: AuthorizationContext,
-    roleId: string
-  ): Promise<boolean>;
+  canManageUser(context: AuthorizationContext, targetUserId: string): Promise<boolean>;
+  canManageRole(context: AuthorizationContext, roleId: string): Promise<boolean>;
 
   // Hierarchical authorization
-  canAssignRole(
-    context: AuthorizationContext,
-    roleId: string
-  ): Promise<boolean>;
-  canRevokeRole(
-    context: AuthorizationContext,
-    roleId: string
-  ): Promise<boolean>;
+  canAssignRole(context: AuthorizationContext, roleId: string): Promise<boolean>;
+  canRevokeRole(context: AuthorizationContext, roleId: string): Promise<boolean>;
   getAssignableRoles(context: AuthorizationContext): Promise<Role[]>;
 
   // Context-aware authorization
@@ -161,4 +140,3 @@ export interface IAuthorizationService {
     }>
   >;
 }
-

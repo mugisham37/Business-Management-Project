@@ -3,16 +3,16 @@
  * Provides role-based access control with hierarchical permissions
  */
 
+import { Permission } from '@company/shared/entities/permission';
 import { Logger } from 'winston';
-import { Permission } from "@company/shared"entities/permission';
-import { PrismaRoleRepository } from '../../infrastructure/database/repositories/prisma-role-repository';
 import { PrismaPermissionRepository } from '../../infrastructure/database/repositories/prisma-permission-repository';
+import { PrismaRoleRepository } from '../../infrastructure/database/repositories/prisma-role-repository';
 import {
-  IRoleManagementService,
   CreateRoleData,
-  UpdateRoleData,
+  IRoleManagementService,
   RoleFilters,
   RoleHierarchy,
+  UpdateRoleData,
 } from '../interfaces/role-management.interface';
 import { RoleWithPermissions } from '../interfaces/role-repository.interface';
 
@@ -23,10 +23,7 @@ export class RoleManagementService implements IRoleManagementService {
     private logger: Logger
   ) {}
 
-  async createRole(
-    data: CreateRoleData,
-    createdBy?: string
-  ): Promise<RoleWithPermissions> {
+  async createRole(data: CreateRoleData, createdBy?: string): Promise<RoleWithPermissions> {
     try {
       this.logger.info('Creating new role', { name: data.name, createdBy });
 
@@ -34,11 +31,11 @@ export class RoleManagementService implements IRoleManagementService {
       const roleData: { name: string; description?: string } = {
         name: data.name,
       };
-      
+
       if (data.description !== undefined) {
         roleData.description = data.description;
       }
-      
+
       const role = await this.roleRepository.create(roleData);
 
       // Add permissions if specified
@@ -46,8 +43,7 @@ export class RoleManagementService implements IRoleManagementService {
       if (data.permissions && data.permissions.length > 0) {
         for (const permissionId of data.permissions) {
           await this.roleRepository.addPermission(role.id, permissionId);
-          const permission =
-            await this.permissionRepository.findById(permissionId);
+          const permission = await this.permissionRepository.findById(permissionId);
           if (permission) {
             permissions.push(permission);
           }
@@ -70,10 +66,7 @@ export class RoleManagementService implements IRoleManagementService {
     }
   }
 
-  async getRoleById(
-    id: string,
-    includePermissions = true
-  ): Promise<RoleWithPermissions | null> {
+  async getRoleById(id: string, includePermissions = true): Promise<RoleWithPermissions | null> {
     try {
       return await this.roleRepository.findById(id, includePermissions);
     } catch (error) {
@@ -135,9 +128,7 @@ export class RoleManagementService implements IRoleManagementService {
       // Check if role is in use
       const userCount = await this.roleRepository.getUserCount(id);
       if (userCount > 0) {
-        throw new Error(
-          `Cannot delete role: ${userCount} users are assigned to this role`
-        );
+        throw new Error(`Cannot delete role: ${userCount} users are assigned to this role`);
       }
 
       await this.roleRepository.delete(id);
@@ -149,9 +140,7 @@ export class RoleManagementService implements IRoleManagementService {
     }
   }
 
-  async getRoles(
-    filters: RoleFilters
-  ): Promise<{ roles: RoleWithPermissions[]; total: number }> {
+  async getRoles(filters: RoleFilters): Promise<{ roles: RoleWithPermissions[]; total: number }> {
     try {
       return await this.roleRepository.findMany(filters);
     } catch (error) {
@@ -169,11 +158,7 @@ export class RoleManagementService implements IRoleManagementService {
     }
   }
 
-  async addPermissionToRole(
-    roleId: string,
-    permissionId: string,
-    addedBy?: string
-  ): Promise<void> {
+  async addPermissionToRole(roleId: string, permissionId: string, addedBy?: string): Promise<void> {
     try {
       this.logger.info('Adding permission to role', {
         roleId,
@@ -182,10 +167,7 @@ export class RoleManagementService implements IRoleManagementService {
       });
 
       // Check if permission already exists
-      const hasPermission = await this.roleRepository.hasPermission(
-        roleId,
-        permissionId
-      );
+      const hasPermission = await this.roleRepository.hasPermission(roleId, permissionId);
       if (hasPermission) {
         throw new Error('Permission already assigned to role');
       }
@@ -250,7 +232,7 @@ export class RoleManagementService implements IRoleManagementService {
       const hierarchyData = await this.roleRepository.getRoleHierarchy();
 
       // Convert to RoleHierarchy structure
-      const hierarchies: RoleHierarchy[] = hierarchyData.map((item) => ({
+      const hierarchies: RoleHierarchy[] = hierarchyData.map(item => ({
         role: item.role,
         level: item.level,
         children: [], // Would be populated based on actual hierarchy relationships
@@ -275,14 +257,14 @@ export class RoleManagementService implements IRoleManagementService {
       let filteredRoles = allRoles.roles;
 
       if (minLevel !== undefined) {
-        filteredRoles = filteredRoles.filter((role) => {
+        filteredRoles = filteredRoles.filter(role => {
           const roleEntity = role as any;
           return roleEntity.getHierarchyLevel() >= minLevel;
         });
       }
 
       if (maxLevel !== undefined) {
-        filteredRoles = filteredRoles.filter((role) => {
+        filteredRoles = filteredRoles.filter(role => {
           const roleEntity = role as any;
           return roleEntity.getHierarchyLevel() <= maxLevel;
         });
@@ -299,10 +281,7 @@ export class RoleManagementService implements IRoleManagementService {
     }
   }
 
-  async canRoleBeAssignedBy(
-    roleId: string,
-    assignerRoleIds: string[]
-  ): Promise<boolean> {
+  async canRoleBeAssignedBy(roleId: string, assignerRoleIds: string[]): Promise<boolean> {
     try {
       const role = await this.roleRepository.findById(roleId, true);
       if (!role) return false;
@@ -311,10 +290,7 @@ export class RoleManagementService implements IRoleManagementService {
       if (await this.roleRepository.isSystemRole(roleId)) {
         // Check if assigner has admin role
         for (const assignerRoleId of assignerRoleIds) {
-          const assignerRole = await this.roleRepository.findById(
-            assignerRoleId,
-            true
-          );
+          const assignerRole = await this.roleRepository.findById(assignerRoleId, true);
           if (assignerRole && (assignerRole as any).isAdminRole()) {
             return true;
           }
@@ -326,10 +302,7 @@ export class RoleManagementService implements IRoleManagementService {
       const roleLevel = (role as any).getHierarchyLevel();
 
       for (const assignerRoleId of assignerRoleIds) {
-        const assignerRole = await this.roleRepository.findById(
-          assignerRoleId,
-          true
-        );
+        const assignerRole = await this.roleRepository.findById(assignerRoleId, true);
         if (assignerRole) {
           const assignerLevel = (assignerRole as any).getHierarchyLevel();
           if (assignerLevel > roleLevel) {
@@ -446,4 +419,3 @@ export class RoleManagementService implements IRoleManagementService {
     }
   }
 }
-

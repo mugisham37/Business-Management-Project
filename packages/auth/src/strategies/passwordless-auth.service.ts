@@ -4,17 +4,14 @@
  * biometric authentication support, and fallback mechanisms
  */
 
+import { DeviceInfo, User } from '@company/shared/entities/user';
 import { Logger } from 'winston';
-import { User } from "@company/shared"entities/user';
-import { SecureIdGenerator } from '../../infrastructure/security/secure-id-generator.service';
-import { SecureTokenGenerator } from '../../infrastructure/security/secure-token-generator.service';
-import {
-  WebAuthnService,
-} from '../../infrastructure/security/webauthn.service';
 import { MFAChallengeRepository } from '../../infrastructure/database/repositories/mfa-challenge.repository';
 import { PrismaUserRepository } from '../../infrastructure/database/repositories/prisma-user-repository';
 import { EmailMFAService } from '../../infrastructure/security/email-mfa.service';
-import { DeviceInfo } from "@company/shared"entities/user';
+import { SecureIdGenerator } from '../../infrastructure/security/secure-id-generator.service';
+import { SecureTokenGenerator } from '../../infrastructure/security/secure-token-generator.service';
+import { WebAuthnService } from '../../infrastructure/security/webauthn.service';
 
 export interface PasswordlessAuthRequest {
   email: string;
@@ -151,14 +148,11 @@ export class PasswordlessAuthService {
       }
 
       // Check if user has WebAuthn credentials
-      const webAuthnCredentials = await this.webAuthnService.getUserCredentials(
-        user.id
-      );
+      const webAuthnCredentials = await this.webAuthnService.getUserCredentials(user.id);
 
       if (webAuthnCredentials.length > 0) {
         // User has WebAuthn credentials - generate authentication options
-        const authOptions =
-          await this.webAuthnService.generateAuthenticationOptions(user.id);
+        const authOptions = await this.webAuthnService.generateAuthenticationOptions(user.id);
 
         // Store challenge for verification
         const challengeId = SecureIdGenerator.generateSecureId();
@@ -363,10 +357,9 @@ export class PasswordlessAuthService {
       }
 
       // Find challenge by magic token
-      const challenges =
-        await this.challengeRepository.getUserActiveChallenges(''); // We need to search by metadata
+      const challenges = await this.challengeRepository.getUserActiveChallenges(''); // We need to search by metadata
       const challenge = challenges.find(
-        (c) =>
+        c =>
           c.type === 'email' &&
           (c.metadata as any)?.type === 'magic_link' &&
           (c.metadata as any)?.magicToken === token
@@ -409,19 +402,13 @@ export class PasswordlessAuthService {
 
       // Verify device consistency (optional security check)
       const storedDeviceInfo = (challenge.metadata as any)?.deviceInfo;
-      if (
-        storedDeviceInfo &&
-        !this.isDeviceConsistent(storedDeviceInfo, deviceInfo)
-      ) {
-        this.logger.warn(
-          'Device inconsistency detected in magic link verification',
-          {
-            correlationId,
-            userId: user.id,
-            storedDevice: storedDeviceInfo.fingerprint,
-            currentDevice: deviceInfo.fingerprint,
-          }
-        );
+      if (storedDeviceInfo && !this.isDeviceConsistent(storedDeviceInfo, deviceInfo)) {
+        this.logger.warn('Device inconsistency detected in magic link verification', {
+          correlationId,
+          userId: user.id,
+          storedDevice: storedDeviceInfo.fingerprint,
+          currentDevice: deviceInfo.fingerprint,
+        });
 
         // Don't fail, but increase risk score
         // This could be legitimate (user switching devices)
@@ -496,12 +483,11 @@ export class PasswordlessAuthService {
         };
       }
 
-      const registrationOptions =
-        await this.webAuthnService.generateRegistrationOptions(
-          user.id,
-          user.email,
-          user.name ?? undefined
-        );
+      const registrationOptions = await this.webAuthnService.generateRegistrationOptions(
+        user.id,
+        user.email,
+        user.name ?? undefined
+      );
 
       // Store registration challenge
       const challengeId = SecureIdGenerator.generateSecureId();
@@ -592,14 +578,13 @@ export class PasswordlessAuthService {
 
       // Verify registration response
       const metadata = challenge.metadata as any;
-      const verificationResult =
-        await this.webAuthnService.verifyRegistrationResponse(
-          challenge.userId,
-          metadata?.credentialName || 'Passwordless Device',
-          registrationResponse,
-          metadata?.challenge,
-          metadata?.origin
-        );
+      const verificationResult = await this.webAuthnService.verifyRegistrationResponse(
+        challenge.userId,
+        metadata?.credentialName || 'Passwordless Device',
+        registrationResponse,
+        metadata?.challenge,
+        metadata?.origin
+      );
 
       if (!verificationResult.success) {
         await this.challengeRepository.incrementAttempts(challengeId);
@@ -696,12 +681,11 @@ export class PasswordlessAuthService {
 
       // Verify authentication response
       const authMetadata = challenge.metadata as any;
-      const verificationResult =
-        await this.webAuthnService.verifyAuthenticationResponse(
-          authenticationResponse,
-          authMetadata?.challenge,
-          authMetadata?.origin
-        );
+      const verificationResult = await this.webAuthnService.verifyAuthenticationResponse(
+        authenticationResponse,
+        authMetadata?.challenge,
+        authMetadata?.origin
+      );
 
       if (!verificationResult.success) {
         await this.challengeRepository.incrementAttempts(challengeId);
@@ -778,9 +762,7 @@ export class PasswordlessAuthService {
   /**
    * Initiate biometric authentication (through WebAuthn)
    */
-  async initiateBiometricAuth(
-    request: BiometricAuthRequest
-  ): Promise<BiometricAuthResult> {
+  async initiateBiometricAuth(request: BiometricAuthRequest): Promise<BiometricAuthResult> {
     const correlationId = SecureIdGenerator.generateCorrelationId();
 
     try {
@@ -792,11 +774,9 @@ export class PasswordlessAuthService {
       });
 
       // Get user's WebAuthn credentials that support biometrics
-      const webAuthnCredentials = await this.webAuthnService.getUserCredentials(
-        request.userId
-      );
+      const webAuthnCredentials = await this.webAuthnService.getUserCredentials(request.userId);
       const biometricCredentials = webAuthnCredentials.filter(
-        (cred) =>
+        cred =>
           cred.deviceType === 'platform' || // Platform authenticators typically support biometrics
           cred.name.toLowerCase().includes('biometric') ||
           cred.name.toLowerCase().includes(request.biometricType)
@@ -814,10 +794,7 @@ export class PasswordlessAuthService {
       }
 
       // Generate WebAuthn authentication options with biometric preference
-      const authOptions =
-        await this.webAuthnService.generateAuthenticationOptions(
-          request.userId
-        );
+      const authOptions = await this.webAuthnService.generateAuthenticationOptions(request.userId);
 
       // Store challenge for verification
       const challengeId = SecureIdGenerator.generateSecureId();
@@ -877,11 +854,10 @@ export class PasswordlessAuthService {
   async getUserDevices(userId: string): Promise<DeviceRegistration[]> {
     try {
       // Get WebAuthn credentials
-      const webAuthnCredentials =
-        await this.webAuthnService.getUserCredentials(userId);
+      const webAuthnCredentials = await this.webAuthnService.getUserCredentials(userId);
 
       // Convert to device registrations
-      const devices: DeviceRegistration[] = webAuthnCredentials.map((cred) => ({
+      const devices: DeviceRegistration[] = webAuthnCredentials.map(cred => ({
         id: cred.id,
         userId: cred.userId,
         deviceFingerprint: cred.credentialId, // Using credentialId as device fingerprint
@@ -911,10 +887,7 @@ export class PasswordlessAuthService {
       this.logger.info('Removing device', { userId, deviceId });
 
       // Remove WebAuthn credential
-      const removed = await this.webAuthnService.removeCredential(
-        userId,
-        deviceId
-      );
+      const removed = await this.webAuthnService.removeCredential(userId, deviceId);
 
       if (removed) {
         this.logger.info('Device removed successfully', { userId, deviceId });
@@ -998,10 +971,7 @@ export class PasswordlessAuthService {
   /**
    * Update device last used timestamp
    */
-  private async updateDeviceLastUsed(
-    userId: string,
-    deviceFingerprint: string
-  ): Promise<void> {
+  private async updateDeviceLastUsed(userId: string, deviceFingerprint: string): Promise<void> {
     try {
       // This would update the device's last used timestamp
       // For now, this is handled by the WebAuthn service
@@ -1027,11 +997,7 @@ export class PasswordlessAuthService {
       stored.fingerprint === current.fingerprint ||
       (stored.platform === current.platform &&
         stored.browser === current.browser &&
-        Math.abs(
-          (stored.screenResolution || '').localeCompare(
-            current.screenResolution || ''
-          )
-        ) < 2)
+        Math.abs((stored.screenResolution || '').localeCompare(current.screenResolution || '')) < 2)
     );
   }
 
@@ -1053,12 +1019,9 @@ export class PasswordlessAuthService {
 
     const maskedLocal =
       localPart.length > 2
-        ? localPart[0] +
-          '*'.repeat(localPart.length - 2) +
-          localPart[localPart.length - 1]
+        ? localPart[0] + '*'.repeat(localPart.length - 2) + localPart[localPart.length - 1]
         : '*'.repeat(localPart.length);
 
     return `${maskedLocal}@${domain}`;
   }
 }
-

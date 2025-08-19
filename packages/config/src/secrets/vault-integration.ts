@@ -1,4 +1,3 @@
-
 export interface SecretProvider {
   getSecret(key: string): Promise<string | null>;
   setSecret(key: string, value: string): Promise<void>;
@@ -23,32 +22,63 @@ export interface AWSSecretsManagerConfig {
 // HashiCorp Vault integration
 export class VaultSecretProvider implements SecretProvider {
   private config: VaultConfig;
+  private vaultClient: any;
 
   constructor(config: VaultConfig) {
     this.config = config;
+    this.initializeVaultClient();
+  }
+
+  private async initializeVaultClient() {
+    try {
+      // Dynamic import to avoid bundling node-vault if not used
+      const nodeVault = await import('node-vault');
+
+      this.vaultClient = nodeVault.default({
+        endpoint: this.config.endpoint,
+        token: this.config.token,
+        namespace: this.config.namespace,
+      });
+
+      // Test connection
+      await this.vaultClient.status();
+    } catch (error) {
+      console.error('Failed to initialize Vault client:', error);
+      // Fallback to fetch-based implementation
+      this.vaultClient = null;
+    }
   }
 
   async getSecret(key: string): Promise<string | null> {
     try {
-      const response = await fetch(
-        `${this.config.endpoint}/v1/${this.config.mountPath || 'secret'}/data/${key}`,
-        {
-          headers: {
-            'X-Vault-Token': this.config.token,
-            'X-Vault-Namespace': this.config.namespace || '',
-          },
-        }
-      );
+      if (this.vaultClient) {
+        // Use node-vault client
+        const result = await this.vaultClient.read(
+          `${this.config.mountPath || 'secret'}/data/${key}`
+        );
+        return result.data?.data?.value || null;
+      } else {
+        // Fallback to fetch
+        const response = await fetch(
+          `${this.config.endpoint}/v1/${this.config.mountPath || 'secret'}/data/${key}`,
+          {
+            headers: {
+              'X-Vault-Token': this.config.token,
+              ...(this.config.namespace && { 'X-Vault-Namespace': this.config.namespace }),
+            },
+          }
+        );
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          return null;
+        if (!response.ok) {
+          if (response.status === 404) {
+            return null;
+          }
+          throw new Error(`Vault API error: ${response.statusText}`);
         }
-        throw new Error(`Vault API error: ${response.statusText}`);
+
+        const data = await response.json();
+        return data.data?.data?.value || null;
       }
-
-      const data = await response.json();
-      return data.data?.data?.value || null;
     } catch (error) {
       console.error('Error retrieving secret from Vault:', error);
       throw error;
@@ -131,18 +161,58 @@ export class VaultSecretProvider implements SecretProvider {
 // AWS Secrets Manager integration
 export class AWSSecretsManagerProvider implements SecretProvider {
   private config: AWSSecretsManagerConfig;
+  private client: any; // SecretsManagerClient
 
   constructor(config: AWSSecretsManagerConfig) {
     this.config = config;
+    this.initializeClient();
+  }
+
+  private async initializeClient() {
+    try {
+      // Dynamic import to avoid bundling AWS SDK if not used
+      const { SecretsManagerClient } = await import('@aws-sdk/client-secrets-manager');
+      const { fromEnv, fromIni } = await import('@aws-sdk/credential-providers');
+
+      let credentials;
+      if (this.config.accessKeyId && this.config.secretAccessKey) {
+        credentials = {
+          accessKeyId: this.config.accessKeyId,
+          secretAccessKey: this.config.secretAccessKey,
+          ...(this.config.sessionToken && { sessionToken: this.config.sessionToken }),
+        };
+      } else {
+        // Use default credential chain (environment, IAM role, etc.)
+        credentials = fromEnv() || fromIni();
+      }
+
+      this.client = new SecretsManagerClient({
+        region: this.config.region,
+        credentials,
+      });
+    } catch (error) {
+      console.error('Failed to initialize AWS Secrets Manager client:', error);
+      throw new Error('AWS Secrets Manager client initialization failed');
+    }
   }
 
   async getSecret(key: string): Promise<string | null> {
     try {
-      // This would typically use AWS SDK
-      // For now, we'll provide a mock implementation
-      console.warn('AWS Secrets Manager integration requires AWS SDK implementation');
-      return null;
-    } catch (error) {
+      if (!this.client) {
+        await this.initializeClient();
+      }
+
+      const { GetSecretValueCommand } = await import('@aws-sdk/client-secrets-manager');
+      const command = new GetSecretValueCommand({
+        SecretId: key,
+      });
+
+      const response = await this.client.send(command);
+      return response.SecretString || null;
+    } catch (error: any) {
+      if (error.name === 'ResourceNotFoundException') {
+        return null;
+      }
       console.error('Error retrieving secret from AWS Secrets Manager:', error);
       throw error;
     }
@@ -150,8 +220,34 @@ export class AWSSecretsManagerProvider implements SecretProvider {
 
   async setSecret(key: string, value: string): Promise<void> {
     try {
-      // This would typically use AWS SDK
-      console.warn('AWS Secrets Manager integration requires AWS SDK implementation');
+      if (!this.client) {
+        await this.initializeClient();
+      }
+
+      const { CreateSecretCommand, UpdateSecretCommand } = await import(
+        '@aws-sdk/client-secrets-manager'
+      );
+
+      // Try to update first, create if it doesn't exist
+      try {
+        const updateCommand = new UpdateSecretCommand({
+          SecretId: key,
+          SecretString: value,
+        });
+        await this.client.send(updateCommand);
+      } catch (error: any) {
+        if (error.name === 'ResourceNotFoundException') {
+          // Secret doesn't exist, create it
+          const createCommand = new CreateSecretCommand({
+            Name: key,
+            SecretString: value,
+            Description: `Secret managed by application: ${key}`,
+          });
+          await this.client.send(createCommand);
+        } else {
+          throw error;
+        }
+      }
     } catch (error) {
       console.error('Error storing secret in AWS Secrets Manager:', error);
       throw error;
@@ -160,9 +256,22 @@ export class AWSSecretsManagerProvider implements SecretProvider {
 
   async deleteSecret(key: string): Promise<void> {
     try {
-      // This would typically use AWS SDK
-      console.warn('AWS Secrets Manager integration requires AWS SDK implementation');
-    } catch (error) {
+      if (!this.client) {
+        await this.initializeClient();
+      }
+
+      const { DeleteSecretCommand } = await import('@aws-sdk/client-secrets-manager');
+      const command = new DeleteSecretCommand({
+        SecretId: key,
+        ForceDeleteWithoutRecovery: true,
+      });
+
+      await this.client.send(command);
+    } catch (error: any) {
+      if (error.name === 'ResourceNotFoundException') {
+        // Secret doesn't exist, consider it deleted
+        return;
+      }
       console.error('Error deleting secret from AWS Secrets Manager:', error);
       throw error;
     }
@@ -170,11 +279,35 @@ export class AWSSecretsManagerProvider implements SecretProvider {
 
   async listSecrets(): Promise<string[]> {
     try {
-      // This would typically use AWS SDK
-      console.warn('AWS Secrets Manager integration requires AWS SDK implementation');
-      return [];
+      if (!this.client) {
+        await this.initializeClient();
+      }
+
+      const { ListSecretsCommand } = await import('@aws-sdk/client-secrets-manager');
+      const command = new ListSecretsCommand({});
+
+      const response = await this.client.send(command);
+      return response.SecretList?.map(secret => secret.Name || '') || [];
     } catch (error) {
       console.error('Error listing secrets from AWS Secrets Manager:', error);
+      throw error;
+    }
+  }
+
+  async rotateSecret(key: string): Promise<void> {
+    try {
+      if (!this.client) {
+        await this.initializeClient();
+      }
+
+      const { RotateSecretCommand } = await import('@aws-sdk/client-secrets-manager');
+      const command = new RotateSecretCommand({
+        SecretId: key,
+      });
+
+      await this.client.send(command);
+    } catch (error) {
+      console.error('Error rotating secret in AWS Secrets Manager:', error);
       throw error;
     }
   }
@@ -211,7 +344,7 @@ export class SecretManager {
     // Determine provider based on environment configuration
     const vaultEndpoint = process.env.VAULT_ENDPOINT;
     const vaultToken = process.env.VAULT_TOKEN;
-    
+
     if (vaultEndpoint && vaultToken) {
       return new VaultSecretProvider({
         endpoint: vaultEndpoint,

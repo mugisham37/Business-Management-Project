@@ -3,26 +3,23 @@
  * Implements complex relational queries with caching and optimization
  */
 
+import { Permission } from '@company/shared/entities/permission';
+import { Role } from '@company/shared/entities/role';
+import { ICache } from '@company/shared/types/cache';
 import { PrismaClient } from '@prisma/client';
 import { Logger } from 'winston';
 import { BaseRepository } from '../base/base-repository';
 import { TransactionManager } from '../base/transaction-manager';
-import { ICache } from "@company/shared/types"cache';
+import { ITransactionContext } from '../interfaces/base-repository.interface';
 import {
-  IUserRepository,
   CreateUserData,
+  IUserRepository,
   UpdateUserData,
   UserFilters,
   UserWithRelations,
 } from '../interfaces/user-repository.interface';
-import { ITransactionContext } from '../interfaces/base-repository.interface';
-import { Role } from "@company/shared"entities/role';
-import { Permission } from "@company/shared"entities/permission';
 
-export class PrismaUserRepositoryEnhanced
-  extends BaseRepository
-  implements IUserRepository
-{
+export class PrismaUserRepositoryEnhanced extends BaseRepository implements IUserRepository {
   constructor(
     private prismaClient: PrismaClient,
     logger: Logger,
@@ -61,7 +58,7 @@ export class PrismaUserRepositoryEnhanced
           // Assign roles if provided
           if (roles && roles.length > 0) {
             await context.prisma.userRole.createMany({
-              data: roles.map((roleId) => ({
+              data: roles.map(roleId => ({
                 userId: user.id,
                 roleId,
                 assignedAt: new Date(),
@@ -100,7 +97,7 @@ export class PrismaUserRepositoryEnhanced
     const startTime = Date.now();
 
     try {
-      const result = await this.optimizeQuery(
+      const result = (await this.optimizeQuery(
         () =>
           this.prismaClient.user.findUnique({
             where: { id },
@@ -111,7 +108,7 @@ export class PrismaUserRepositoryEnhanced
           ttl: 3600,
           preferReplica: true,
         }
-      ) as UserWithRelations | null;
+      )) as UserWithRelations | null;
 
       this.recordQuery('findById', Date.now() - startTime, true);
       return result;
@@ -129,7 +126,7 @@ export class PrismaUserRepositoryEnhanced
     const startTime = Date.now();
 
     try {
-      const result = await this.optimizeQuery(
+      const result = (await this.optimizeQuery(
         () =>
           this.prismaClient.user.findUnique({
             where: { email },
@@ -143,7 +140,7 @@ export class PrismaUserRepositoryEnhanced
           ttl: 1800,
           preferReplica: true,
         }
-      ) as UserWithRelations | null;
+      )) as UserWithRelations | null;
 
       this.recordQuery('findByEmail', Date.now() - startTime, true);
       return result;
@@ -154,10 +151,7 @@ export class PrismaUserRepositoryEnhanced
     }
   }
 
-  async findByEmailCached(
-    email: string,
-    ttl: number = 1800
-  ): Promise<UserWithRelations | null> {
+  async findByEmailCached(email: string, ttl: number = 1800): Promise<UserWithRelations | null> {
     return this.findByIdCached(email, ttl);
   }
 
@@ -198,12 +192,14 @@ export class PrismaUserRepositoryEnhanced
     const startTime = Date.now();
 
     try {
-      await this.ensureTransactionManager().withTransaction(async (context: ITransactionContext) => {
-        // Soft delete by marking as inactive or hard delete based on requirements
-        await context.prisma.user.delete({
-          where: { id },
-        });
-      });
+      await this.ensureTransactionManager().withTransaction(
+        async (context: ITransactionContext) => {
+          // Soft delete by marking as inactive or hard delete based on requirements
+          await context.prisma.user.delete({
+            where: { id },
+          });
+        }
+      );
 
       // Invalidate caches
       await this.invalidateUserCaches(id);
@@ -218,59 +214,44 @@ export class PrismaUserRepositoryEnhanced
   }
 
   // Authentication-specific operations
-  async incrementFailedLoginAttempts(
-    userId: string
-  ): Promise<UserWithRelations> {
+  async incrementFailedLoginAttempts(userId: string): Promise<UserWithRelations> {
     const startTime = Date.now();
 
     try {
-      const result = await this.ensureTransactionManager().withTransaction(
-        async (context) => {
-          const user = await context.prisma.user.update({
+      const result = await this.ensureTransactionManager().withTransaction(async context => {
+        const user = await context.prisma.user.update({
+          where: { id: userId },
+          data: {
+            failedLoginAttempts: { increment: 1 },
+            updatedAt: new Date(),
+          },
+          include: this.getDefaultIncludes(),
+        });
+
+        // Auto-lock if too many failed attempts
+        if (user.failedLoginAttempts >= 5) {
+          const lockDuration = Math.pow(2, Math.min(user.failedLoginAttempts - 5, 10)) * 60 * 1000;
+          const lockedUntil = new Date(Date.now() + lockDuration);
+
+          return await context.prisma.user.update({
             where: { id: userId },
             data: {
-              failedLoginAttempts: { increment: 1 },
+              lockedUntil,
               updatedAt: new Date(),
             },
             include: this.getDefaultIncludes(),
           });
-
-          // Auto-lock if too many failed attempts
-          if (user.failedLoginAttempts >= 5) {
-            const lockDuration =
-              Math.pow(2, Math.min(user.failedLoginAttempts - 5, 10)) *
-              60 *
-              1000;
-            const lockedUntil = new Date(Date.now() + lockDuration);
-
-            return await context.prisma.user.update({
-              where: { id: userId },
-              data: {
-                lockedUntil,
-                updatedAt: new Date(),
-              },
-              include: this.getDefaultIncludes(),
-            });
-          }
-
-          return user;
         }
-      );
+
+        return user;
+      });
 
       await this.invalidateUserCaches(userId);
-      this.recordQuery(
-        'incrementFailedLoginAttempts',
-        Date.now() - startTime,
-        true
-      );
+      this.recordQuery('incrementFailedLoginAttempts', Date.now() - startTime, true);
 
       return result;
     } catch (error) {
-      this.recordQuery(
-        'incrementFailedLoginAttempts',
-        Date.now() - startTime,
-        false
-      );
+      this.recordQuery('incrementFailedLoginAttempts', Date.now() - startTime, false);
       this.logger.error('Failed to increment failed login attempts', {
         error,
         userId,
@@ -283,35 +264,25 @@ export class PrismaUserRepositoryEnhanced
     const startTime = Date.now();
 
     try {
-      const result = await this.ensureTransactionManager().withTransaction(
-        async (context) => {
-          return await context.prisma.user.update({
-            where: { id: userId },
-            data: {
-              failedLoginAttempts: 0,
-              lockedUntil: null,
-              lastLoginAt: new Date(),
-              updatedAt: new Date(),
-            },
-            include: this.getDefaultIncludes(),
-          });
-        }
-      );
+      const result = await this.ensureTransactionManager().withTransaction(async context => {
+        return await context.prisma.user.update({
+          where: { id: userId },
+          data: {
+            failedLoginAttempts: 0,
+            lockedUntil: null,
+            lastLoginAt: new Date(),
+            updatedAt: new Date(),
+          },
+          include: this.getDefaultIncludes(),
+        });
+      });
 
       await this.invalidateUserCaches(userId);
-      this.recordQuery(
-        'resetFailedLoginAttempts',
-        Date.now() - startTime,
-        true
-      );
+      this.recordQuery('resetFailedLoginAttempts', Date.now() - startTime, true);
 
       return result;
     } catch (error) {
-      this.recordQuery(
-        'resetFailedLoginAttempts',
-        Date.now() - startTime,
-        false
-      );
+      this.recordQuery('resetFailedLoginAttempts', Date.now() - startTime, false);
       this.logger.error('Failed to reset failed login attempts', {
         error,
         userId,
@@ -320,34 +291,32 @@ export class PrismaUserRepositoryEnhanced
     }
   }
 
-  async lockUser(
-    userId: string,
-    reason: string,
-    lockedBy?: string
-  ): Promise<void> {
+  async lockUser(userId: string, reason: string, lockedBy?: string): Promise<void> {
     const startTime = Date.now();
 
     try {
-      await this.ensureTransactionManager().withTransaction(async (context: ITransactionContext) => {
-        await context.prisma.user.update({
-          where: { id: userId },
-          data: {
-            lockedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-            updatedAt: new Date(),
-          },
-        });
+      await this.ensureTransactionManager().withTransaction(
+        async (context: ITransactionContext) => {
+          await context.prisma.user.update({
+            where: { id: userId },
+            data: {
+              lockedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+              updatedAt: new Date(),
+            },
+          });
 
-        // Log the action
-        await context.prisma.auditLog.create({
-          data: {
-            userId,
-            action: 'USER_LOCKED',
-            resource: 'user',
-            details: { reason, lockedBy },
-            timestamp: new Date(),
-          },
-        });
-      });
+          // Log the action
+          await context.prisma.auditLog.create({
+            data: {
+              userId,
+              action: 'USER_LOCKED',
+              resource: 'user',
+              details: { reason, lockedBy },
+              timestamp: new Date(),
+            },
+          });
+        }
+      );
 
       await this.invalidateUserCaches(userId);
       this.recordQuery('lockUser', Date.now() - startTime, true);
@@ -363,27 +332,29 @@ export class PrismaUserRepositoryEnhanced
     const startTime = Date.now();
 
     try {
-      await this.ensureTransactionManager().withTransaction(async (context: ITransactionContext) => {
-        await context.prisma.user.update({
-          where: { id: userId },
-          data: {
-            lockedUntil: null,
-            failedLoginAttempts: 0,
-            updatedAt: new Date(),
-          },
-        });
+      await this.ensureTransactionManager().withTransaction(
+        async (context: ITransactionContext) => {
+          await context.prisma.user.update({
+            where: { id: userId },
+            data: {
+              lockedUntil: null,
+              failedLoginAttempts: 0,
+              updatedAt: new Date(),
+            },
+          });
 
-        // Log the action
-        await context.prisma.auditLog.create({
-          data: {
-            userId,
-            action: 'USER_UNLOCKED',
-            resource: 'user',
-            details: { unlockedBy },
-            timestamp: new Date(),
-          },
-        });
-      });
+          // Log the action
+          await context.prisma.auditLog.create({
+            data: {
+              userId,
+              action: 'USER_UNLOCKED',
+              resource: 'user',
+              details: { unlockedBy },
+              timestamp: new Date(),
+            },
+          });
+        }
+      );
 
       await this.invalidateUserCaches(userId);
       this.recordQuery('unlockUser', Date.now() - startTime, true);
@@ -396,35 +367,33 @@ export class PrismaUserRepositoryEnhanced
   }
 
   // Role management
-  async assignRole(
-    userId: string,
-    roleId: string,
-    assignedBy?: string
-  ): Promise<void> {
+  async assignRole(userId: string, roleId: string, assignedBy?: string): Promise<void> {
     const startTime = Date.now();
 
     try {
-      await this.ensureTransactionManager().withTransaction(async (context: ITransactionContext) => {
-        await context.prisma.userRole.create({
-          data: {
-            userId,
-            roleId,
-            assignedBy,
-            assignedAt: new Date(),
-          },
-        });
+      await this.ensureTransactionManager().withTransaction(
+        async (context: ITransactionContext) => {
+          await context.prisma.userRole.create({
+            data: {
+              userId,
+              roleId,
+              assignedBy,
+              assignedAt: new Date(),
+            },
+          });
 
-        // Log the action
-        await context.prisma.auditLog.create({
-          data: {
-            userId,
-            action: 'ROLE_ASSIGNED',
-            resource: 'user_role',
-            details: { roleId, assignedBy },
-            timestamp: new Date(),
-          },
-        });
-      });
+          // Log the action
+          await context.prisma.auditLog.create({
+            data: {
+              userId,
+              action: 'ROLE_ASSIGNED',
+              resource: 'user_role',
+              details: { roleId, assignedBy },
+              timestamp: new Date(),
+            },
+          });
+        }
+      );
 
       await this.invalidateUserCaches(userId);
       this.recordQuery('assignRole', Date.now() - startTime, true);
@@ -440,30 +409,28 @@ export class PrismaUserRepositoryEnhanced
     }
   }
 
-  async removeRole(
-    userId: string,
-    roleId: string,
-    removedBy?: string
-  ): Promise<void> {
+  async removeRole(userId: string, roleId: string, removedBy?: string): Promise<void> {
     const startTime = Date.now();
 
     try {
-      await this.ensureTransactionManager().withTransaction(async (context: ITransactionContext) => {
-        await context.prisma.userRole.deleteMany({
-          where: { userId, roleId },
-        });
+      await this.ensureTransactionManager().withTransaction(
+        async (context: ITransactionContext) => {
+          await context.prisma.userRole.deleteMany({
+            where: { userId, roleId },
+          });
 
-        // Log the action
-        await context.prisma.auditLog.create({
-          data: {
-            userId,
-            action: 'ROLE_REMOVED',
-            resource: 'user_role',
-            details: { roleId, removedBy },
-            timestamp: new Date(),
-          },
-        });
-      });
+          // Log the action
+          await context.prisma.auditLog.create({
+            data: {
+              userId,
+              action: 'ROLE_REMOVED',
+              resource: 'user_role',
+              details: { roleId, removedBy },
+              timestamp: new Date(),
+            },
+          });
+        }
+      );
 
       await this.invalidateUserCaches(userId);
       this.recordQuery('removeRole', Date.now() - startTime, true);
@@ -542,10 +509,7 @@ export class PrismaUserRepositoryEnhanced
           const permissions = new Map<string, Permission>();
           userRoles.forEach((userRole: any) => {
             userRole.role.permissions.forEach((rolePermission: any) => {
-              permissions.set(
-                rolePermission.permission.id,
-                rolePermission.permission
-              );
+              permissions.set(rolePermission.permission.id, rolePermission.permission);
             });
           });
 
@@ -589,24 +553,22 @@ export class PrismaUserRepositoryEnhanced
     const startTime = Date.now();
 
     try {
-      const result = await this.ensureTransactionManager().withTransaction(
-        async (context) => {
-          const users = await Promise.all(
-            data.map((userData) =>
-              context.prisma.user.create({
-                data: {
-                  ...userData,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                },
-                include: this.getDefaultIncludes(),
-              })
-            )
-          );
+      const result = await this.ensureTransactionManager().withTransaction(async context => {
+        const users = await Promise.all(
+          data.map(userData =>
+            context.prisma.user.create({
+              data: {
+                ...userData,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              },
+              include: this.getDefaultIncludes(),
+            })
+          )
+        );
 
-          return users;
-        }
-      );
+        return users;
+      });
 
       this.recordQuery('bulkCreate', Date.now() - startTime, true);
       return result;
@@ -622,29 +584,25 @@ export class PrismaUserRepositoryEnhanced
     const startTime = Date.now();
 
     try {
-      const result = await this.ensureTransactionManager().withTransaction(
-        async (context) => {
-          const users = await Promise.all(
-            updates.map((update) =>
-              context.prisma.user.update({
-                where: { id: update.id },
-                data: {
-                  ...update.data,
-                  updatedAt: new Date(),
-                },
-                include: this.getDefaultIncludes(),
-              })
-            )
-          );
+      const result = await this.ensureTransactionManager().withTransaction(async context => {
+        const users = await Promise.all(
+          updates.map(update =>
+            context.prisma.user.update({
+              where: { id: update.id },
+              data: {
+                ...update.data,
+                updatedAt: new Date(),
+              },
+              include: this.getDefaultIncludes(),
+            })
+          )
+        );
 
-          return users;
-        }
-      );
+        return users;
+      });
 
       // Invalidate caches for all updated users
-      await Promise.all(
-        updates.map((update) => this.invalidateUserCaches(update.id))
-      );
+      await Promise.all(updates.map(update => this.invalidateUserCaches(update.id)));
 
       this.recordQuery('bulkUpdate', Date.now() - startTime, true);
       return result;
@@ -658,14 +616,16 @@ export class PrismaUserRepositoryEnhanced
     const startTime = Date.now();
 
     try {
-      await this.ensureTransactionManager().withTransaction(async (context: ITransactionContext) => {
-        await context.prisma.user.deleteMany({
-          where: { id: { in: ids } },
-        });
-      });
+      await this.ensureTransactionManager().withTransaction(
+        async (context: ITransactionContext) => {
+          await context.prisma.user.deleteMany({
+            where: { id: { in: ids } },
+          });
+        }
+      );
 
       // Invalidate caches for all deleted users
-      await Promise.all(ids.map((id) => this.invalidateUserCaches(id)));
+      await Promise.all(ids.map(id => this.invalidateUserCaches(id)));
 
       this.recordQuery('bulkDelete', Date.now() - startTime, true);
     } catch (error) {
@@ -674,9 +634,7 @@ export class PrismaUserRepositoryEnhanced
     }
   }
 
-  async findMany(
-    filters: UserFilters
-  ): Promise<{ items: UserWithRelations[]; total: number }> {
+  async findMany(filters: UserFilters): Promise<{ items: UserWithRelations[]; total: number }> {
     const startTime = Date.now();
 
     try {
@@ -735,10 +693,7 @@ export class PrismaUserRepositoryEnhanced
   }
 
   // Additional methods for user-specific operations
-  async searchUsers(
-    query: string,
-    limit: number = 50
-  ): Promise<UserWithRelations[]> {
+  async searchUsers(query: string, limit: number = 50): Promise<UserWithRelations[]> {
     const startTime = Date.now();
 
     try {
@@ -816,31 +771,25 @@ export class PrismaUserRepositoryEnhanced
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-      const [
-        total,
-        locked,
-        mfaEnabled,
-        newUsersToday,
-        newUsersThisWeek,
-        avgRiskScore,
-      ] = await Promise.all([
-        this.prismaClient.user.count(),
-        this.prismaClient.user.count({
-          where: { lockedUntil: { gt: now } },
-        }),
-        this.prismaClient.user.count({
-          where: { mfaEnabled: true },
-        }),
-        this.prismaClient.user.count({
-          where: { createdAt: { gte: today } },
-        }),
-        this.prismaClient.user.count({
-          where: { createdAt: { gte: weekAgo } },
-        }),
-        this.prismaClient.user.aggregate({
-          _avg: { riskScore: true },
-        }),
-      ]);
+      const [total, locked, mfaEnabled, newUsersToday, newUsersThisWeek, avgRiskScore] =
+        await Promise.all([
+          this.prismaClient.user.count(),
+          this.prismaClient.user.count({
+            where: { lockedUntil: { gt: now } },
+          }),
+          this.prismaClient.user.count({
+            where: { mfaEnabled: true },
+          }),
+          this.prismaClient.user.count({
+            where: { createdAt: { gte: today } },
+          }),
+          this.prismaClient.user.count({
+            where: { createdAt: { gte: weekAgo } },
+          }),
+          this.prismaClient.user.aggregate({
+            _avg: { riskScore: true },
+          }),
+        ]);
 
       const active = total - locked;
       const averageRiskScore = avgRiskScore._avg.riskScore || 0;
@@ -887,7 +836,7 @@ export class PrismaUserRepositoryEnhanced
   async exportUsers(filters?: UserFilters): Promise<any[]> {
     const { items } = await this.findMany(filters || {});
 
-    return items.map((user) => ({
+    return items.map(user => ({
       id: user.id,
       email: user.email,
       name: user.name,
@@ -896,13 +845,11 @@ export class PrismaUserRepositoryEnhanced
       createdAt: user.createdAt,
       lastLoginAt: user.lastLoginAt,
       riskScore: user.riskScore,
-      roles: user.roles?.map((r) => r.name) || [],
+      roles: user.roles?.map(r => r.name) || [],
     }));
   }
 
-  async findSuspiciousUsers(
-    riskThreshold: number = 0.7
-  ): Promise<UserWithRelations[]> {
+  async findSuspiciousUsers(riskThreshold: number = 0.7): Promise<UserWithRelations[]> {
     return this.prismaClient.user.findMany({
       where: {
         riskScore: { gte: riskThreshold },
@@ -1005,7 +952,6 @@ export class PrismaUserRepositoryEnhanced
       `${this.constructor.name}:getUserPermissions:*${userId}*`,
     ];
 
-    await Promise.all(patterns.map((pattern) => this.invalidateCache(pattern)));
+    await Promise.all(patterns.map(pattern => this.invalidateCache(pattern)));
   }
 }
-
