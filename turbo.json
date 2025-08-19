@@ -13,8 +13,13 @@
     "REDIS_URL",
     "JWT_SECRET",
     "NEXTAUTH_SECRET",
-    "NEXTAUTH_URL"
+    "NEXTAUTH_URL",
+    "JAEGER_ENDPOINT",
+    "TRACING_SAMPLING_RATE"
   ],
+  "experimentalSpaces": {
+    "id": "fullstack-monolith"
+  },
   "pipeline": {
     "build": {
       "dependsOn": ["^build"],
@@ -29,13 +34,9 @@
         "vite.config.ts",
         "rollup.config.js"
       ],
-      "outputs": [
-        "dist/**",
-        ".next/**",
-        "!.next/cache/**",
-        "build/**"
-      ],
-      "env": ["NODE_ENV"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "build/**"],
+      "env": ["NODE_ENV"],
+      "outputMode": "hash-only"
     },
     "dev": {
       "cache": false,
@@ -129,11 +130,7 @@
     },
     "type-check": {
       "dependsOn": ["^build"],
-      "inputs": [
-        "src/**/*.ts",
-        "src/**/*.tsx",
-        "tsconfig.json"
-      ],
+      "inputs": ["src/**/*.ts", "src/**/*.tsx", "tsconfig.json"],
       "outputs": []
     },
     "clean": {
@@ -162,9 +159,26 @@
       "dependsOn": ["build", "test", "lint"],
       "cache": false,
       "env": ["NODE_ENV"]
+    },
+    "monitor": {
+      "cache": false,
+      "persistent": true,
+      "env": ["NODE_ENV", "JAEGER_ENDPOINT", "TRACING_SAMPLING_RATE"]
+    },
+    "perf:analyze": {
+      "dependsOn": ["build"],
+      "outputs": ["performance-reports/**"],
+      "cache": true
+    },
+    "bundle:analyze": {
+      "dependsOn": ["build"],
+      "outputs": ["bundle-analysis/**"],
+      "cache": true
     }
   },
   "remoteCache": {
     "signature": true
-  }
+  },
+  "cacheDir": ".turbo",
+  "daemon": true
 }

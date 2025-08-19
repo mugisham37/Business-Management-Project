@@ -47,6 +47,13 @@
     "format:fix": "./tools/scripts/format.sh format fix",
     "quality:check": "./tools/scripts/format.sh all",
     "quality:fix": "./tools/scripts/format.sh all fix",
+    "perf:analyze": "turbo run perf:analyze",
+    "perf:test": "powershell -ExecutionPolicy Bypass -File ./tools/scripts/performance.ps1 test",
+    "perf:monitor": "powershell -ExecutionPolicy Bypass -File ./tools/scripts/performance.ps1 monitor",
+    "perf:report": "powershell -ExecutionPolicy Bypass -File ./tools/scripts/performance.ps1 report",
+    "perf:all": "powershell -ExecutionPolicy Bypass -File ./tools/scripts/performance.ps1 all",
+    "bundle:analyze": "turbo run bundle:analyze",
+    "monitor:start": "turbo run monitor",
     "prepare": "husky install"
   },
   "devDependencies": {
