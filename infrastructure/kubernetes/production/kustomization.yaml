@@ -1,0 +1,33 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: production
+
+resources:
+  - ../base
+  - blue-green-deployments.yaml
+
+namePrefix: production-
+
+commonLabels:
+  environment: production
+  tier: production
+
+patchesStrategicMerge:
+  - configmap-patch.yaml
+  - api-deployment-patch.yaml
+  - web-deployment-patch.yaml
+  - ingress-patch.yaml
+  - postgres-patch.yaml
+
+images:
+  - name: ghcr.io/company/fullstack-monolith/api
+    newTag: production-latest
+  - name: ghcr.io/company/fullstack-monolith/web
+    newTag: production-latest
+
+replicas:
+  - name: api-deployment
+    count: 5
+  - name: web-deployment
+    count: 3

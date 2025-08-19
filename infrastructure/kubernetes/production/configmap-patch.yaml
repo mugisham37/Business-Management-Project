@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  NODE_ENV: 'production'
+  LOG_LEVEL: 'warn'
+  POSTGRES_DB: 'fullstack_production'
+  CORS_ORIGIN: 'https://app.fullstack-monolith.com'
+  RATE_LIMIT_MAX: '50'
+  CACHE_TTL: '7200'
+  SESSION_TIMEOUT: '43200'

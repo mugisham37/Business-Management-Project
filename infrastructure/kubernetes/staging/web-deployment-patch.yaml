@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-deployment
+spec:
+  template:
+    spec:
+      containers:
+        - name: web
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: 'https://staging-api.fullstack-monolith.com'
+          resources:
+            requests:
+              memory: '64Mi'
+              cpu: '50m'
+            limits:
+              memory: '128Mi'
+              cpu: '100m'

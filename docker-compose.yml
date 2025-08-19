@@ -6,16 +6,16 @@ services:
     image: postgres:15-alpine
     container_name: fullstack-postgres
     environment:
-      POSTGRES_DB: fullstack_monolith
+      POSTGRES_DB: fullstack_dev
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/database/init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,101 +27,177 @@ services:
     image: redis:7-alpine
     container_name: fullstack-redis
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass redis_password
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
       interval: 10s
-      timeout: 5s
+      timeout: 3s
       retries: 5
     networks:
       - fullstack-network
 
-  # API Server (Development)
+  # API Application
   api:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile.dev
+      dockerfile: apps/api/Dockerfile
+      target: development
     container_name: fullstack-api
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/fullstack_monolith
-      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/fullstack_dev
+      REDIS_URL: redis://:redis_password@redis:6379
+      JWT_SECRET: development_jwt_secret_key_change_in_production
+      PORT: 3000
     volumes:
       - .:/app
       - /app/node_modules
+      - api_logs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - fullstack-network
-    command: pnpm run dev
+    restart: unless-stopped
 
-  # Web Application (Development)
+  # Web Application
   web:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile.dev
+      dockerfile: apps/web/Dockerfile
+      target: development
     container_name: fullstack-web
     ports:
-      - "3001:3001"
+      - '3001:3001'
     environment:
       NODE_ENV: development
       NEXT_PUBLIC_API_URL: http://localhost:3000
+      PORT: 3001
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/apps/web/.next
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3001/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - fullstack-network
+    restart: unless-stopped
+
+  # Mobile Development Server
+  mobile:
+    build:
+      context: .
+      dockerfile: apps/mobile/Dockerfile
+      target: development
+    container_name: fullstack-mobile
+    ports:
+      - '8081:8081'
+      - '19000:19000'
+      - '19001:19001'
+      - '19002:19002'
+    environment:
+      EXPO_DEVTOOLS_LISTEN_ADDRESS: 0.0.0.0
+      REACT_NATIVE_PACKAGER_HOSTNAME: 0.0.0.0
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - fullstack-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: fullstack-nginx
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./infrastructure/nginx/ssl:/etc/nginx/ssl
     depends_on:
       - api
+      - web
     networks:
       - fullstack-network
-    command: pnpm run dev
+    restart: unless-stopped
 
-  # Database Admin (pgAdmin)
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: fullstack-pgadmin
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: fullstack-prometheus
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - fullstack-network
+    restart: unless-stopped
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: fullstack-grafana
+    ports:
+      - '3003:3000'
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-    ports:
-      - "5050:80"
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: false
     volumes:
-      - pgadmin_data:/var/lib/pgadmin
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infrastructure/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
     depends_on:
-      - postgres
+      - prometheus
     networks:
       - fullstack-network
+    restart: unless-stopped
 
-  # Redis Admin (RedisInsight)
-  redis-insight:
-    image: redislabs/redisinsight:latest
-    container_name: fullstack-redis-insight
+  # Jaeger Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: fullstack-jaeger
     ports:
-      - "8001:8001"
-    volumes:
-      - redis_insight_data:/db
-    depends_on:
-      - redis
+      - '16686:16686'
+      - '14268:14268'
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
     networks:
       - fullstack-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
-  pgadmin_data:
-    driver: local
-  redis_insight_data:
-    driver: local
+  api_logs:
+  prometheus_data:
+  grafana_data:
 
 networks:
   fullstack-network:
