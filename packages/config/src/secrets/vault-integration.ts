@@ -34,11 +34,16 @@ export class VaultSecretProvider implements SecretProvider {
       // Dynamic import to avoid bundling node-vault if not used
       const nodeVault = await import('node-vault');
 
-      this.vaultClient = nodeVault.default({
+      const vaultOptions: any = {
         endpoint: this.config.endpoint,
         token: this.config.token,
-        namespace: this.config.namespace,
-      });
+      };
+
+      if (this.config.namespace) {
+        vaultOptions.namespace = this.config.namespace;
+      }
+
+      this.vaultClient = nodeVault.default(vaultOptions);
 
       // Test connection
       await this.vaultClient.status();
@@ -76,7 +81,7 @@ export class VaultSecretProvider implements SecretProvider {
           throw new Error(`Vault API error: ${response.statusText}`);
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as any;
         return data.data?.data?.value || null;
       }
     } catch (error) {
@@ -149,7 +154,7 @@ export class VaultSecretProvider implements SecretProvider {
         throw new Error(`Vault API error: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
       return data.data?.keys || [];
     } catch (error) {
       console.error('Error listing secrets from Vault:', error);
@@ -287,7 +292,7 @@ export class AWSSecretsManagerProvider implements SecretProvider {
       const command = new ListSecretsCommand({});
 
       const response = await this.client.send(command);
-      return response.SecretList?.map(secret => secret.Name || '') || [];
+      return response.SecretList?.map((secret: any) => secret.Name || '') || [];
     } catch (error) {
       console.error('Error listing secrets from AWS Secrets Manager:', error);
       throw error;
@@ -346,22 +351,41 @@ export class SecretManager {
     const vaultToken = process.env.VAULT_TOKEN;
 
     if (vaultEndpoint && vaultToken) {
-      return new VaultSecretProvider({
+      const vaultConfig: VaultConfig = {
         endpoint: vaultEndpoint,
         token: vaultToken,
-        namespace: process.env.VAULT_NAMESPACE,
-        mountPath: process.env.VAULT_MOUNT_PATH,
-      });
+      };
+
+      if (process.env.VAULT_NAMESPACE) {
+        vaultConfig.namespace = process.env.VAULT_NAMESPACE;
+      }
+
+      if (process.env.VAULT_MOUNT_PATH) {
+        vaultConfig.mountPath = process.env.VAULT_MOUNT_PATH;
+      }
+
+      return new VaultSecretProvider(vaultConfig);
     }
 
     const awsRegion = process.env.AWS_REGION;
     if (awsRegion) {
-      return new AWSSecretsManagerProvider({
+      const awsConfig: AWSSecretsManagerConfig = {
         region: awsRegion,
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        sessionToken: process.env.AWS_SESSION_TOKEN,
-      });
+      };
+
+      if (process.env.AWS_ACCESS_KEY_ID) {
+        awsConfig.accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+      }
+
+      if (process.env.AWS_SECRET_ACCESS_KEY) {
+        awsConfig.secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+      }
+
+      if (process.env.AWS_SESSION_TOKEN) {
+        awsConfig.sessionToken = process.env.AWS_SESSION_TOKEN;
+      }
+
+      return new AWSSecretsManagerProvider(awsConfig);
     }
 
     // Fallback to environment variables

@@ -60,14 +60,12 @@ class ConfigCLI {
     },
     {
       name: 'secret',
-      description:
-        'Manage secrets (usage: secret <store|get|list|delete> [args...])',
+      description: 'Manage secrets (usage: secret <store|get|list|delete> [args...])',
       handler: this.handleSecret.bind(this),
     },
     {
       name: 'profile',
-      description:
-        'Manage environment profiles (usage: profile <list|switch> [profile])',
+      description: 'Manage environment profiles (usage: profile <list|switch> [profile])',
       handler: this.handleProfile.bind(this),
     },
     {
@@ -95,7 +93,7 @@ class ConfigCLI {
       return;
     }
 
-    const cmd = this.commands.find((c) => c.name === command);
+    const cmd = this.commands.find(c => c.name === command);
     if (!cmd) {
       console.error(`Unknown command: ${command}`);
       await this.handleHelp([]);
@@ -122,10 +120,7 @@ class ConfigCLI {
       console.log(`Environment: ${configManager.getConfig().env}`);
       console.log(`Server: ${configManager.getServerUrl()}`);
     } catch (error) {
-      console.error(
-        '❌ Failed to initialize configuration system:',
-        getErrorMessage(error)
-      );
+      console.error('❌ Failed to initialize configuration system:', getErrorMessage(error));
       throw error;
     }
   }
@@ -189,10 +184,7 @@ class ConfigCLI {
     if (result.valid) {
       console.log(`✅ Configuration updated: ${keyPath} = ${value}`);
     } else {
-      console.error(
-        '❌ Failed to update configuration:',
-        result.errors.join(', ')
-      );
+      console.error('❌ Failed to update configuration:', result.errors.join(', '));
     }
   }
 
@@ -221,9 +213,7 @@ class ConfigCLI {
 
     // Check for common misconfigurations
     if (config.security.rateLimit.global.max > 10000) {
-      warnings.push(
-        'Global rate limit is very high, consider reducing for better security'
-      );
+      warnings.push('Global rate limit is very high, consider reducing for better security');
     }
 
     if (config.logging.level === 'debug' && config.env === 'production') {
@@ -235,19 +225,17 @@ class ConfigCLI {
       console.log('✅ Configuration validation passed');
     } else {
       console.log('❌ Configuration validation failed:');
-      issues.forEach((issue) => console.log(`  - ${issue}`));
+      issues.forEach(issue => console.log(`  - ${issue}`));
     }
 
     if (warnings.length > 0) {
       console.log('⚠️  Configuration warnings:');
-      warnings.forEach((warning) => console.log(`  - ${warning}`));
+      warnings.forEach(warning => console.log(`  - ${warning}`));
     }
 
     console.log(`\nEnvironment: ${config.env}`);
     console.log(`Server: ${config.server.host}:${config.server.port}`);
-    console.log(
-      `Database: ${config.database.url ? 'Configured' : 'Not configured'}`
-    );
+    console.log(`Database: ${config.database.url ? 'Configured' : 'Not configured'}`);
     console.log(`Redis: ${config.redis.url}`);
   }
 
@@ -282,18 +270,12 @@ class ConfigCLI {
 
     const dynamicConfigManager = configManager.getDynamicConfigManager();
     if (dynamicConfigManager) {
-      const result = await dynamicConfigManager.importConfig(
-        inputFile,
-        'cli-user'
-      );
+      const result = await dynamicConfigManager.importConfig(inputFile, 'cli-user');
 
       if (result.valid) {
         console.log(`✅ Configuration imported from: ${inputFile}`);
       } else {
-        console.error(
-          '❌ Failed to import configuration:',
-          result.errors.join(', ')
-        );
+        console.error('❌ Failed to import configuration:', result.errors.join(', '));
       }
     } else {
       console.error('❌ Dynamic configuration is not enabled');
@@ -329,10 +311,7 @@ class ConfigCLI {
     }
   }
 
-  private async handleSecretStore(
-    secretsManager: SecretsManager,
-    args: string[]
-  ): Promise<void> {
+  private async handleSecretStore(secretsManager: SecretsManager, args: string[]): Promise<void> {
     const [name, value, description] = args;
 
     if (!name || !value) {
@@ -356,10 +335,7 @@ class ConfigCLI {
     console.log(`✅ Secret stored: ${name} (ID: ${secretId})`);
   }
 
-  private async handleSecretGet(
-    secretsManager: SecretsManager,
-    args: string[]
-  ): Promise<void> {
+  private async handleSecretGet(secretsManager: SecretsManager, args: string[]): Promise<void> {
     const [name] = args;
 
     if (!name) {
@@ -375,9 +351,7 @@ class ConfigCLI {
     }
   }
 
-  private async handleSecretList(
-    secretsManager: SecretsManager
-  ): Promise<void> {
+  private async handleSecretList(secretsManager: SecretsManager): Promise<void> {
     const secrets = await secretsManager.listSecrets();
 
     if (secrets.length === 0) {
@@ -386,7 +360,7 @@ class ConfigCLI {
     }
 
     console.log('Stored secrets:');
-    secrets.forEach((secret) => {
+    secrets.forEach((secret: any) => {
       console.log(
         `  ${secret.name} (v${secret.version}) - ${secret.description || 'No description'}`
       );
@@ -399,10 +373,7 @@ class ConfigCLI {
     });
   }
 
-  private async handleSecretDelete(
-    secretsManager: SecretsManager,
-    args: string[]
-  ): Promise<void> {
+  private async handleSecretDelete(secretsManager: SecretsManager, args: string[]): Promise<void> {
     const [name] = args;
 
     if (!name) {
@@ -441,7 +412,9 @@ class ConfigCLI {
         }
 
         if (!validateEnvironmentProfile(profileName)) {
-          console.error(`❌ Invalid profile: ${profileName}. Valid profiles are: development, staging, production, test`);
+          console.error(
+            `❌ Invalid profile: ${profileName}. Valid profiles are: development, staging, production, test`
+          );
           return;
         }
 
@@ -485,18 +458,12 @@ class ConfigCLI {
 
     const dynamicConfigManager = configManager.getDynamicConfigManager();
     if (dynamicConfigManager) {
-      const result = await dynamicConfigManager.importConfig(
-        backupFile,
-        'cli-restore'
-      );
+      const result = await dynamicConfigManager.importConfig(backupFile, 'cli-restore');
 
       if (result.valid) {
         console.log(`✅ Configuration restored from: ${backupFile}`);
       } else {
-        console.error(
-          '❌ Failed to restore configuration:',
-          result.errors.join(', ')
-        );
+        console.error('❌ Failed to restore configuration:', result.errors.join(', '));
       }
     } else {
       console.error('❌ Dynamic configuration is not enabled');
@@ -507,7 +474,7 @@ class ConfigCLI {
     console.log('Enterprise Auth Configuration CLI\n');
     console.log('Available commands:\n');
 
-    this.commands.forEach((cmd) => {
+    this.commands.forEach(cmd => {
       console.log(`  ${cmd.name.padEnd(12)} ${cmd.description}`);
     });
 
@@ -538,7 +505,7 @@ if (require.main === module) {
   const cli = new ConfigCLI();
   const args = process.argv.slice(2);
 
-  cli.run(args).catch((error) => {
+  cli.run(args).catch(error => {
     console.error('CLI error:', error);
     process.exit(1);
   });

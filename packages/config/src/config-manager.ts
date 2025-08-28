@@ -1,17 +1,8 @@
 import { config as dotenvConfig } from 'dotenv';
-import {
-  AppConfig,
-  ConfigSchema,
-  EnvironmentProfile,
-  ConfigValidationResult,
-} from './types';
-import { SecretsManager } from './secrets-manager';
 import { DynamicConfigManager, DynamicConfigOptions } from './dynamic-config';
-import {
-  getProfile,
-  validateProfileRequirements,
-  mergeProfileOverrides,
-} from './profiles';
+import { getProfile, mergeProfileOverrides, validateProfileRequirements } from './profiles';
+import { SecretsManager } from './secrets-manager';
+import { AppConfig, ConfigSchema, ConfigValidationResult, EnvironmentProfile } from './types';
 
 export class ConfigManager {
   private static instance: ConfigManager;
@@ -48,10 +39,7 @@ export class ConfigManager {
       dotenvConfig();
 
       // Initialize secrets manager
-      this.secretsManager = new SecretsManager(
-        options.secretsPath,
-        options.masterPassword
-      );
+      this.secretsManager = new SecretsManager(options.secretsPath, options.masterPassword);
 
       // Build configuration from multiple sources
       const rawConfig = await this.buildConfiguration();
@@ -60,15 +48,11 @@ export class ConfigManager {
       const validation = this.validateConfiguration(rawConfig);
       if (!validation.valid) {
         console.error('Configuration validation failed:', validation.errors);
-        throw new Error(
-          `Configuration validation failed: ${validation.errors.join(', ')}`
-        );
+        throw new Error(`Configuration validation failed: ${validation.errors.join(', ')}`);
       }
 
       if (validation.warnings.length > 0) {
-        validation.warnings.forEach((warning) =>
-          console.warn(`Configuration warning: ${warning}`)
-        );
+        validation.warnings.forEach(warning => console.warn(`Configuration warning: ${warning}`));
       }
 
       this.config = rawConfig;
@@ -80,7 +64,7 @@ export class ConfigManager {
           validateOnChange: true,
           backupOnChange: true,
         };
-        
+
         if (options.configPath) {
           dynamicConfigOptions.configPath = options.configPath;
         }
@@ -92,7 +76,7 @@ export class ConfigManager {
         );
 
         // Listen for configuration changes
-        this.dynamicConfigManager.on('configChange', (changeEvent) => {
+        this.dynamicConfigManager.on('configChange', changeEvent => {
           console.log('Configuration changed:', {
             section: changeEvent.section,
             source: changeEvent.source,
@@ -100,7 +84,7 @@ export class ConfigManager {
           });
         });
 
-        this.dynamicConfigManager.on('error', (error) => {
+        this.dynamicConfigManager.on('error', error => {
           console.error('Dynamic configuration error:', error);
         });
       }
@@ -118,16 +102,12 @@ export class ConfigManager {
 
   private async buildConfiguration(): Promise<AppConfig> {
     // Start with environment-based profile
-    const environment =
-      (process.env.NODE_ENV as EnvironmentProfile) || 'development';
+    const environment = (process.env.NODE_ENV as EnvironmentProfile) || 'development';
     const profile = getProfile(environment);
 
     // Check if all required secrets are available
     const availableSecrets = await this.getAvailableSecrets();
-    const profileValidation = validateProfileRequirements(
-      profile,
-      availableSecrets
-    );
+    const profileValidation = validateProfileRequirements(profile, availableSecrets);
 
     if (!profileValidation.valid) {
       console.warn('Missing required secrets for profile:', {
@@ -146,10 +126,7 @@ export class ConfigManager {
     const parseResult = ConfigSchema.safeParse(configWithProfile);
 
     if (!parseResult.success) {
-      console.error(
-        'Configuration schema validation failed:',
-        parseResult.error.format()
-      );
+      console.error('Configuration schema validation failed:', parseResult.error.format());
       throw new Error('Configuration schema validation failed');
     }
 
@@ -180,25 +157,17 @@ export class ConfigManager {
 
       database: {
         url: await getValue('DATABASE_URL'),
-        replicaUrls: this.parseArray(
-          await getValue('DATABASE_REPLICA_URLS', '')
-        ),
+        replicaUrls: this.parseArray(await getValue('DATABASE_REPLICA_URLS', '')),
         pool: {
           min: parseInt(await getValue('DATABASE_POOL_MIN', '2')),
           max: parseInt(await getValue('DATABASE_POOL_MAX', '20')),
-          idleTimeout: parseInt(
-            await getValue('DATABASE_IDLE_TIMEOUT', '30000')
-          ),
-          connectionTimeout: parseInt(
-            await getValue('DATABASE_CONNECTION_TIMEOUT', '5000')
-          ),
+          idleTimeout: parseInt(await getValue('DATABASE_IDLE_TIMEOUT', '30000')),
+          connectionTimeout: parseInt(await getValue('DATABASE_CONNECTION_TIMEOUT', '5000')),
         },
         retry: {
           maxRetries: parseInt(await getValue('DATABASE_MAX_RETRIES', '3')),
           retryDelay: parseInt(await getValue('DATABASE_RETRY_DELAY', '1000')),
-          backoffMultiplier: parseFloat(
-            await getValue('DATABASE_BACKOFF_MULTIPLIER', '2')
-          ),
+          backoffMultiplier: parseFloat(await getValue('DATABASE_BACKOFF_MULTIPLIER', '2')),
         },
       },
 
@@ -209,11 +178,8 @@ export class ConfigManager {
         password: await getValue('REDIS_PASSWORD'),
         db: parseInt(await getValue('REDIS_DB', '0')),
         cluster: {
-          enabled:
-            (await getValue('REDIS_CLUSTER_ENABLED', 'false')) === 'true',
-          nodes: this.parseRedisNodes(
-            await getValue('REDIS_CLUSTER_NODES', '')
-          ),
+          enabled: (await getValue('REDIS_CLUSTER_ENABLED', 'false')) === 'true',
+          nodes: this.parseRedisNodes(await getValue('REDIS_CLUSTER_NODES', '')),
         },
         retry: {
           maxRetries: parseInt(await getValue('REDIS_MAX_RETRIES', '3')),
@@ -241,9 +207,7 @@ export class ConfigManager {
           clientId: await getValue('GOOGLE_CLIENT_ID', ''),
           clientSecret: await getValue('GOOGLE_CLIENT_SECRET', ''),
           redirectUri: await getValue('GOOGLE_REDIRECT_URI', ''),
-          scope: this.parseArray(
-            await getValue('GOOGLE_SCOPES', 'openid,email,profile')
-          ),
+          scope: this.parseArray(await getValue('GOOGLE_SCOPES', 'openid,email,profile')),
           enabled: !!(await getValue('GOOGLE_CLIENT_ID', '')),
         },
         github: {
@@ -257,9 +221,7 @@ export class ConfigManager {
           clientId: await getValue('MICROSOFT_CLIENT_ID', ''),
           clientSecret: await getValue('MICROSOFT_CLIENT_SECRET', ''),
           redirectUri: await getValue('MICROSOFT_REDIRECT_URI', ''),
-          scope: this.parseArray(
-            await getValue('MICROSOFT_SCOPES', 'openid,email,profile')
-          ),
+          scope: this.parseArray(await getValue('MICROSOFT_SCOPES', 'openid,email,profile')),
           enabled: !!(await getValue('MICROSOFT_CLIENT_ID', '')),
         },
       },
@@ -319,15 +281,11 @@ export class ConfigManager {
         rateLimit: {
           global: {
             max: parseInt(await getValue('RATE_LIMIT_GLOBAL_MAX', '1000')),
-            window: parseInt(
-              await getValue('RATE_LIMIT_GLOBAL_WINDOW', '900000')
-            ),
+            window: parseInt(await getValue('RATE_LIMIT_GLOBAL_WINDOW', '900000')),
           },
           auth: {
             max: parseInt(await getValue('RATE_LIMIT_AUTH_MAX', '5')),
-            window: parseInt(
-              await getValue('RATE_LIMIT_AUTH_WINDOW', '900000')
-            ),
+            window: parseInt(await getValue('RATE_LIMIT_AUTH_WINDOW', '900000')),
           },
           api: {
             max: parseInt(await getValue('RATE_LIMIT_API_MAX', '100')),
@@ -379,11 +337,11 @@ export class ConfigManager {
         },
         tracing: {
           enabled: (await getValue('TRACING_ENABLED', 'false')) === 'true',
-          serviceName: await getValue(
-            'TRACING_SERVICE_NAME',
-            'enterprise-auth'
-          ),
-          endpoint: await getValue('TRACING_ENDPOINT'),
+          serviceName: await getValue('TRACING_SERVICE_NAME', 'enterprise-auth'),
+          sampleRate: parseFloat(await getValue('TRACING_SAMPLE_RATE', '1.0')),
+          ...((await getValue('TRACING_ENDPOINT')) && {
+            endpoint: await getValue('TRACING_ENDPOINT'),
+          }),
         },
       },
 
@@ -399,9 +357,7 @@ export class ConfigManager {
     };
   }
 
-  private validateConfiguration(
-    config: Partial<AppConfig>
-  ): ConfigValidationResult {
+  private validateConfiguration(config: Partial<AppConfig>): ConfigValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -421,10 +377,7 @@ export class ConfigManager {
     }
 
     // Security validations
-    if (
-      config.security?.rateLimit?.global?.max &&
-      config.security.rateLimit.global.max > 10000
-    ) {
+    if (config.security?.rateLimit?.global?.max && config.security.rateLimit.global.max > 10000) {
       warnings.push('Global rate limit is very high');
     }
 
@@ -438,14 +391,14 @@ export class ConfigManager {
   private async getAvailableSecrets(): Promise<string[]> {
     const secrets = await this.secretsManager.listSecrets();
     const envVars = Object.keys(process.env);
-    return [...secrets.map((s) => s.name), ...envVars];
+    return [...secrets.map((s: any) => s.name), ...envVars];
   }
 
   private parseArray(value: string): string[] {
     if (!value) return [];
     return value
       .split(',')
-      .map((item) => item.trim())
+      .map(item => item.trim())
       .filter(Boolean);
   }
 
@@ -456,11 +409,9 @@ export class ConfigManager {
     return value;
   }
 
-  private parseRedisNodes(
-    value: string
-  ): Array<{ host: string; port: number }> {
+  private parseRedisNodes(value: string): Array<{ host: string; port: number }> {
     if (!value) return [];
-    return this.parseArray(value).map((node) => {
+    return this.parseArray(value).map(node => {
       const [host, port] = node.split(':');
       return {
         host: host || 'localhost',
@@ -505,12 +456,7 @@ export class ConfigManager {
     this.ensureInitialized();
 
     if (this.dynamicConfigManager) {
-      return this.dynamicConfigManager.setConfigSection(
-        section,
-        value,
-        'api',
-        userId
-      );
+      return this.dynamicConfigManager.setConfigSection(section, value, 'api', userId);
     }
 
     return {
@@ -546,9 +492,7 @@ export class ConfigManager {
 
   private ensureInitialized(): void {
     if (!this.initialized) {
-      throw new Error(
-        'Configuration manager not initialized. Call initialize() first.'
-      );
+      throw new Error('Configuration manager not initialized. Call initialize() first.');
     }
   }
 

@@ -6,9 +6,7 @@ export const ServerConfigSchema = z.object({
   port: z.coerce.number().min(1).max(65535).default(3000),
   cors: z
     .object({
-      origin: z
-        .union([z.string(), z.array(z.string()), z.boolean()])
-        .default(true),
+      origin: z.union([z.string(), z.array(z.string()), z.boolean()]).default(true),
       credentials: z.boolean().default(true),
     })
     .default({}),
@@ -80,9 +78,7 @@ export const JWTConfigSchema = z.object({
   refreshExpiresIn: z.string().default('7d'),
   issuer: z.string().default('enterprise-auth'),
   audience: z.string().default('enterprise-auth-users'),
-  algorithm: z
-    .enum(['HS256', 'HS384', 'HS512', 'RS256', 'RS384', 'RS512'])
-    .default('HS256'),
+  algorithm: z.enum(['HS256', 'HS384', 'HS512', 'RS256', 'RS384', 'RS512']).default('HS256'),
 });
 
 export const OAuthProviderSchema = z.object({
@@ -254,6 +250,7 @@ export const MonitoringConfigSchema = z.object({
       enabled: z.boolean().default(false),
       serviceName: z.string().default('enterprise-auth'),
       endpoint: z.string().optional(),
+      sampleRate: z.number().min(0).max(1).default(1.0),
     })
     .default({}),
 });
@@ -270,9 +267,7 @@ export const WebhookConfigSchema = z.object({
 
 // Main configuration schema
 export const ConfigSchema = z.object({
-  env: z
-    .enum(['development', 'production', 'test', 'staging'])
-    .default('development'),
+  env: z.enum(['development', 'production', 'test', 'staging']).default('development'),
   server: ServerConfigSchema,
   database: DatabaseConfigSchema,
   redis: RedisConfigSchema,
@@ -323,16 +318,17 @@ export interface ConfigValidationResult {
 }
 
 // Environment-specific configuration profiles
-export type EnvironmentProfile =
-  | 'development'
-  | 'staging'
-  | 'production'
-  | 'test';
+export type EnvironmentProfile = 'development' | 'staging' | 'production' | 'test';
+
+// Deep partial type helper
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
 
 export interface ConfigProfile {
   name: EnvironmentProfile;
   description: string;
-  overrides: Partial<AppConfig>;
+  overrides: DeepPartial<AppConfig>;
   requiredSecrets: string[];
   validationRules?: z.ZodSchema;
 }

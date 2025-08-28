@@ -73,11 +73,11 @@ export class DatabaseConfigManager {
   getDatabaseConfig(): DatabaseConfig {
     return {
       url: env.DATABASE_URL,
-      host: env.DATABASE_HOST,
-      port: env.DATABASE_PORT,
-      database: env.DATABASE_NAME,
-      username: env.DATABASE_USER,
-      password: env.DATABASE_PASSWORD,
+      ...(env.DATABASE_HOST && { host: env.DATABASE_HOST }),
+      ...(env.DATABASE_PORT && { port: env.DATABASE_PORT }),
+      ...(env.DATABASE_NAME && { database: env.DATABASE_NAME }),
+      ...(env.DATABASE_USER && { username: env.DATABASE_USER }),
+      ...(env.DATABASE_PASSWORD && { password: env.DATABASE_PASSWORD }),
       ssl: env.DATABASE_SSL,
       pool: {
         min: env.DATABASE_POOL_MIN,
@@ -107,12 +107,12 @@ export class DatabaseConfigManager {
       driver: 'pg',
       dbCredentials: {
         connectionString: env.DATABASE_URL,
-        host: env.DATABASE_HOST,
-        port: env.DATABASE_PORT,
-        user: env.DATABASE_USER,
-        password: env.DATABASE_PASSWORD,
-        database: env.DATABASE_NAME,
-        ssl: env.DATABASE_SSL,
+        ...(env.DATABASE_HOST && { host: env.DATABASE_HOST }),
+        ...(env.DATABASE_PORT && { port: env.DATABASE_PORT }),
+        ...(env.DATABASE_USER && { user: env.DATABASE_USER }),
+        ...(env.DATABASE_PASSWORD && { password: env.DATABASE_PASSWORD }),
+        ...(env.DATABASE_NAME && { database: env.DATABASE_NAME }),
+        ...(env.DATABASE_SSL !== undefined && { ssl: env.DATABASE_SSL }),
       },
       verbose: env.NODE_ENV === 'development',
       strict: true,
@@ -129,7 +129,9 @@ export class DatabaseConfigManager {
       datasource: {
         provider: 'postgresql',
         url: env.DATABASE_URL,
-        shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL,
+        ...(process.env.SHADOW_DATABASE_URL && {
+          shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL,
+        }),
       },
     };
   }
@@ -184,13 +186,14 @@ export class DatabaseConfigManager {
 
   getConfigForEnvironment(): DatabaseConfig {
     const baseConfig = this.getDatabaseConfig();
-    
+
     switch (env.NODE_ENV) {
       case 'development':
         return { ...baseConfig, ...this.getDevelopmentConfig() };
       case 'production':
         return { ...baseConfig, ...this.getProductionConfig() };
       case 'test':
+      case 'staging':
         return { ...baseConfig, ...this.getTestConfig() };
       default:
         return baseConfig;

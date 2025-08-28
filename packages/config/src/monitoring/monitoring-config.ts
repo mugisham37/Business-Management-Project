@@ -98,26 +98,26 @@ export class MonitoringConfigManager {
         enabled: env.NODE_ENV === 'production',
         serviceName: 'authentication-api',
         serviceVersion: process.env.APP_VERSION || '1.0.0',
-        endpoint: process.env.JAEGER_ENDPOINT,
+        ...(process.env.JAEGER_ENDPOINT && { endpoint: process.env.JAEGER_ENDPOINT }),
         sampleRate: env.NODE_ENV === 'production' ? 0.1 : 1.0,
       },
       logging: {
         level: env.LOG_LEVEL,
         format: env.LOG_FORMAT,
         transports: ['console', 'file'],
-        filePath: env.LOG_FILE_PATH,
+        ...(env.LOG_FILE_PATH && { filePath: env.LOG_FILE_PATH }),
         maxFiles: 5,
         maxSize: '10m',
       },
       alerts: {
         enabled: env.NODE_ENV === 'production',
-        webhookUrl: process.env.ALERT_WEBHOOK_URL,
+        ...(process.env.ALERT_WEBHOOK_URL && { webhookUrl: process.env.ALERT_WEBHOOK_URL }),
         channels: ['email', 'slack'],
         thresholds: {
           errorRate: 0.05, // 5%
           responseTime: 1000, // 1 second
           memoryUsage: 0.85, // 85%
-          cpuUsage: 0.80, // 80%
+          cpuUsage: 0.8, // 80%
         },
       },
     };
@@ -144,10 +144,12 @@ export class MonitoringConfigManager {
           url: process.env.PROMETHEUS_URL || 'http://localhost:9090',
           access: 'proxy',
         },
-        loki: process.env.LOKI_URL ? {
-          url: process.env.LOKI_URL,
-          access: 'proxy',
-        } : undefined,
+        ...(process.env.LOKI_URL && {
+          loki: {
+            url: process.env.LOKI_URL,
+            access: 'proxy',
+          },
+        }),
       },
     };
   }
@@ -262,7 +264,6 @@ export class MonitoringConfigManager {
       },
       alerts: {
         enabled: false,
-        webhookUrl: undefined,
         channels: [],
         thresholds: {
           errorRate: 0.1,
@@ -291,7 +292,7 @@ export class MonitoringConfigManager {
       },
       alerts: {
         enabled: true,
-        webhookUrl: process.env.ALERT_WEBHOOK_URL,
+        ...(process.env.ALERT_WEBHOOK_URL && { webhookUrl: process.env.ALERT_WEBHOOK_URL }),
         channels: ['email', 'slack', 'webhook'],
         thresholds: {
           errorRate: 0.01,
@@ -305,7 +306,7 @@ export class MonitoringConfigManager {
 
   getConfigForEnvironment(): MonitoringConfig {
     const baseConfig = this.getMonitoringConfig();
-    
+
     switch (env.NODE_ENV) {
       case 'development':
         return { ...baseConfig, ...this.getDevelopmentConfig() };

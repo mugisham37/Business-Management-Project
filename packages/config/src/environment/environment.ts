@@ -1,7 +1,7 @@
 // Legacy configuration file - maintained for backward compatibility
 // New applications should use the ConfigManager from './config-manager'
 
-import { configManager } from './config-manager';
+import { configManager } from '../config-manager';
 
 // Initialize the configuration manager
 let configInitialized = false;
@@ -112,7 +112,7 @@ export const config = new Proxy({} as any, {
 export type Config = typeof config;
 
 // Export the new configuration manager for modern usage
-export { configManager } from './config-manager';
+export { configManager } from '../config-manager';
 
 // Export initialization function for tests
 export { initializeConfig };
