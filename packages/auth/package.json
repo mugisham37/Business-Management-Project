@@ -19,7 +19,7 @@
     "argon2": "^0.31.2",
     "passport": "^0.7.0",
     "speakeasy": "^2.0.0",
-    "@simplewebauthn/server": "^9.0.3",
+    "@simplewebauthn/server": "^13.2.2",
     "@company/shared": "workspace:*",
     "@company/config": "workspace:*",
     "winston": "^3.11.0",
