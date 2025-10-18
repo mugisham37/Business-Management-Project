@@ -1,5 +1,5 @@
 # Multi-stage build for Next.js application
-FROM node:18-alpine AS base
+FROM node:25-alpine AS base
 
 # Install pnpm
 RUN npm install -g pnpm@8.15.0
@@ -36,7 +36,7 @@ ENV NODE_ENV production
 RUN pnpm run build --filter=web
 
 # Production stage
-FROM node:18-alpine AS production
+FROM node:25-alpine AS production
 
 # Create app user
 RUN addgroup -g 1001 -S nodejs
