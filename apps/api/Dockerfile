@@ -1,5 +1,5 @@
 # Multi-stage build for production optimization
-FROM node:18-alpine AS base
+FROM node:25-alpine AS base
 
 # Install pnpm
 RUN npm install -g pnpm@8.15.0
@@ -29,7 +29,7 @@ COPY . .
 RUN pnpm run build --filter=api
 
 # Production stage
-FROM node:18-alpine AS production
+FROM node:25-alpine AS production
 
 # Create app user
 RUN addgroup -g 1001 -S nodejs
