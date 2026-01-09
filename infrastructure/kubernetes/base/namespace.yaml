@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: fullstack-monolith
-  labels:
-    name: fullstack-monolith
-    app.kubernetes.io/name: fullstack-monolith
-    app.kubernetes.io/version: '1.0.0'
