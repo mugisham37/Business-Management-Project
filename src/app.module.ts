@@ -17,6 +17,7 @@ import { LoggerModule } from './modules/logger/logger.module';
 import { CacheConfigModule } from './modules/cache/cache.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantModule } from './modules/tenant/tenant.module';
+import { CrmModule } from './modules/crm/crm.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { GraphQLCommonModule } from './common/graphql/graphql-common.module';
 import { RestCommonModule } from './common/rest/rest-common.module';
@@ -68,6 +69,7 @@ import { appConfig } from './config/app.config';
     HealthModule,
     AuthModule,
     TenantModule,
+    CrmModule,
     ValidationModule,
     GraphQLCommonModule,
     RestCommonModule,

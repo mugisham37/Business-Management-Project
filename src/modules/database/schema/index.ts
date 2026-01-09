@@ -5,4 +5,5 @@ export * from './user.schema';
 export * from './transaction.schema';
 export * from './product.schema';
 export * from './inventory.schema';
+export * from './customer.schema';
 export * from './enums';
