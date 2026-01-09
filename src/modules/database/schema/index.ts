@@ -10,4 +10,6 @@ export * from './employee.schema';
 export * from './financial.schema';
 export * from './supplier.schema';
 export * from './purchase-order.schema';
+export * from './location.schema';
+export * from './location-features.schema';
 export * from './enums';

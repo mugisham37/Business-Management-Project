@@ -374,21 +374,21 @@ Each task must pass these quality gates before completion:
     - Create supplier portal integration
     - _Requirements: 9.8, 9.9_
 
-- [ ] 13. Multi-Location Operations
-  - [ ] 13.1 Build location management system
+- [-] 13. Multi-Location Operations
+  - [x] 13.1 Build location management system
     - Create Location entity with hierarchies
     - Implement location-specific settings
     - Add location performance tracking
     - Set up location-based permissions
     - _Requirements: 10.1, 10.6, 10.7_
 
-  - [ ] 13.2 Implement real-time synchronization
+  - [x] 13.2 Implement real-time synchronization
     - Build data sync across locations
     - Create conflict resolution for multi-location edits
     - Add offline support for individual locations
     - _Requirements: 10.2_
 
-  - [ ] 13.3 Add location-specific features
+  - [x] 13.3 Add location-specific features
     - Implement location-specific pricing
     - Create location-based promotions
     - Add location inventory policies
