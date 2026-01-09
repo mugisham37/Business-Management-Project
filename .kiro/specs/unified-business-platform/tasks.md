@@ -387,7 +387,7 @@ Each task must pass these quality gates before completion:
     - Add location inventory policies
     - _Requirements: 10.3_
 
-  - [ ] 13.4 Build consolidated reporting
+  - [x] 13.4 Build consolidated reporting
     - Create cross-location reporting
     - Implement location comparison analytics
     - Add drill-down capabilities
@@ -400,7 +400,7 @@ Each task must pass these quality gates before completion:
     - Add dealer portal functionality
     - _Requirements: 10.9_
 
-- [ ] 14. Real-Time Communication System
+- [-] 14. Real-Time Communication System
   - [ ] 14.1 Build WebSocket gateway
     - Implement RealtimeGateway with Socket.io
     - Add connection authentication and authorization

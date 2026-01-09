@@ -4,22 +4,34 @@ import { LocationSyncController } from './controllers/location-sync.controller';
 import { LocationPricingController } from './controllers/location-pricing.controller';
 import { LocationPromotionController } from './controllers/location-promotion.controller';
 import { LocationInventoryPolicyController } from './controllers/location-inventory-policy.controller';
+import { LocationReportingController } from './controllers/location-reporting.controller';
 import { LocationService } from './services/location.service';
 import { LocationSyncService } from './services/location-sync.service';
 import { LocationOfflineService } from './services/location-offline.service';
 import { LocationPricingService } from './services/location-pricing.service';
 import { LocationPromotionService } from './services/location-promotion.service';
 import { LocationInventoryPolicyService } from './services/location-inventory-policy.service';
+import { LocationReportingService } from './services/location-reporting.service';
 import { LocationRepository } from './repositories/location.repository';
 import { DatabaseModule } from '../database/database.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantModule } from '../tenant/tenant.module';
+import { FinancialModule } from '../financial/financial.module';
+import { InventoryModule } from '../inventory/inventory.module';
+import { CrmModule } from '../crm/crm.module';
+import { SupplierModule } from '../supplier/supplier.module';
+import { PosModule } from '../pos/pos.module';
 
 @Module({
   imports: [
     DatabaseModule,
     AuthModule,
     TenantModule,
+    FinancialModule,
+    InventoryModule,
+    CrmModule,
+    SupplierModule,
+    PosModule,
   ],
   controllers: [
     LocationController,
@@ -27,6 +39,7 @@ import { TenantModule } from '../tenant/tenant.module';
     LocationPricingController,
     LocationPromotionController,
     LocationInventoryPolicyController,
+    LocationReportingController,
   ],
   providers: [
     LocationService,
@@ -35,6 +48,7 @@ import { TenantModule } from '../tenant/tenant.module';
     LocationPricingService,
     LocationPromotionService,
     LocationInventoryPolicyService,
+    LocationReportingService,
     LocationRepository,
   ],
   exports: [
@@ -44,6 +58,7 @@ import { TenantModule } from '../tenant/tenant.module';
     LocationPricingService,
     LocationPromotionService,
     LocationInventoryPolicyService,
+    LocationReportingService,
     LocationRepository,
   ],
 })
