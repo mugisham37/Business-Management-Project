@@ -98,8 +98,8 @@ Each task must pass these quality gates before completion:
     - Implement device trust management
     - _Requirements: 3.5_
 
-- [ ] 3. Multi-Tenancy and Feature Flag System
-  - [ ] 3.1 Build tenant management system
+- [-] 3. Multi-Tenancy and Feature Flag System
+  - [-] 3.1 Build tenant management system
     - Create Tenant entity and service
     - Implement tenant creation and configuration
     - Set up tenant context injection
