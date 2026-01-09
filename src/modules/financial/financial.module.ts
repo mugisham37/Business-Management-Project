@@ -12,6 +12,9 @@ import { ReconciliationService } from './services/reconciliation.service';
 import { BudgetService } from './services/budget.service';
 import { FiscalPeriodService } from './services/fiscal-period.service';
 import { TransactionPostingService } from './services/transaction-posting.service';
+import { TaxService } from './services/tax.service';
+import { AccountsReceivablePayableService } from './services/accounts-receivable-payable.service';
+import { MultiCurrencyService } from './services/multi-currency.service';
 
 // Repositories
 import { ChartOfAccountsRepository } from './repositories/chart-of-accounts.repository';
@@ -28,6 +31,9 @@ import { FinancialReportingController } from './controllers/financial-reporting.
 import { JournalEntryController } from './controllers/journal-entry.controller';
 import { BudgetController } from './controllers/budget.controller';
 import { ReconciliationController } from './controllers/reconciliation.controller';
+import { TaxController } from './controllers/tax.controller';
+import { AccountsReceivablePayableController } from './controllers/accounts-receivable-payable.controller';
+import { MultiCurrencyController } from './controllers/multi-currency.controller';
 
 // Resolvers
 import { AccountingResolver } from './resolvers/accounting.resolver';
@@ -52,6 +58,9 @@ import { TransactionPostedHandler } from './handlers/transaction-posted.handler'
     BudgetService,
     FiscalPeriodService,
     TransactionPostingService,
+    TaxService,
+    AccountsReceivablePayableService,
+    MultiCurrencyService,
     
     // Repositories
     ChartOfAccountsRepository,
@@ -75,6 +84,9 @@ import { TransactionPostedHandler } from './handlers/transaction-posted.handler'
     JournalEntryController,
     BudgetController,
     ReconciliationController,
+    TaxController,
+    AccountsReceivablePayableController,
+    MultiCurrencyController,
   ],
   exports: [
     AccountingService,
@@ -82,6 +94,9 @@ import { TransactionPostedHandler } from './handlers/transaction-posted.handler'
     JournalEntryService,
     FinancialReportingService,
     TransactionPostingService,
+    TaxService,
+    AccountsReceivablePayableService,
+    MultiCurrencyService,
   ],
 })
 export class FinancialModule {}
