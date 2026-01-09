@@ -346,15 +346,15 @@ Each task must pass these quality gates before completion:
     - Add multi-currency reporting
     - _Requirements: 8.8, 8.9_
 
-- [ ] 12. Supplier and Procurement Management
-  - [ ] 12.1 Build supplier management system
+- [-] 12. Supplier and Procurement Management
+  - [x] 12.1 Build supplier management system
     - Create Supplier entity and profiles
     - Implement supplier performance tracking
     - Add supplier communication history
     - Set up supplier evaluation system
     - _Requirements: 9.1, 9.3_
 
-  - [ ] 12.2 Implement purchase order system
+  - [x] 12.2 Implement purchase order system
     - Create PO workflow with approvals
     - Build PO tracking and receiving
     - Add three-way matching (PO, receipt, invoice)

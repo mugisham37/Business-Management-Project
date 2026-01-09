@@ -8,4 +8,6 @@ export * from './inventory.schema';
 export * from './customer.schema';
 export * from './employee.schema';
 export * from './financial.schema';
+export * from './supplier.schema';
+export * from './purchase-order.schema';
 export * from './enums';
