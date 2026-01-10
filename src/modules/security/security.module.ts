@@ -6,6 +6,10 @@ import { AuditService } from './services/audit.service';
 import { SecurityMonitoringService } from './services/security-monitoring.service';
 import { ThreatDetectionService } from './services/threat-detection.service';
 import { ComplianceService } from './services/compliance.service';
+import { DataDeletionService } from './services/data-deletion.service';
+import { KeyManagementService } from './services/key-management.service';
+import { EnterpriseAuthService } from './services/enterprise-auth.service';
+import { PenetrationTestingService } from './services/penetration-testing.service';
 import { SecurityController } from './controllers/security.controller';
 import { AuditController } from './controllers/audit.controller';
 import { ComplianceController } from './controllers/compliance.controller';
@@ -27,6 +31,10 @@ import { LoggerService } from '../logger/logger.service';
     SecurityMonitoringService,
     ThreatDetectionService,
     ComplianceService,
+    DataDeletionService,
+    KeyManagementService,
+    EnterpriseAuthService,
+    PenetrationTestingService,
     SecurityGuard,
     ThreatDetectionGuard,
     SecurityInterceptor,
@@ -38,6 +46,10 @@ import { LoggerService } from '../logger/logger.service';
     SecurityMonitoringService,
     ThreatDetectionService,
     ComplianceService,
+    DataDeletionService,
+    KeyManagementService,
+    EnterpriseAuthService,
+    PenetrationTestingService,
     SecurityGuard,
     ThreatDetectionGuard,
     SecurityInterceptor,
