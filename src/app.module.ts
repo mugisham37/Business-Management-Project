@@ -23,6 +23,7 @@ import { EmployeeModule } from './modules/employee/employee.module';
 import { FinancialModule } from './modules/financial/financial.module';
 import { SupplierModule } from './modules/supplier/supplier.module';
 import { LocationModule } from './modules/location/location.module';
+import { IntegrationModule } from './modules/integration/integration.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { GraphQLCommonModule } from './common/graphql/graphql-common.module';
 import { RestCommonModule } from './common/rest/rest-common.module';
@@ -80,6 +81,7 @@ import { appConfig } from './config/app.config';
     FinancialModule,
     SupplierModule,
     LocationModule,
+    IntegrationModule,
     ValidationModule,
     GraphQLCommonModule,
     RestCommonModule,
