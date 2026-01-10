@@ -12,4 +12,5 @@ export * from './supplier.schema';
 export * from './purchase-order.schema';
 export * from './location.schema';
 export * from './location-features.schema';
+export * from './warehouse.schema';
 export * from './enums';
