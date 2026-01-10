@@ -450,21 +450,21 @@ Before beginning implementation, these non-negotiable quality standards must be 
     - Set up inventory accuracy reporting
     - _Requirements: 11.4, 11.8_
 
-  - [ ] 16.4 Build shipping integration
+  - [x] 16.4 Build shipping integration
     - Add carrier integration (UPS, FedEx, USPS)
     - Implement shipping label generation
     - Create tracking number management
     - Add delivery confirmation processing
     - _Requirements: 11.5_
 
-  - [ ] 16.5 Implement lot tracking and FIFO
+  - [x] 16.5 Implement lot tracking and FIFO
     - Add batch/lot number tracking
     - Implement FIFO/FEFO rotation
     - Create expiry date management
     - Set up recall management system
     - _Requirements: 11.6_
 
-  - [ ] 16.6 Add kitting and assembly
+  - [x] 16.6 Add kitting and assembly
     - Implement kit/bundle management
     - Create assembly work orders
     - Add component tracking
