@@ -11,10 +11,17 @@ import { LiveInventoryService } from './services/live-inventory.service';
 import { LiveSalesDashboardService } from './services/live-sales-dashboard.service';
 import { LiveCustomerActivityService } from './services/live-customer-activity.service';
 import { LiveAnalyticsService } from './services/live-analytics.service';
+import { CommunicationIntegrationService } from '../communication/services/communication-integration.service';
+import { SlackIntegrationService } from '../communication/services/slack-integration.service';
+import { TeamsIntegrationService } from '../communication/services/teams-integration.service';
+import { EmailNotificationService } from '../communication/services/email-notification.service';
+import { SMSNotificationService } from '../communication/services/sms-notification.service';
 import { RealtimeController } from './controllers/realtime.controller';
 import { NotificationController } from './controllers/notification.controller';
 import { LiveDataController } from './controllers/live-data.controller';
+import { CommunicationIntegrationController } from './controllers/communication-integration.controller';
 import { LiveDataResolver } from './resolvers/live-data.resolver';
+import { CommunicationModule } from '../communication/communication.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantModule } from '../tenant/tenant.module';
 import { LoggerModule } from '../logger/logger.module';
@@ -24,6 +31,7 @@ import { CacheModule } from '../cache/cache.module';
 
 @Module({
   imports: [
+    CommunicationModule,
     AuthModule,
     TenantModule,
     LoggerModule,
@@ -45,7 +53,12 @@ import { CacheModule } from '../cache/cache.module';
       inject: [ConfigService],
     }),
   ],
-  controllers: [RealtimeController, NotificationController, LiveDataController],
+  controllers: [
+    RealtimeController, 
+    NotificationController, 
+    LiveDataController,
+    CommunicationIntegrationController,
+  ],
   providers: [
     RealtimeGateway,
     RealtimeService,

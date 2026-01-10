@@ -6,11 +6,13 @@ import { EmailProcessor } from './processors/email.processor';
 import { ReportProcessor } from './processors/report.processor';
 import { SyncProcessor } from './processors/sync.processor';
 import { NotificationProcessor } from './processors/notification.processor';
+import { CommunicationModule } from '../communication/communication.module';
 
 @Global()
 @Module({
   imports: [
     ConfigModule,
+    CommunicationModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {

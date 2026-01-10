@@ -1,7 +1,7 @@
 import { Module, Global } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseService } from './database.service';
-import { DrizzleService } from './drizzle.service';
+import { DrizzleService, DRIZZLE_TOKEN } from './drizzle.service';
 import { MigrationService } from './migration.service';
 import { SeedService } from './seed.service';
 
@@ -18,10 +18,15 @@ import { SeedService } from './seed.service';
       },
       inject: [ConfigService],
     },
+    {
+      provide: DRIZZLE_TOKEN,
+      useFactory: (drizzleService: DrizzleService) => drizzleService.getDb(),
+      inject: [DrizzleService],
+    },
     DatabaseService,
     MigrationService,
     SeedService,
   ],
-  exports: [DrizzleService, DatabaseService, MigrationService, SeedService],
+  exports: [DrizzleService, DatabaseService, MigrationService, SeedService, DRIZZLE_TOKEN],
 })
 export class DatabaseModule {}

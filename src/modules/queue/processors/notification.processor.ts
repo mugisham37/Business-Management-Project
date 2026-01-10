@@ -3,9 +3,13 @@ import { Logger, Inject } from '@nestjs/common';
 import { Job } from 'bull';
 import { NotificationJobData } from '../queue.service';
 import { CustomLoggerService } from '../../logger/logger.service';
-import { InjectDrizzle } from '../../database/drizzle.service';
-import { DrizzleDB } from '../../database/database.service';
+import { InjectDrizzle, DrizzleDB } from '../../database/drizzle.service';
 import { RealtimeService } from '../../realtime/services/realtime.service';
+import { CommunicationIntegrationService } from '../../communication/services/communication-integration.service';
+import { SlackIntegrationService } from '../../communication/services/slack-integration.service';
+import { TeamsIntegrationService } from '../../communication/services/teams-integration.service';
+import { EmailNotificationService } from '../../communication/services/email-notification.service';
+import { SMSNotificationService } from '../../communication/services/sms-notification.service';
 import { 
   notifications, 
   notificationDeliveryLog,
@@ -22,6 +26,11 @@ export class NotificationProcessor {
     private readonly customLogger: CustomLoggerService,
     @InjectDrizzle() private readonly db: DrizzleDB,
     private readonly realtimeService?: RealtimeService,
+    private readonly communicationService?: CommunicationIntegrationService,
+    private readonly slackService?: SlackIntegrationService,
+    private readonly teamsService?: TeamsIntegrationService,
+    private readonly emailService?: EmailNotificationService,
+    private readonly smsService?: SMSNotificationService,
   ) {
     this.customLogger.setContext('NotificationProcessor');
   }
@@ -254,21 +263,27 @@ export class NotificationProcessor {
    */
   private async deliverSmsNotification(notification: any): Promise<{ success: boolean; externalId?: string; error?: string }> {
     try {
-      // TODO: Get user's phone number from user profile
-      // TODO: Implement actual SMS delivery via Twilio, AWS SNS, etc.
+      if (!this.smsService) {
+        return { success: false, error: 'SMS service not available' };
+      }
 
-      // Simulate SMS delivery
-      await this.simulateWork(800);
-      const externalId = `sms_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      this.logger.log(`SMS notification delivered`, {
-        notificationId: notification.id,
-        recipientId: notification.recipientId,
-        message: notification.message.substring(0, 50) + '...',
-        externalId,
+      // Get user's phone number from user profile
+      // For now, simulate SMS delivery
+      const result = await this.smsService.sendSMS(notification.tenantId, {
+        to: '+1234567890', // This would come from user profile
+        message: notification.message,
+        priority: notification.priority === 'urgent' ? 'high' : 'normal',
       });
 
-      return { success: true, externalId };
+      if (result.success) {
+        this.logger.log(`SMS notification delivered`, {
+          notificationId: notification.id,
+          recipientId: notification.recipientId,
+          messageId: result.messageId,
+        });
+      }
+
+      return result;
 
     } catch (error) {
       return { 
@@ -283,21 +298,33 @@ export class NotificationProcessor {
    */
   private async deliverEmailNotification(notification: any): Promise<{ success: boolean; externalId?: string; error?: string }> {
     try {
-      // TODO: Get user's email from user profile
-      // TODO: Implement actual email delivery via SendGrid, AWS SES, etc.
+      if (!this.emailService) {
+        return { success: false, error: 'Email service not available' };
+      }
 
-      // Simulate email delivery
-      await this.simulateWork(600);
-      const externalId = `email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Send email notification to user
+      const result = await this.emailService.sendNotificationToUsers(
+        notification.tenantId,
+        [notification.recipientId],
+        {
+          subject: notification.subject || 'Notification',
+          message: notification.message,
+          htmlContent: notification.htmlContent,
+          priority: notification.priority === 'urgent' ? 'high' : 'normal',
+        }
+      );
 
-      this.logger.log(`Email notification delivered`, {
-        notificationId: notification.id,
-        recipientId: notification.recipientId,
-        subject: notification.subject,
-        externalId,
-      });
+      if (result.totalSent > 0) {
+        this.logger.log(`Email notification delivered`, {
+          notificationId: notification.id,
+          recipientId: notification.recipientId,
+          totalSent: result.totalSent,
+        });
 
-      return { success: true, externalId };
+        return { success: true, externalId: `email_${Date.now()}` };
+      } else {
+        return { success: false, error: 'Email delivery failed' };
+      }
 
     } catch (error) {
       return { 

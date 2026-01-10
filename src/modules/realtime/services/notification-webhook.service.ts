@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectDrizzle } from '../../database/drizzle.service';
-import { DrizzleDB } from '../../database/database.service';
+import { InjectDrizzle, DrizzleDB } from '../../database/drizzle.service';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';

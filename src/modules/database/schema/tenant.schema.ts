@@ -53,6 +53,24 @@ export const tenantFeatureFlags = pgTable('tenant_feature_flags', {
   featureNameIdx: index('tenant_feature_flags_feature_name_idx').on(table.featureName),
 }));
 
+// Integration settings table for third-party service configurations
+export const integrationSettings = pgTable('integration_settings', {
+  ...systemBaseSchema,
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  integrationType: varchar('integration_type', { length: 100 }).notNull(), // e.g., 'slack', 'teams', 'email_sendgrid', 'sms_twilio'
+  isEnabled: boolean('is_enabled').notNull().default(true),
+  configuration: jsonb('configuration').notNull().default({}),
+  lastTestAt: timestamp('last_test_at', { withTimezone: true }),
+  lastTestResult: jsonb('last_test_result'),
+  healthStatus: varchar('health_status', { length: 50 }).default('unknown'), // 'healthy', 'degraded', 'unhealthy', 'unknown'
+  lastHealthCheckAt: timestamp('last_health_check_at', { withTimezone: true }),
+}, (table) => ({
+  tenantIntegrationIdx: unique('tenant_integration_unique').on(table.tenantId, table.integrationType),
+  tenantIdIdx: index('integration_settings_tenant_id_idx').on(table.tenantId),
+  integrationTypeIdx: index('integration_settings_type_idx').on(table.integrationType),
+  enabledIdx: index('integration_settings_enabled_idx').on(table.isEnabled),
+}));
+
 // Audit log table for compliance and security
 export const auditLogs = pgTable('audit_logs', {
   ...systemBaseSchema,

@@ -21,6 +21,7 @@ export const users = pgTable('users', {
   displayName: varchar('display_name', { length: 200 }),
   avatar: varchar('avatar', { length: 500 }),
   phone: varchar('phone', { length: 50 }),
+  phoneNumber: varchar('phone_number', { length: 50 }), // Alternative field name for SMS service compatibility
   
   // Role and permissions
   role: userRoleEnum('role').notNull().default('employee'),

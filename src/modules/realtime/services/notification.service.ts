@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectDrizzle } from '../../database/drizzle.service';
-import { DrizzleDB } from '../../database/database.service';
+import { InjectDrizzle, DrizzleDB } from '../../database/drizzle.service';
 import { QueueService } from '../../queue/queue.service';
 import { RealtimeService } from './realtime.service';
 import { NotificationWebhookService } from './notification-webhook.service';
