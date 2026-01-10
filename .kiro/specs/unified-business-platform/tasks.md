@@ -471,43 +471,43 @@ Before beginning implementation, these non-negotiable quality standards must be 
     - Set up finished goods processing
     - _Requirements: 11.7_
 
-- [ ] 17. B2B and Wholesale Operations
-  - [ ] 17.1 Build B2B customer management
+- [x] 17. B2B and Wholesale Operations
+  - [x] 17.1 Build B2B customer management
     - Implement customer tiers and pricing
     - Create credit limit management
     - Add payment terms configuration
     - Set up customer-specific catalogs
     - _Requirements: 12.1, 12.3_
 
-  - [ ] 17.2 Implement B2B order processing
+  - [x] 17.2 Implement B2B order processing
     - Create B2B order workflow
     - Add minimum order quantity enforcement
     - Implement bulk pricing calculations
     - Set up order approval processes
     - _Requirements: 12.2, 12.4_
 
-  - [ ] 17.3 Build quote management system
+  - [x] 17.3 Build quote management system
     - Create quote generation and tracking
     - Implement quote approval workflows
     - Add quote-to-order conversion
     - Set up quote analytics
     - _Requirements: 12.4_
 
-  - [ ] 17.4 Add customer portal
+  - [x] 17.4 Add customer portal
     - Build self-service ordering portal
     - Create account management interface
     - Add order history and tracking
     - Implement invoice and payment access
     - _Requirements: 12.6_
 
-  - [ ] 17.5 Implement contract pricing
+  - [x] 17.5 Implement contract pricing
     - Create contract management system
     - Add effective date management
     - Implement automatic renewals
     - Set up contract compliance tracking
     - _Requirements: 12.7_
 
-  - [ ] 17.6 Build sales territory management
+  - [x] 17.6 Build sales territory management
     - Implement territory assignments
     - Create sales rep management
     - Add commission calculations
