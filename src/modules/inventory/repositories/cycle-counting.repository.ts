@@ -4,10 +4,9 @@ import {
   stockCountSessions,
   stockCountItems,
   products,
-  productVariants,
-  inventoryLevels
+  productVariants
 } from '../../database/schema';
-import { eq, and, gte, lte, desc, asc, sql, count, isNull, or, ne } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, asc, sql, count, ne } from 'drizzle-orm';
 import { 
   CreateStockCountSessionDto, 
   StockCountSessionQueryDto,
@@ -19,24 +18,24 @@ export interface StockCountSessionWithDetails {
   tenantId: string;
   sessionNumber: string;
   name: string;
-  description?: string;
+  description: string | null;
   locationId: string;
   categoryIds: string[];
   productIds: string[];
-  status: string;
-  scheduledDate?: Date;
-  startedAt?: Date;
-  completedAt?: Date;
+  status: string | null;
+  scheduledDate?: Date | null;
+  startedAt?: Date | null;
+  completedAt?: Date | null;
   assignedTo: string[];
-  totalItemsCounted: number;
+  totalItemsCounted: number | null;
   totalVariances: number;
   totalAdjustmentValue: number;
-  notes?: string;
+  notes?: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  createdBy?: string;
-  updatedBy?: string;
+  createdBy?: string | null;
+  updatedBy?: string | null;
   version: number;
 }
 
@@ -45,22 +44,22 @@ export interface StockCountItemWithProduct {
   tenantId: string;
   sessionId: string;
   productId: string;
-  variantId?: string;
+  variantId: string | null;
   expectedQuantity: number;
-  countedQuantity?: number;
-  variance?: number;
-  batchNumber?: string;
-  binLocation?: string;
-  countedBy?: string;
-  countedAt?: Date;
+  countedQuantity: number | null;
+  variance: number | null;
+  batchNumber?: string | null;
+  binLocation?: string | null;
+  countedBy?: string | null;
+  countedAt?: Date | null;
   status: string;
-  notes?: string;
-  adjustmentId?: string;
+  notes?: string | null;
+  adjustmentId?: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  createdBy?: string;
-  updatedBy?: string;
+  createdBy?: string | null;
+  updatedBy?: string | null;
   version: number;
   product?: any;
   variant?: any;
@@ -120,7 +119,11 @@ export class CycleCountingRepository {
       })
       .returning();
 
-    return this.findSessionById(tenantId, session.id);
+    const result = await this.findSessionById(tenantId, session.id);
+    if (!result) {
+      throw new Error('Failed to create stock count session');
+    }
+    return result;
   }
 
   async findSessionById(tenantId: string, sessionId: string): Promise<StockCountSessionWithDetails | null> {
@@ -142,7 +145,11 @@ export class CycleCountingRepository {
 
     return {
       ...session,
-      totalAdjustmentValue: parseFloat(session.totalAdjustmentValue),
+      categoryIds: Array.isArray(session.categoryIds) ? session.categoryIds : [],
+      productIds: Array.isArray(session.productIds) ? session.productIds : [],
+      assignedTo: Array.isArray(session.assignedTo) ? session.assignedTo : [],
+      totalItemsCounted: session.totalItemsCounted ?? 0,
+      totalAdjustmentValue: parseFloat(session.totalAdjustmentValue || '0'),
     };
   }
 
@@ -165,7 +172,11 @@ export class CycleCountingRepository {
 
     return {
       ...session,
-      totalAdjustmentValue: parseFloat(session.totalAdjustmentValue),
+      categoryIds: Array.isArray(session.categoryIds) ? session.categoryIds : [],
+      productIds: Array.isArray(session.productIds) ? session.productIds : [],
+      assignedTo: Array.isArray(session.assignedTo) ? session.assignedTo : [],
+      totalItemsCounted: session.totalItemsCounted ?? 0,
+      totalAdjustmentValue: parseFloat(session.totalAdjustmentValue || '0'),
     };
   }
 
@@ -207,10 +218,12 @@ export class CycleCountingRepository {
     const whereClause = and(...conditions);
 
     // Get total count
-    const [{ count: totalCount }] = await db
+    const [countResult] = await db
       .select({ count: count() })
       .from(stockCountSessions)
       .where(whereClause);
+
+    const totalCount = countResult?.count || 0;
 
     // Build order by clause
     let orderBy;
@@ -251,7 +264,11 @@ export class CycleCountingRepository {
 
     const sessionsWithDetails = result.map(session => ({
       ...session,
-      totalAdjustmentValue: parseFloat(session.totalAdjustmentValue),
+      categoryIds: Array.isArray(session.categoryIds) ? session.categoryIds as string[] : [],
+      productIds: Array.isArray(session.productIds) ? session.productIds as string[] : [],
+      assignedTo: Array.isArray(session.assignedTo) ? session.assignedTo as string[] : [],
+      totalItemsCounted: session.totalItemsCounted ?? 0,
+      totalAdjustmentValue: parseFloat(session.totalAdjustmentValue || '0'),
     }));
 
     const totalPages = Math.ceil(totalCount / limit);
@@ -317,7 +334,15 @@ export class CycleCountingRepository {
       ))
       .returning();
 
-    return this.findSessionById(tenantId, updated.id);
+    if (!updated) {
+      throw new Error('Session not found or could not be updated');
+    }
+
+    const result = await this.findSessionById(tenantId, updated.id);
+    if (!result) {
+      throw new Error('Failed to retrieve updated session');
+    }
+    return result;
   }
 
   async createCountItem(tenantId: string, data: CreateCountItemDto, userId: string): Promise<StockCountItemWithProduct> {
@@ -339,7 +364,11 @@ export class CycleCountingRepository {
       })
       .returning();
 
-    return this.findCountItemById(tenantId, item.id);
+    const result = await this.findCountItemById(tenantId, item.id);
+    if (!result) {
+      throw new Error('Failed to create count item');
+    }
+    return result;
   }
 
   async findCountItemById(tenantId: string, itemId: string): Promise<StockCountItemWithProduct | null> {
@@ -367,13 +396,18 @@ export class CycleCountingRepository {
       return null;
     }
 
-    const { item, product, variant, session } = result[0];
+    const row = result[0];
+    if (!row?.item) {
+      return null;
+    }
+
+    const { item, product, variant, session } = row;
     
     return {
       ...item,
-      expectedQuantity: parseFloat(item.expectedQuantity),
-      countedQuantity: item.countedQuantity ? parseFloat(item.countedQuantity) : undefined,
-      variance: item.variance ? parseFloat(item.variance) : undefined,
+      expectedQuantity: parseFloat(item.expectedQuantity || '0'),
+      countedQuantity: item.countedQuantity ? parseFloat(item.countedQuantity) : null,
+      variance: item.variance ? parseFloat(item.variance) : null,
       product,
       variant,
       sessionNumber: session?.sessionNumber,
@@ -416,10 +450,12 @@ export class CycleCountingRepository {
     const whereClause = and(...conditions);
 
     // Get total count
-    const [{ count: totalCount }] = await db
+    const [countResult] = await db
       .select({ count: count() })
       .from(stockCountItems)
       .where(whereClause);
+
+    const totalCount = countResult?.count || 0;
 
     // Pagination
     const page = query.page || 1;
@@ -445,9 +481,9 @@ export class CycleCountingRepository {
 
     const itemsWithProducts = result.map(({ item, product, variant, session }) => ({
       ...item,
-      expectedQuantity: parseFloat(item.expectedQuantity),
-      countedQuantity: item.countedQuantity ? parseFloat(item.countedQuantity) : undefined,
-      variance: item.variance ? parseFloat(item.variance) : undefined,
+      expectedQuantity: parseFloat(item.expectedQuantity || '0'),
+      countedQuantity: item.countedQuantity ? parseFloat(item.countedQuantity) : null,
+      variance: item.variance ? parseFloat(item.variance) : null,
       product,
       variant,
       sessionNumber: session?.sessionNumber,
@@ -525,7 +561,15 @@ export class CycleCountingRepository {
       ))
       .returning();
 
-    return this.findCountItemById(tenantId, updated.id);
+    if (!updated) {
+      throw new Error('Count item not found or could not be updated');
+    }
+
+    const result = await this.findCountItemById(tenantId, updated.id);
+    if (!result) {
+      throw new Error('Failed to retrieve updated count item');
+    }
+    return result;
   }
 
   async findVariances(tenantId: string, sessionId: string): Promise<StockCountItemWithProduct[]> {
@@ -552,9 +596,9 @@ export class CycleCountingRepository {
 
     return result.map(({ item, product, variant, session }) => ({
       ...item,
-      expectedQuantity: parseFloat(item.expectedQuantity),
-      countedQuantity: item.countedQuantity ? parseFloat(item.countedQuantity) : undefined,
-      variance: item.variance ? parseFloat(item.variance) : undefined,
+      expectedQuantity: parseFloat(item.expectedQuantity || '0'),
+      countedQuantity: item.countedQuantity ? parseFloat(item.countedQuantity) : null,
+      variance: item.variance ? parseFloat(item.variance) : null,
       product,
       variant,
       sessionNumber: session?.sessionNumber,

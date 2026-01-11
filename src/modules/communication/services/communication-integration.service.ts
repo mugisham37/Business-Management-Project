@@ -298,12 +298,12 @@ export class CommunicationIntegrationService {
         priority: notification.priority || 'medium',
         type: notification.type,
         channels,
-        recipients: notification.recipients?.userIds ? { 
-          userIds: notification.recipients.userIds 
-        } : undefined,
-        metadata: notification.metadata || undefined,
-        templateName: notification.templateName || undefined,
-        templateVariables: notification.templateVariables || undefined,
+        ...(notification.recipients?.userIds && { 
+          recipients: { userIds: notification.recipients.userIds } 
+        }),
+        ...(notification.metadata && { metadata: notification.metadata }),
+        ...(notification.templateName && { templateName: notification.templateName }),
+        ...(notification.templateVariables && { templateVariables: notification.templateVariables }),
         options: {
           enableFallback: false,
           batchSize: 50,

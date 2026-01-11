@@ -185,19 +185,21 @@ export class TeamsIntegrationService {
 
       // Add actions if present
       if (notification.actions && notification.actions.length > 0) {
-        const actions = notification.actions.map(action => ({
-          '@type': 'OpenUri' as const,
-          name: action.label,
-          targets: action.url ? [
-            {
-              os: 'default' as const,
-              uri: action.url,
-            },
-          ] : undefined,
-        })).filter((action): action is { '@type': 'OpenUri'; name: string; targets: Array<{ os: 'default'; uri: string }> | undefined } => action.targets !== undefined);
+        const validActions = notification.actions
+          .filter(action => action.url)
+          .map(action => ({
+            '@type': 'OpenUri' as const,
+            name: action.label,
+            targets: [
+              {
+                os: 'default' as const,
+                uri: action.url!,
+              },
+            ],
+          }));
         
-        if (actions.length > 0) {
-          teamsMessage.potentialAction = actions;
+        if (validActions.length > 0) {
+          teamsMessage.potentialAction = validActions;
         }
       }
 
@@ -341,11 +343,11 @@ export class TeamsIntegrationService {
         summary: card.summary || card.title,
         themeColor: card.themeColor || config.defaultThemeColor || '0078D4',
         sections: card.sections.map(section => ({
-          activityTitle: section.title,
-          activitySubtitle: section.subtitle,
-          activityImage: section.image,
-          text: section.text,
-          facts: section.facts,
+          ...(section.title && { activityTitle: section.title }),
+          ...(section.subtitle && { activitySubtitle: section.subtitle }),
+          ...(section.image && { activityImage: section.image }),
+          ...(section.text && { text: section.text }),
+          ...(section.facts && { facts: section.facts }),
           markdown: true,
         })),
       };

@@ -255,9 +255,9 @@ export class EmailNotificationService {
                 to: user.email,
                 subject: this.renderTemplate(template.subject, variables),
                 html: this.renderTemplate(template.htmlTemplate, variables),
-                text: template.textTemplate ? this.renderTemplate(template.textTemplate, variables) : undefined,
-                priority: notification.priority,
-                attachments: notification.attachments,
+                ...(template.textTemplate && { text: this.renderTemplate(template.textTemplate, variables) }),
+                ...(notification.priority && { priority: notification.priority }),
+                ...(notification.attachments && { attachments: notification.attachments }),
               };
             } else {
               // Direct message
@@ -265,9 +265,9 @@ export class EmailNotificationService {
                 to: user.email,
                 subject: notification.subject,
                 text: notification.message,
-                html: notification.htmlContent,
-                priority: notification.priority,
-                attachments: notification.attachments,
+                ...(notification.htmlContent && { html: notification.htmlContent }),
+                ...(notification.priority && { priority: notification.priority }),
+                ...(notification.attachments && { attachments: notification.attachments }),
               };
             }
 
@@ -573,8 +573,9 @@ export class EmailNotificationService {
       // In a real implementation, you might want to send to a test address
       return { success: true };
 
-    } catch (error) {
-      return { success: false, error: error.message };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
     }
   }
 

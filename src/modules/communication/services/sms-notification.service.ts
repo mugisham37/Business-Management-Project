@@ -241,16 +241,16 @@ export class SMSNotificationService {
               smsMessage = {
                 to: user.phoneNumber,
                 message: this.renderTemplate(template.message, variables),
-                priority: notification.priority,
-                scheduledAt: notification.scheduledAt,
+                ...(notification.priority && { priority: notification.priority }),
+                ...(notification.scheduledAt && { scheduledAt: notification.scheduledAt }),
               };
             } else {
               // Direct message
               smsMessage = {
                 to: user.phoneNumber,
                 message: notification.message,
-                priority: notification.priority,
-                scheduledAt: notification.scheduledAt,
+                ...(notification.priority && { priority: notification.priority }),
+                ...(notification.scheduledAt && { scheduledAt: notification.scheduledAt }),
               };
             }
 
@@ -624,8 +624,9 @@ export class SMSNotificationService {
       // In a real implementation, you might want to send to a test number
       return { success: true };
 
-    } catch (error) {
-      return { success: false, error: error.message };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
     }
   }
 

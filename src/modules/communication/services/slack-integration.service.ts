@@ -206,12 +206,14 @@ export class SlackIntegrationService {
             footer: 'Business Platform',
             footer_icon: 'https://platform.example.com/icon.png',
             ts: Math.floor(Date.now() / 1000),
-            actions: notification.actions?.map(action => ({
-              type: 'button' as const,
-              text: action.label,
-              url: action.url,
-              style: this.mapActionStyle(action.style),
-            })).filter(action => action.url !== undefined),
+            ...(notification.actions?.some(action => action.url) && {
+              actions: notification.actions.filter(action => action.url).map(action => ({
+                type: 'button' as const,
+                text: action.label,
+                url: action.url!,
+                style: this.mapActionStyle(action.style),
+              }))
+            }),
           },
         ],
       };

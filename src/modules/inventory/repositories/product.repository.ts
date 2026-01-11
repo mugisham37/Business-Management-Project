@@ -4,11 +4,9 @@ import {
   products, 
   productVariants, 
   productCategories, 
-  productBrands,
-  productTypeEnum,
-  productStatusEnum 
+  productBrands
 } from '../../database/schema';
-import { eq, and, like, ilike, inArray, isNull, or, desc, asc, sql, count } from 'drizzle-orm';
+import { eq, and, ilike, inArray, or, desc, asc, sql, count } from 'drizzle-orm';
 import { CreateProductDto, UpdateProductDto, ProductQueryDto } from '../dto/product.dto';
 
 export interface ProductWithVariants {
@@ -16,89 +14,49 @@ export interface ProductWithVariants {
   tenantId: string;
   sku: string;
   name: string;
-  description: string;
-  shortDescription?: string;
+  description: string | null;
+  shortDescription?: string | null;
   type: 'simple' | 'variable' | 'grouped' | 'digital' | 'service';
   status: 'active' | 'inactive' | 'discontinued' | 'out_of_stock';
-  categoryId?: string;
-  brandId?: string;
+  categoryId?: string | null;
+  brandId?: string | null;
   tags?: string[];
   basePrice: string;
-  costPrice?: string;
-  msrp?: string;
+  costPrice?: string | null;
+  msrp?: string | null;
   trackInventory: boolean;
   unitOfMeasure: string;
-  weight?: string;
+  weight?: string | null;
   dimensions?: any;
   taxable: boolean;
-  taxCategoryId?: string;
-  slug?: string;
-  metaTitle?: string;
-  metaDescription?: string;
+  taxCategoryId?: string | null;
+  slug?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
   images?: any[];
-  primaryImageUrl?: string;
+  primaryImageUrl?: string | null;
   attributes?: any;
   customFields?: any;
-  supplierId?: string;
-  supplierSku?: string;
+  supplierId?: string | null;
+  supplierSku?: string | null;
   minStockLevel: number;
-  maxStockLevel?: number;
+  maxStockLevel?: number | null;
   reorderPoint: number;
   reorderQuantity: number;
   requiresBatchTracking: boolean;
   requiresExpiryDate: boolean;
-  shelfLife?: number;
+  shelfLife?: number | null;
   isFeatured: boolean;
   allowBackorders: boolean;
-  launchedAt?: string;
-  discontinuedAt?: string;
+  launchedAt?: string | null;
+  discontinuedAt?: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  createdBy?: string;
-  updatedBy?: string;
+  createdBy?: string | null;
+  updatedBy?: string | null;
   version: number;
   variants: any[];
-  category?: any;
-  brand?: any;
-}
-  tags?: string[];
-  basePrice: string;
-  costPrice?: string;
-  msrp?: string;
-  trackInventory: boolean;
-  unitOfMeasure: string;
-  weight?: string;
-  dimensions?: any;
-  taxable: boolean;
-  taxCategoryId?: string;
-  slug?: string;
-  metaTitle?: string;
-  metaDescription?: string;
-  images?: any[];
-  primaryImageUrl?: string;
-  attributes?: any;
-  customFields?: any;
-  supplierId?: string;
-  supplierSku?: string;
-  minStockLevel: number;
-  maxStockLevel?: number;
-  reorderPoint: number;
-  reorderQuantity: number;
-  requiresBatchTracking: boolean;
-  requiresExpiryDate: boolean;
-  shelfLife?: number;
-  isFeatured: boolean;
-  allowBackorders: boolean;
-  isActive: boolean;
-  launchedAt?: string;
-  discontinuedAt?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy?: string;
-  updatedBy?: string;
-  version: number;
-  variants?: any[];
   category?: any;
   brand?: any;
 }
@@ -161,7 +119,7 @@ export class ProductRepository {
         .returning();
 
       // Create variants if this is a variable product
-      let variants = [];
+      let variants: any[] = [];
       if (data.type === 'variable' && data.variants && data.variants.length > 0) {
         const variantInserts = data.variants.map(variant => ({
           tenantId,
@@ -178,7 +136,7 @@ export class ProductRepository {
           dimensions: variant.dimensions || {},
           images: variant.images || [],
           primaryImageUrl: variant.images?.find(img => img.isPrimary)?.url,
-          status: variant.status || 'active',
+          status: (variant.status || 'active') as 'active' | 'inactive' | 'discontinued' | 'out_of_stock',
           minStockLevel: variant.minStockLevel,
           maxStockLevel: variant.maxStockLevel,
           reorderPoint: variant.reorderPoint,
@@ -217,7 +175,7 @@ export class ProductRepository {
     }
 
     // Get variants if it's a variable product
-    let variants = [];
+    let variants: any[] = [];
     if (product.type === 'variable') {
       variants = await db
         .select()
@@ -299,13 +257,14 @@ export class ProductRepository {
     ];
 
     if (query.search) {
-      conditions.push(
-        or(
-          ilike(products.name, `%${query.search}%`),
-          ilike(products.sku, `%${query.search}%`),
-          ilike(products.description, `%${query.search}%`)
-        )
+      const searchCondition = or(
+        ilike(products.name, `%${query.search}%`),
+        ilike(products.sku, `%${query.search}%`),
+        products.description ? ilike(products.description, `%${query.search}%`) : undefined
       );
+      if (searchCondition) {
+        conditions.push(searchCondition);
+      }
     }
 
     if (query.categoryId) {
@@ -352,10 +311,12 @@ export class ProductRepository {
     const whereClause = and(...conditions);
 
     // Get total count
-    const [{ count: totalCount }] = await db
+    const [countResult] = await db
       .select({ count: count() })
       .from(products)
       .where(whereClause);
+
+    const totalCount = countResult?.count || 0;
 
     // Build order by clause
     let orderBy;
@@ -496,7 +457,7 @@ export class ProductRepository {
             dimensions: variant.dimensions || {},
             images: variant.images || [],
             primaryImageUrl: variant.images?.find(img => img.isPrimary)?.url,
-            status: variant.status || 'active',
+            status: (variant.status || 'active') as 'active' | 'inactive' | 'discontinued' | 'out_of_stock',
             minStockLevel: variant.minStockLevel,
             maxStockLevel: variant.maxStockLevel,
             reorderPoint: variant.reorderPoint,

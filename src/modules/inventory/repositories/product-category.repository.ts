@@ -4,30 +4,30 @@ import {
   productCategories,
   products
 } from '../../database/schema';
-import { eq, and, like, ilike, isNull, or, desc, asc, sql, count } from 'drizzle-orm';
+import { eq, and, ilike, isNull, or, desc, asc, sql, count } from 'drizzle-orm';
 import { CreateCategoryDto, UpdateCategoryDto, CategoryQueryDto } from '../dto/category.dto';
 
 export interface CategoryWithChildren {
   id: string;
   tenantId: string;
   name: string;
-  description?: string;
-  slug?: string;
-  parentId?: string;
+  description?: string | null;
+  slug?: string | null;
+  parentId?: string | null;
   level: number;
-  path?: string;
+  path?: string | null;
   sortOrder: number;
   isVisible: boolean;
-  imageUrl?: string;
-  iconUrl?: string;
-  metaTitle?: string;
-  metaDescription?: string;
+  imageUrl?: string | null;
+  iconUrl?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
   attributes?: any;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  createdBy?: string;
-  updatedBy?: string;
+  createdBy?: string | null;
+  updatedBy?: string | null;
   version: number;
   children?: CategoryWithChildren[];
   productCount?: number;
@@ -58,7 +58,7 @@ export class ProductCategoryRepository {
           ))
           .limit(1);
 
-        if (parent.length > 0) {
+        if (parent.length > 0 && parent[0]) {
           level = parent[0].level + 1;
           path = `${parent[0].path}/${path}`;
         }
@@ -107,7 +107,7 @@ export class ProductCategoryRepository {
     }
 
     // Get product count for this category
-    const [{ count: productCount }] = await db
+    const [countResult] = await db
       .select({ count: count() })
       .from(products)
       .where(and(
@@ -115,6 +115,8 @@ export class ProductCategoryRepository {
         eq(products.categoryId, id),
         eq(products.isActive, true)
       ));
+
+    const productCount = countResult?.count || 0;
 
     return {
       ...category,
@@ -157,12 +159,13 @@ export class ProductCategoryRepository {
     ];
 
     if (query.search) {
-      conditions.push(
-        or(
-          ilike(productCategories.name, `%${query.search}%`),
-          ilike(productCategories.description, `%${query.search}%`)
-        )
+      const searchCondition = or(
+        ilike(productCategories.name, `%${query.search}%`),
+        productCategories.description ? ilike(productCategories.description, `%${query.search}%`) : undefined
       );
+      if (searchCondition) {
+        conditions.push(searchCondition);
+      }
     }
 
     if (query.parentId) {
@@ -182,10 +185,12 @@ export class ProductCategoryRepository {
     const whereClause = and(...conditions);
 
     // Get total count
-    const [{ count: totalCount }] = await db
+    const [countResult] = await db
       .select({ count: count() })
       .from(productCategories)
       .where(whereClause);
+
+    const totalCount = countResult?.count || 0;
 
     // Build order by clause
     let orderBy;
@@ -377,7 +382,7 @@ export class ProductCategoryRepository {
             ))
             .limit(1);
 
-          if (parent.length > 0) {
+          if (parent.length > 0 && parent[0]) {
             level = parent[0].level + 1;
             path = `${parent[0].path}/${path}`;
           }
@@ -429,7 +434,7 @@ export class ProductCategoryRepository {
   async hasProducts(tenantId: string, categoryId: string): Promise<boolean> {
     const db = this.drizzle.getDb();
     
-    const [{ count: productCount }] = await db
+    const [countResult] = await db
       .select({ count: count() })
       .from(products)
       .where(and(
@@ -437,6 +442,8 @@ export class ProductCategoryRepository {
         eq(products.categoryId, categoryId),
         eq(products.isActive, true)
       ));
+
+    const productCount = countResult?.count || 0;
 
     return productCount > 0;
   }

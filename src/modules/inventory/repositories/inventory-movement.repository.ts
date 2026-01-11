@@ -37,33 +37,33 @@ export interface InventoryMovementWithProduct {
   id: string;
   tenantId: string;
   productId: string;
-  variantId?: string;
+  variantId?: string | null;
   locationId: string;
   movementType: string;
   quantity: number;
-  unitCost?: number;
-  totalCost?: number;
+  unitCost: number | null;
+  totalCost: number | null;
   previousLevel: number;
   newLevel: number;
-  referenceType?: string;
-  referenceId?: string;
-  referenceNumber?: string;
-  batchNumber?: string;
-  lotNumber?: string;
-  expiryDate?: Date;
-  reason?: string;
-  notes?: string;
+  referenceType?: string | null;
+  referenceId?: string | null;
+  referenceNumber?: string | null;
+  batchNumber?: string | null;
+  lotNumber?: string | null;
+  expiryDate?: Date | null;
+  reason?: string | null;
+  notes?: string | null;
   requiresApproval: boolean;
-  approvedBy?: string;
-  approvedAt?: Date;
-  fromBinLocation?: string;
-  toBinLocation?: string;
+  approvedBy?: string | null;
+  approvedAt?: Date | null;
+  fromBinLocation?: string | null;
+  toBinLocation?: string | null;
   metadata?: any;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  createdBy?: string;
-  updatedBy?: string;
+  createdBy?: string | null;
+  updatedBy?: string | null;
   version: number;
   product?: any;
   variant?: any;
@@ -110,7 +110,11 @@ export class InventoryMovementRepository {
       })
       .returning();
 
-    return this.findById(tenantId, movement.id);
+    const result = await this.findById(tenantId, movement.id);
+    if (!result) {
+      throw new Error('Failed to create inventory movement');
+    }
+    return result;
   }
 
   async findById(tenantId: string, id: string): Promise<InventoryMovementWithProduct | null> {
@@ -136,15 +140,20 @@ export class InventoryMovementRepository {
       return null;
     }
 
-    const { movement, product, variant } = result[0];
+    const row = result[0];
+    if (!row?.movement) {
+      return null;
+    }
+
+    const { movement, product, variant } = row;
     
     return {
       ...movement,
-      quantity: parseFloat(movement.quantity),
-      unitCost: movement.unitCost ? parseFloat(movement.unitCost) : undefined,
-      totalCost: movement.totalCost ? parseFloat(movement.totalCost) : undefined,
-      previousLevel: parseFloat(movement.previousLevel),
-      newLevel: parseFloat(movement.newLevel),
+      quantity: parseFloat(movement.quantity || '0'),
+      unitCost: movement.unitCost ? parseFloat(movement.unitCost) : null,
+      totalCost: movement.totalCost ? parseFloat(movement.totalCost) : null,
+      previousLevel: parseFloat(movement.previousLevel || '0'),
+      newLevel: parseFloat(movement.newLevel || '0'),
       product,
       variant,
     };
@@ -178,11 +187,11 @@ export class InventoryMovementRepository {
 
     return result.map(({ movement, product, variant }) => ({
       ...movement,
-      quantity: parseFloat(movement.quantity),
+      quantity: parseFloat(movement.quantity || '0'),
       unitCost: movement.unitCost ? parseFloat(movement.unitCost) : undefined,
       totalCost: movement.totalCost ? parseFloat(movement.totalCost) : undefined,
-      previousLevel: parseFloat(movement.previousLevel),
-      newLevel: parseFloat(movement.newLevel),
+      previousLevel: parseFloat(movement.previousLevel || '0'),
+      newLevel: parseFloat(movement.newLevel || '0'),
       product,
       variant,
     }));
@@ -220,11 +229,11 @@ export class InventoryMovementRepository {
 
     return result.map(({ movement, product, variant }) => ({
       ...movement,
-      quantity: parseFloat(movement.quantity),
+      quantity: parseFloat(movement.quantity || '0'),
       unitCost: movement.unitCost ? parseFloat(movement.unitCost) : undefined,
       totalCost: movement.totalCost ? parseFloat(movement.totalCost) : undefined,
-      previousLevel: parseFloat(movement.previousLevel),
-      newLevel: parseFloat(movement.newLevel),
+      previousLevel: parseFloat(movement.previousLevel || '0'),
+      newLevel: parseFloat(movement.newLevel || '0'),
       product,
       variant,
     }));
@@ -252,11 +261,11 @@ export class InventoryMovementRepository {
 
     return result.map(({ movement, product, variant }) => ({
       ...movement,
-      quantity: parseFloat(movement.quantity),
+      quantity: parseFloat(movement.quantity || '0'),
       unitCost: movement.unitCost ? parseFloat(movement.unitCost) : undefined,
       totalCost: movement.totalCost ? parseFloat(movement.totalCost) : undefined,
-      previousLevel: parseFloat(movement.previousLevel),
-      newLevel: parseFloat(movement.newLevel),
+      previousLevel: parseFloat(movement.previousLevel || '0'),
+      newLevel: parseFloat(movement.newLevel || '0'),
       product,
       variant,
     }));
@@ -284,11 +293,11 @@ export class InventoryMovementRepository {
 
     return result.map(({ movement, product, variant }) => ({
       ...movement,
-      quantity: parseFloat(movement.quantity),
+      quantity: parseFloat(movement.quantity || '0'),
       unitCost: movement.unitCost ? parseFloat(movement.unitCost) : undefined,
       totalCost: movement.totalCost ? parseFloat(movement.totalCost) : undefined,
-      previousLevel: parseFloat(movement.previousLevel),
-      newLevel: parseFloat(movement.newLevel),
+      previousLevel: parseFloat(movement.previousLevel || '0'),
+      newLevel: parseFloat(movement.newLevel || '0'),
       product,
       variant,
     }));
@@ -434,11 +443,11 @@ export class InventoryMovementRepository {
 
     return result.map(({ movement, product, variant }) => ({
       ...movement,
-      quantity: parseFloat(movement.quantity),
+      quantity: parseFloat(movement.quantity || '0'),
       unitCost: movement.unitCost ? parseFloat(movement.unitCost) : undefined,
       totalCost: movement.totalCost ? parseFloat(movement.totalCost) : undefined,
-      previousLevel: parseFloat(movement.previousLevel),
-      newLevel: parseFloat(movement.newLevel),
+      previousLevel: parseFloat(movement.previousLevel || '0'),
+      newLevel: parseFloat(movement.newLevel || '0'),
       product,
       variant,
     }));

@@ -4,27 +4,27 @@ import {
   productBrands,
   products
 } from '../../database/schema';
-import { eq, and, like, ilike, or, desc, asc, sql, count } from 'drizzle-orm';
+import { eq, and, ilike, or, desc, asc, sql, count } from 'drizzle-orm';
 import { CreateBrandDto, UpdateBrandDto, BrandQueryDto } from '../dto/brand.dto';
 
 export interface BrandWithProductCount {
   id: string;
   tenantId: string;
   name: string;
-  description?: string;
-  slug?: string;
-  website?: string;
-  logoUrl?: string;
-  contactEmail?: string;
-  contactPhone?: string;
-  metaTitle?: string;
-  metaDescription?: string;
+  description?: string | null;
+  slug?: string | null;
+  website?: string | null;
+  logoUrl?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
   attributes?: any;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  createdBy?: string;
-  updatedBy?: string;
+  createdBy?: string | null;
+  updatedBy?: string | null;
   version: number;
   productCount?: number;
 }
@@ -80,7 +80,7 @@ export class ProductBrandRepository {
     }
 
     // Get product count for this brand
-    const [{ count: productCount }] = await db
+    const [countResult] = await db
       .select({ count: count() })
       .from(products)
       .where(and(
@@ -88,6 +88,8 @@ export class ProductBrandRepository {
         eq(products.brandId, id),
         eq(products.isActive, true)
       ));
+
+    const productCount = countResult?.count || 0;
 
     return {
       ...brand,
@@ -130,21 +132,24 @@ export class ProductBrandRepository {
     ];
 
     if (query.search) {
-      conditions.push(
-        or(
-          ilike(productBrands.name, `%${query.search}%`),
-          ilike(productBrands.description, `%${query.search}%`)
-        )
+      const searchCondition = or(
+        ilike(productBrands.name, `%${query.search}%`),
+        productBrands.description ? ilike(productBrands.description, `%${query.search}%`) : undefined
       );
+      if (searchCondition) {
+        conditions.push(searchCondition);
+      }
     }
 
     const whereClause = and(...conditions);
 
     // Get total count
-    const [{ count: totalCount }] = await db
+    const [countResult] = await db
       .select({ count: count() })
       .from(productBrands)
       .where(whereClause);
+
+    const totalCount = countResult?.count || 0;
 
     // Build order by clause
     let orderBy;
@@ -269,7 +274,7 @@ export class ProductBrandRepository {
   async hasProducts(tenantId: string, brandId: string): Promise<boolean> {
     const db = this.drizzle.getDb();
     
-    const [{ count: productCount }] = await db
+    const [countResult] = await db
       .select({ count: count() })
       .from(products)
       .where(and(
@@ -277,6 +282,8 @@ export class ProductBrandRepository {
         eq(products.brandId, brandId),
         eq(products.isActive, true)
       ));
+
+    const productCount = countResult?.count || 0;
 
     return productCount > 0;
   }

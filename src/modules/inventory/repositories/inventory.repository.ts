@@ -6,14 +6,14 @@ import {
   products,
   productVariants
 } from '../../database/schema';
-import { eq, and, lt, lte, gte, desc, asc, sql, count, isNull, or } from 'drizzle-orm';
-import { CreateInventoryLevelDto, UpdateInventoryLevelDto, InventoryQueryDto } from '../dto/inventory.dto';
+import { eq, and, lte, desc, asc, sql, count, isNull } from 'drizzle-orm';
+import { CreateInventoryLevelDto, InventoryQueryDto } from '../dto/inventory.dto';
 
 export interface InventoryLevelWithProduct {
   id: string;
   tenantId: string;
   productId: string;
-  variantId?: string;
+  variantId?: string | null;
   locationId: string;
   currentLevel: number;
   availableLevel: number;
@@ -25,18 +25,18 @@ export interface InventoryLevelWithProduct {
   valuationMethod: string;
   averageCost: number;
   totalValue: number;
-  binLocation?: string;
-  zone?: string;
-  lastMovementAt?: Date;
-  lastCountAt?: Date;
+  binLocation?: string | null;
+  zone?: string | null;
+  lastMovementAt?: Date | null;
+  lastCountAt?: Date | null;
   lowStockAlertSent: boolean;
-  lastAlertSentAt?: Date;
+  lastAlertSentAt?: Date | null;
   attributes?: any;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  createdBy?: string;
-  updatedBy?: string;
+  createdBy?: string | null;
+  updatedBy?: string | null;
   version: number;
   product?: any;
   variant?: any;
@@ -76,7 +76,11 @@ export class InventoryRepository {
       })
       .returning();
 
-    return this.findById(tenantId, inventoryLevel.id);
+    const result = await this.findById(tenantId, inventoryLevel.id);
+    if (!result) {
+      throw new Error('Failed to create inventory level');
+    }
+    return result;
   }
 
   async findById(tenantId: string, id: string): Promise<InventoryLevelWithProduct | null> {
@@ -102,19 +106,24 @@ export class InventoryRepository {
       return null;
     }
 
-    const { inventory, product, variant } = result[0];
+    const row = result[0];
+    if (!row?.inventory) {
+      return null;
+    }
+
+    const { inventory, product, variant } = row;
     
     return {
       ...inventory,
-      currentLevel: parseFloat(inventory.currentLevel),
-      availableLevel: parseFloat(inventory.availableLevel),
-      reservedLevel: parseFloat(inventory.reservedLevel),
-      minStockLevel: parseFloat(inventory.minStockLevel),
+      currentLevel: parseFloat(inventory.currentLevel || '0'),
+      availableLevel: parseFloat(inventory.availableLevel || '0'),
+      reservedLevel: parseFloat(inventory.reservedLevel || '0'),
+      minStockLevel: parseFloat(inventory.minStockLevel || '0'),
       maxStockLevel: inventory.maxStockLevel ? parseFloat(inventory.maxStockLevel) : undefined,
-      reorderPoint: parseFloat(inventory.reorderPoint),
-      reorderQuantity: parseFloat(inventory.reorderQuantity),
-      averageCost: parseFloat(inventory.averageCost),
-      totalValue: parseFloat(inventory.totalValue),
+      reorderPoint: parseFloat(inventory.reorderPoint || '0'),
+      reorderQuantity: parseFloat(inventory.reorderQuantity || '0'),
+      averageCost: parseFloat(inventory.averageCost || '0'),
+      totalValue: parseFloat(inventory.totalValue || '0'),
       product,
       variant,
     };
@@ -157,19 +166,24 @@ export class InventoryRepository {
       return null;
     }
 
-    const { inventory, product, variant } = result[0];
+    const row = result[0];
+    if (!row?.inventory) {
+      return null;
+    }
+
+    const { inventory, product, variant } = row;
     
     return {
       ...inventory,
-      currentLevel: parseFloat(inventory.currentLevel),
-      availableLevel: parseFloat(inventory.availableLevel),
-      reservedLevel: parseFloat(inventory.reservedLevel),
-      minStockLevel: parseFloat(inventory.minStockLevel),
+      currentLevel: parseFloat(inventory.currentLevel || '0'),
+      availableLevel: parseFloat(inventory.availableLevel || '0'),
+      reservedLevel: parseFloat(inventory.reservedLevel || '0'),
+      minStockLevel: parseFloat(inventory.minStockLevel || '0'),
       maxStockLevel: inventory.maxStockLevel ? parseFloat(inventory.maxStockLevel) : undefined,
-      reorderPoint: parseFloat(inventory.reorderPoint),
-      reorderQuantity: parseFloat(inventory.reorderQuantity),
-      averageCost: parseFloat(inventory.averageCost),
-      totalValue: parseFloat(inventory.totalValue),
+      reorderPoint: parseFloat(inventory.reorderPoint || '0'),
+      reorderQuantity: parseFloat(inventory.reorderQuantity || '0'),
+      averageCost: parseFloat(inventory.averageCost || '0'),
+      totalValue: parseFloat(inventory.totalValue || '0'),
       product,
       variant,
     };
@@ -213,10 +227,12 @@ export class InventoryRepository {
     const whereClause = and(...conditions);
 
     // Get total count
-    const [{ count: totalCount }] = await db
+    const [countResult] = await db
       .select({ count: count() })
       .from(inventoryLevels)
       .where(whereClause);
+
+    const totalCount = countResult?.count || 0;
 
     // Build order by clause
     let orderBy;
@@ -264,15 +280,15 @@ export class InventoryRepository {
 
     const inventoryLevelsWithProducts = result.map(({ inventory, product, variant }) => ({
       ...inventory,
-      currentLevel: parseFloat(inventory.currentLevel),
-      availableLevel: parseFloat(inventory.availableLevel),
-      reservedLevel: parseFloat(inventory.reservedLevel),
-      minStockLevel: parseFloat(inventory.minStockLevel),
+      currentLevel: parseFloat(inventory.currentLevel || '0'),
+      availableLevel: parseFloat(inventory.availableLevel || '0'),
+      reservedLevel: parseFloat(inventory.reservedLevel || '0'),
+      minStockLevel: parseFloat(inventory.minStockLevel || '0'),
       maxStockLevel: inventory.maxStockLevel ? parseFloat(inventory.maxStockLevel) : undefined,
-      reorderPoint: parseFloat(inventory.reorderPoint),
-      reorderQuantity: parseFloat(inventory.reorderQuantity),
-      averageCost: parseFloat(inventory.averageCost),
-      totalValue: parseFloat(inventory.totalValue),
+      reorderPoint: parseFloat(inventory.reorderPoint || '0'),
+      reorderQuantity: parseFloat(inventory.reorderQuantity || '0'),
+      averageCost: parseFloat(inventory.averageCost || '0'),
+      totalValue: parseFloat(inventory.totalValue || '0'),
       product,
       variant,
     }));
@@ -324,7 +340,15 @@ export class InventoryRepository {
       .where(and(...conditions))
       .returning();
 
-    return this.findById(tenantId, updated.id);
+    if (!updated) {
+      throw new Error('Inventory level not found or could not be updated');
+    }
+
+    const result = await this.findById(tenantId, updated.id);
+    if (!result) {
+      throw new Error('Failed to retrieve updated inventory level');
+    }
+    return result;
   }
 
   async updateReservedLevel(
@@ -368,7 +392,6 @@ export class InventoryRepository {
     toLocationId: string,
     quantity: number,
     userId: string,
-    notes?: string,
   ): Promise<void> {
     const db = this.drizzle.getDb();
     
@@ -455,15 +478,15 @@ export class InventoryRepository {
 
     return result.map(({ inventory, product, variant }) => ({
       ...inventory,
-      currentLevel: parseFloat(inventory.currentLevel),
-      availableLevel: parseFloat(inventory.availableLevel),
-      reservedLevel: parseFloat(inventory.reservedLevel),
-      minStockLevel: parseFloat(inventory.minStockLevel),
+      currentLevel: parseFloat(inventory.currentLevel || '0'),
+      availableLevel: parseFloat(inventory.availableLevel || '0'),
+      reservedLevel: parseFloat(inventory.reservedLevel || '0'),
+      minStockLevel: parseFloat(inventory.minStockLevel || '0'),
       maxStockLevel: inventory.maxStockLevel ? parseFloat(inventory.maxStockLevel) : undefined,
-      reorderPoint: parseFloat(inventory.reorderPoint),
-      reorderQuantity: parseFloat(inventory.reorderQuantity),
-      averageCost: parseFloat(inventory.averageCost),
-      totalValue: parseFloat(inventory.totalValue),
+      reorderPoint: parseFloat(inventory.reorderPoint || '0'),
+      reorderQuantity: parseFloat(inventory.reorderQuantity || '0'),
+      averageCost: parseFloat(inventory.averageCost || '0'),
+      totalValue: parseFloat(inventory.totalValue || '0'),
       product,
       variant,
     }));
