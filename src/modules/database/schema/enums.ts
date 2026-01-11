@@ -112,6 +112,8 @@ export const payrollPeriodTypeEnum = pgEnum('payroll_period_type', [
 export const payrollStatusEnum = pgEnum('payroll_status', [
   'draft',
   'processing',
+  'calculated',
+  'approved',
   'completed',
   'paid',
 ]);

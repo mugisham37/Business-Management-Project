@@ -29,6 +29,8 @@ export enum PayrollPeriodType {
 export enum PayrollStatus {
   DRAFT = 'draft',
   PROCESSING = 'processing',
+  CALCULATED = 'calculated',
+  APPROVED = 'approved',
   COMPLETED = 'completed',
   PAID = 'paid',
 }
@@ -319,6 +321,16 @@ export class PayrollCalculationDto {
   @IsOptional()
   @IsEnum(PayrollStatus)
   status?: PayrollStatus;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  approvedBy?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  approvedAt?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

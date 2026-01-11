@@ -504,6 +504,21 @@ export class CreatePerformanceReviewDto {
   @IsOptional()
   @IsDateString()
   nextReviewDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  completedAt?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  acknowledgedAt?: string;
 }
 
 export class UpdatePerformanceReviewDto extends PartialType(CreatePerformanceReviewDto) {}
@@ -673,6 +688,11 @@ export class CreateEmployeeGoalDto {
   @IsOptional()
   @IsArray()
   updates?: any[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  lastReviewDate?: string;
 }
 
 export class UpdateEmployeeGoalDto extends PartialType(CreateEmployeeGoalDto) {}

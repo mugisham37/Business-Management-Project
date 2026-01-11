@@ -18,12 +18,12 @@ export enum ReconciliationStatus {
 export class CreateJournalEntryLineDto {
   @ApiProperty({ description: 'Account ID' })
   @IsUUID()
-  accountId: string;
+  accountId!: string;
 
   @ApiProperty({ description: 'Line number' })
   @IsNumber()
   @Min(1)
-  lineNumber: number;
+  lineNumber!: number;
 
   @ApiPropertyOptional({ description: 'Line description' })
   @IsOptional()
@@ -32,11 +32,11 @@ export class CreateJournalEntryLineDto {
 
   @ApiProperty({ description: 'Debit amount', example: '100.00' })
   @IsDecimal({ decimal_digits: '0,2' })
-  debitAmount: string;
+  debitAmount!: string;
 
   @ApiProperty({ description: 'Credit amount', example: '0.00' })
   @IsDecimal({ decimal_digits: '0,2' })
-  creditAmount: string;
+  creditAmount!: string;
 
   @ApiPropertyOptional({ description: 'Department ID' })
   @IsOptional()
@@ -77,11 +77,11 @@ export class CreateJournalEntryLineDto {
 export class CreateJournalEntryDto {
   @ApiProperty({ description: 'Entry date' })
   @IsDateString()
-  entryDate: string;
+  entryDate!: string;
 
   @ApiProperty({ description: 'Entry description' })
   @IsString()
-  description: string;
+  description!: string;
 
   @ApiPropertyOptional({ description: 'Reference (invoice number, check number, etc.)' })
   @IsOptional()
@@ -112,7 +112,7 @@ export class CreateJournalEntryDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateJournalEntryLineDto)
-  lines: CreateJournalEntryLineDto[];
+  lines!: CreateJournalEntryLineDto[];
 }
 
 export class UpdateJournalEntryDto {
@@ -151,25 +151,25 @@ export class UpdateJournalEntryDto {
 
 export class JournalEntryLineResponseDto {
   @ApiProperty({ description: 'Line ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Journal entry ID' })
-  journalEntryId: string;
+  journalEntryId!: string;
 
   @ApiProperty({ description: 'Account ID' })
-  accountId: string;
+  accountId!: string;
 
   @ApiProperty({ description: 'Line number' })
-  lineNumber: number;
+  lineNumber!: number;
 
   @ApiPropertyOptional({ description: 'Line description' })
   description?: string;
 
   @ApiProperty({ description: 'Debit amount' })
-  debitAmount: string;
+  debitAmount!: string;
 
   @ApiProperty({ description: 'Credit amount' })
-  creditAmount: string;
+  creditAmount!: string;
 
   @ApiPropertyOptional({ description: 'Department ID' })
   departmentId?: string;
@@ -187,7 +187,7 @@ export class JournalEntryLineResponseDto {
   supplierId?: string;
 
   @ApiProperty({ enum: ReconciliationStatus, description: 'Reconciliation status' })
-  reconciliationStatus: ReconciliationStatus;
+  reconciliationStatus!: ReconciliationStatus;
 
   @ApiPropertyOptional({ description: 'Reconciled timestamp' })
   reconciledAt?: Date;
@@ -202,36 +202,36 @@ export class JournalEntryLineResponseDto {
   externalReference?: string;
 
   @ApiProperty({ description: 'Created timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 
 export class JournalEntryResponseDto {
   @ApiProperty({ description: 'Entry ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Tenant ID' })
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty({ description: 'Entry number' })
-  entryNumber: string;
+  entryNumber!: string;
 
   @ApiProperty({ description: 'Entry date' })
-  entryDate: Date;
+  entryDate!: Date;
 
   @ApiPropertyOptional({ description: 'Posting date' })
   postingDate?: Date;
 
   @ApiProperty({ description: 'Entry description' })
-  description: string;
+  description!: string;
 
   @ApiPropertyOptional({ description: 'Reference' })
   reference?: string;
 
   @ApiProperty({ enum: JournalEntryStatus, description: 'Entry status' })
-  status: JournalEntryStatus;
+  status!: JournalEntryStatus;
 
   @ApiPropertyOptional({ description: 'Source type' })
   sourceType?: string;
@@ -264,22 +264,22 @@ export class JournalEntryResponseDto {
   attachments?: any[];
 
   @ApiProperty({ description: 'Total debits' })
-  totalDebits: string;
+  totalDebits!: string;
 
   @ApiProperty({ description: 'Total credits' })
-  totalCredits: string;
+  totalCredits!: string;
 
   @ApiProperty({ description: 'Created by user ID' })
-  createdBy: string;
+  createdBy!: string;
 
   @ApiProperty({ description: 'Created timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ApiProperty({ description: 'Journal entry lines', type: [JournalEntryLineResponseDto] })
-  lines: JournalEntryLineResponseDto[];
+  lines!: JournalEntryLineResponseDto[];
 }
 
 export class PostJournalEntryDto {
@@ -292,7 +292,7 @@ export class PostJournalEntryDto {
 export class ReverseJournalEntryDto {
   @ApiProperty({ description: 'Reversal reason' })
   @IsString()
-  reversalReason: string;
+  reversalReason!: string;
 
   @ApiPropertyOptional({ description: 'Reversal date (defaults to current date)' })
   @IsOptional()

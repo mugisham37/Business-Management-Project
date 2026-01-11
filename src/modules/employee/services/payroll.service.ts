@@ -6,8 +6,11 @@ import {
   UpdatePayrollPeriodDto,
   CreateCommissionRecordDto,
   PayrollCalculationDto,
-  PayrollReportQueryDto
+  PayrollReportQueryDto,
+  PayrollStatus,
+  CommissionStatus,
 } from '../dto/payroll.dto';
+import { EmploymentStatus } from '../dto/employee.dto';
 import { PayrollPeriod, PayrollRecord, CommissionRecord } from '../entities/payroll.entity';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
@@ -102,7 +105,7 @@ export class PayrollService {
 
     // Get all active employees
     const employees = await this.employeeRepository.findEmployees(tenantId, {
-      employmentStatus: 'active',
+      employmentStatus: EmploymentStatus.ACTIVE,
       page: 1,
       limit: 1000, // Get all employees
     });
@@ -174,7 +177,7 @@ export class PayrollService {
       employeeId,
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
-      status: 'pending',
+      status: CommissionStatus.PENDING,
     });
 
     // Calculate pay rates
@@ -207,7 +210,7 @@ export class PayrollService {
         amount: c.commissionAmount,
         description: c.description,
       })),
-      status: 'calculated',
+      status: PayrollStatus.CALCULATED,
     };
 
     const payrollRecord = await this.payrollRepository.createPayrollRecord(tenantId, payrollData, calculatedBy);
@@ -215,7 +218,7 @@ export class PayrollService {
     // Mark commission records as calculated
     for (const commission of commissions.commissions) {
       await this.payrollRepository.updateCommissionRecord(tenantId, commission.id, {
-        status: 'calculated',
+        status: CommissionStatus.CALCULATED,
         payrollPeriodId: periodId,
       }, calculatedBy);
     }
@@ -334,10 +337,10 @@ export class PayrollService {
   private calculatePeriodTotals(payrollRecords: PayrollRecord[]): any {
     return payrollRecords.reduce(
       (acc, record) => {
-        acc.totalGrossPay += record.grossPay;
-        acc.totalNetPay += record.netPay;
-        acc.totalTaxes += record.totalTaxes;
-        acc.totalDeductions += record.totalDeductions;
+        acc.totalGrossPay += record.grossPay ?? 0;
+        acc.totalNetPay += record.netPay ?? 0;
+        acc.totalTaxes += record.totalTaxes ?? 0;
+        acc.totalDeductions += record.totalDeductions ?? 0;
         return acc;
       },
       {
@@ -411,7 +414,7 @@ export class PayrollService {
   }
 
   private groupByDepartment(records: PayrollRecord[]): any {
-    const grouped = records.reduce((acc, record) => {
+    const grouped = records.reduce((acc: Record<string, any>, record) => {
       const dept = record.employee?.department || 'Unassigned';
       if (!acc[dept]) {
         acc[dept] = {
@@ -421,8 +424,8 @@ export class PayrollService {
         };
       }
       acc[dept].employeeCount++;
-      acc[dept].totalGrossPay += record.grossPay;
-      acc[dept].totalNetPay += record.netPay;
+      acc[dept].totalGrossPay += record.grossPay ?? 0;
+      acc[dept].totalNetPay += record.netPay ?? 0;
       return acc;
     }, {});
 
@@ -433,7 +436,7 @@ export class PayrollService {
   }
 
   private groupByEmploymentType(records: PayrollRecord[]): any {
-    const grouped = records.reduce((acc, record) => {
+    const grouped = records.reduce((acc: Record<string, any>, record) => {
       const type = record.employee?.employmentType || 'Unknown';
       if (!acc[type]) {
         acc[type] = {
@@ -443,8 +446,8 @@ export class PayrollService {
         };
       }
       acc[type].employeeCount++;
-      acc[type].totalGrossPay += record.grossPay;
-      acc[type].totalNetPay += record.netPay;
+      acc[type].totalGrossPay += record.grossPay ?? 0;
+      acc[type].totalNetPay += record.netPay ?? 0;
       return acc;
     }, {});
 
@@ -454,10 +457,11 @@ export class PayrollService {
     }));
   }
 
+
   // Payroll Approval
   async approvePayrollRecord(tenantId: string, recordId: string, approvedBy: string): Promise<PayrollRecord> {
     const record = await this.payrollRepository.updatePayrollRecord(tenantId, recordId, {
-      status: 'approved',
+      status: PayrollStatus.APPROVED,
       approvedBy,
       approvedAt: new Date().toISOString(),
     }, approvedBy);
@@ -476,14 +480,14 @@ export class PayrollService {
   async approvePayrollPeriod(tenantId: string, periodId: string, approvedBy: string): Promise<PayrollPeriod> {
     // Verify all records in period are calculated
     const records = await this.payrollRepository.findPayrollRecordsByPeriod(tenantId, periodId);
-    const unapprovedRecords = records.filter(r => r.status !== 'approved' && r.status !== 'paid');
+    const unapprovedRecords = records.filter(r => r.status !== PayrollStatus.APPROVED && r.status !== PayrollStatus.PAID);
 
     if (unapprovedRecords.length > 0) {
       throw new BadRequestException('All payroll records must be approved before approving the period');
     }
 
     const period = await this.payrollRepository.updatePayrollPeriod(tenantId, periodId, {
-      status: 'completed',
+      status: PayrollStatus.COMPLETED,
     }, approvedBy);
 
     // Emit event for period approval

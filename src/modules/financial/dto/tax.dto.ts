@@ -41,19 +41,19 @@ export enum FilingStatus {
 export class CreateTaxJurisdictionDto {
   @ApiProperty({ description: 'Jurisdiction code' })
   @IsString()
-  jurisdictionCode: string;
+  jurisdictionCode!: string;
 
   @ApiProperty({ description: 'Jurisdiction name' })
   @IsString()
-  jurisdictionName: string;
+  jurisdictionName!: string;
 
   @ApiProperty({ enum: JurisdictionType, description: 'Type of jurisdiction' })
   @IsEnum(JurisdictionType)
-  jurisdictionType: JurisdictionType;
+  jurisdictionType!: JurisdictionType;
 
   @ApiProperty({ description: 'Country code (ISO 3166-1 alpha-3)' })
   @IsString()
-  country: string;
+  country!: string;
 
   @ApiPropertyOptional({ description: 'State or province' })
   @IsOptional()
@@ -87,14 +87,14 @@ export class CreateTaxJurisdictionDto {
 
   @ApiProperty({ description: 'Effective date' })
   @IsDateString()
-  effectiveDate: string;
+  effectiveDate!: string;
 
   @ApiPropertyOptional({ description: 'Expiration date' })
   @IsOptional()
   @IsDateString()
   expirationDate?: string;
 
-  @ApiPropertyOptional({ description: 'Additional settings', type: 'object' })
+  @ApiPropertyOptional({ description: 'Additional settings' })
   @IsOptional()
   settings?: Record<string, any>;
 }
@@ -125,7 +125,7 @@ export class UpdateTaxJurisdictionDto {
   @IsDateString()
   expirationDate?: string;
 
-  @ApiPropertyOptional({ description: 'Additional settings', type: 'object' })
+  @ApiPropertyOptional({ description: 'Additional settings' })
   @IsOptional()
   settings?: Record<string, any>;
 }
@@ -133,25 +133,25 @@ export class UpdateTaxJurisdictionDto {
 export class CreateTaxRateDto {
   @ApiProperty({ description: 'Jurisdiction ID' })
   @IsUUID()
-  jurisdictionId: string;
+  jurisdictionId!: string;
 
   @ApiProperty({ enum: TaxType, description: 'Type of tax' })
   @IsEnum(TaxType)
-  taxType: TaxType;
+  taxType!: TaxType;
 
   @ApiProperty({ description: 'Tax name' })
   @IsString()
-  taxName: string;
+  taxName!: string;
 
   @ApiProperty({ description: 'Tax code' })
   @IsString()
-  taxCode: string;
+  taxCode!: string;
 
   @ApiProperty({ description: 'Tax rate as decimal (e.g., 0.0825 for 8.25%)' })
   @IsNumber()
   @Min(0)
   @Max(1)
-  rate: number;
+  rate!: number;
 
   @ApiPropertyOptional({ description: 'Flat amount (if applicable)' })
   @IsOptional()
@@ -199,7 +199,7 @@ export class CreateTaxRateDto {
 
   @ApiProperty({ description: 'Effective date' })
   @IsDateString()
-  effectiveDate: string;
+  effectiveDate!: string;
 
   @ApiPropertyOptional({ description: 'Expiration date' })
   @IsOptional()
@@ -216,7 +216,7 @@ export class CreateTaxRateDto {
   @IsUUID()
   glAccountId?: string;
 
-  @ApiPropertyOptional({ description: 'Additional settings', type: 'object' })
+  @ApiPropertyOptional({ description: 'Additional settings' })
   @IsOptional()
   settings?: Record<string, any>;
 }
@@ -250,7 +250,7 @@ export class UpdateTaxRateDto {
   @IsDateString()
   expirationDate?: string;
 
-  @ApiPropertyOptional({ description: 'Additional settings', type: 'object' })
+  @ApiPropertyOptional({ description: 'Additional settings' })
   @IsOptional()
   settings?: Record<string, any>;
 }
@@ -258,16 +258,16 @@ export class UpdateTaxRateDto {
 export class TaxCalculationInputDto {
   @ApiProperty({ description: 'Source type (e.g., transaction, invoice)' })
   @IsString()
-  sourceType: string;
+  sourceType!: string;
 
   @ApiProperty({ description: 'Source ID' })
   @IsUUID()
-  sourceId: string;
+  sourceId!: string;
 
   @ApiProperty({ description: 'Taxable amount' })
   @IsNumber()
   @Min(0)
-  taxableAmount: number;
+  taxableAmount!: number;
 
   @ApiPropertyOptional({ description: 'Product type', enum: ['product', 'service', 'shipping'] })
   @IsOptional()
@@ -289,35 +289,35 @@ export class TaxCalculationInputDto {
 export class CreateTaxReturnDto {
   @ApiProperty({ description: 'Jurisdiction ID' })
   @IsUUID()
-  jurisdictionId: string;
+  jurisdictionId!: string;
 
   @ApiProperty({ enum: PeriodType, description: 'Period type' })
   @IsEnum(PeriodType)
-  periodType: PeriodType;
+  periodType!: PeriodType;
 
   @ApiProperty({ description: 'Period year' })
   @IsNumber()
   @Min(2000)
   @Max(2100)
-  periodYear: number;
+  periodYear!: number;
 
   @ApiProperty({ description: 'Period number (1-12 for monthly, 1-4 for quarterly, 1 for annual)' })
   @IsNumber()
   @Min(1)
   @Max(12)
-  periodNumber: number;
+  periodNumber!: number;
 
   @ApiProperty({ description: 'Period start date' })
   @IsDateString()
-  periodStartDate: string;
+  periodStartDate!: string;
 
   @ApiProperty({ description: 'Period end date' })
   @IsDateString()
-  periodEndDate: string;
+  periodEndDate!: string;
 
   @ApiProperty({ description: 'Due date' })
   @IsDateString()
-  dueDate: string;
+  dueDate!: string;
 
   @ApiPropertyOptional({ description: 'Return number (auto-generated if not provided)' })
   @IsOptional()
@@ -333,23 +333,23 @@ export class CreateTaxReturnDto {
 export class GenerateTaxReturnDto {
   @ApiProperty({ description: 'Jurisdiction ID' })
   @IsUUID()
-  jurisdictionId: string;
+  jurisdictionId!: string;
 
   @ApiProperty({ description: 'Period year' })
   @IsNumber()
   @Min(2000)
   @Max(2100)
-  periodYear: number;
+  periodYear!: number;
 
   @ApiProperty({ description: 'Period number' })
   @IsNumber()
   @Min(1)
   @Max(12)
-  periodNumber: number;
+  periodNumber!: number;
 
   @ApiProperty({ enum: PeriodType, description: 'Period type' })
   @IsEnum(PeriodType)
-  periodType: PeriodType;
+  periodType!: PeriodType;
 }
 
 export class UpdateTaxReturnDto {
@@ -387,19 +387,19 @@ export class UpdateTaxReturnDto {
 
 export class TaxJurisdictionResponseDto {
   @ApiProperty()
-  id: string;
+  id!: string;
 
   @ApiProperty()
-  jurisdictionCode: string;
+  jurisdictionCode!: string;
 
   @ApiProperty()
-  jurisdictionName: string;
+  jurisdictionName!: string;
 
   @ApiProperty({ enum: JurisdictionType })
-  jurisdictionType: JurisdictionType;
+  jurisdictionType!: JurisdictionType;
 
   @ApiProperty()
-  country: string;
+  country!: string;
 
   @ApiPropertyOptional()
   stateProvince?: string;
@@ -420,72 +420,72 @@ export class TaxJurisdictionResponseDto {
   taxAuthorityId?: string;
 
   @ApiProperty()
-  isActive: boolean;
+  isActive!: boolean;
 
   @ApiProperty()
-  effectiveDate: Date;
+  effectiveDate!: Date;
 
   @ApiPropertyOptional()
   expirationDate?: Date;
 
   @ApiProperty()
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 
 export class TaxRateResponseDto {
   @ApiProperty()
-  id: string;
+  id!: string;
 
   @ApiProperty()
-  jurisdictionId: string;
+  jurisdictionId!: string;
 
   @ApiProperty({ enum: TaxType })
-  taxType: TaxType;
+  taxType!: TaxType;
 
   @ApiProperty()
-  taxName: string;
+  taxName!: string;
 
   @ApiProperty()
-  taxCode: string;
+  taxCode!: string;
 
   @ApiProperty()
-  rate: number;
+  rate!: number;
 
   @ApiProperty()
-  flatAmount: number;
+  flatAmount!: number;
 
   @ApiProperty({ enum: CalculationMethod })
-  calculationMethod: CalculationMethod;
+  calculationMethod!: CalculationMethod;
 
   @ApiProperty()
-  compoundingOrder: number;
+  compoundingOrder!: number;
 
   @ApiProperty()
-  applicableToProducts: boolean;
+  applicableToProducts!: boolean;
 
   @ApiProperty()
-  applicableToServices: boolean;
+  applicableToServices!: boolean;
 
   @ApiProperty()
-  applicableToShipping: boolean;
+  applicableToShipping!: boolean;
 
   @ApiProperty()
-  minimumTaxableAmount: number;
+  minimumTaxableAmount!: number;
 
   @ApiPropertyOptional()
   maximumTaxableAmount?: number;
 
   @ApiProperty()
-  effectiveDate: Date;
+  effectiveDate!: Date;
 
   @ApiPropertyOptional()
   expirationDate?: Date;
 
   @ApiProperty()
-  isActive: boolean;
+  isActive!: boolean;
 
   @ApiPropertyOptional()
   reportingCategory?: string;
@@ -494,18 +494,18 @@ export class TaxRateResponseDto {
   glAccountId?: string;
 
   @ApiProperty()
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 
 export class TaxCalculationResultDto {
   @ApiProperty()
-  totalTaxAmount: number;
+  totalTaxAmount!: number;
 
   @ApiProperty({ type: [Object] })
-  calculations: Array<{
+  calculations!: Array<{
     jurisdictionId: string;
     jurisdictionName: string;
     taxRateId: string;
@@ -520,49 +520,49 @@ export class TaxCalculationResultDto {
 
 export class TaxReturnResponseDto {
   @ApiProperty()
-  id: string;
+  id!: string;
 
   @ApiProperty()
-  returnNumber: string;
+  returnNumber!: string;
 
   @ApiProperty()
-  jurisdictionId: string;
+  jurisdictionId!: string;
 
   @ApiProperty({ enum: PeriodType })
-  periodType: PeriodType;
+  periodType!: PeriodType;
 
   @ApiProperty()
-  periodYear: number;
+  periodYear!: number;
 
   @ApiProperty()
-  periodNumber: number;
+  periodNumber!: number;
 
   @ApiProperty()
-  periodStartDate: Date;
+  periodStartDate!: Date;
 
   @ApiProperty()
-  periodEndDate: Date;
+  periodEndDate!: Date;
 
   @ApiProperty({ enum: FilingStatus })
-  filingStatus: FilingStatus;
+  filingStatus!: FilingStatus;
 
   @ApiPropertyOptional()
   filingDate?: Date;
 
   @ApiProperty()
-  dueDate: Date;
+  dueDate!: Date;
 
   @ApiProperty()
-  totalTaxableAmount: number;
+  totalTaxableAmount!: number;
 
   @ApiProperty()
-  totalTaxAmount: number;
+  totalTaxAmount!: number;
 
   @ApiProperty()
-  totalPayments: number;
+  totalPayments!: number;
 
   @ApiProperty()
-  amountDue: number;
+  amountDue!: number;
 
   @ApiPropertyOptional()
   preparedBy?: string;
@@ -583,8 +583,8 @@ export class TaxReturnResponseDto {
   notes?: string;
 
   @ApiProperty()
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

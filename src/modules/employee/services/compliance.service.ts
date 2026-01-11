@@ -169,24 +169,24 @@ export class ComplianceService {
     const complianceRate = totalChecks > 0 ? (compliantChecks / totalChecks) * 100 : 100;
 
     // Group violations by type
-    const violationsByType = violations.reduce((acc, violation) => {
+    const violationsByType = violations.reduce((acc: Record<string, any[]>, violation) => {
       const type = violation.violationType;
-      if (type && !acc[type]) {
-        acc[type] = [];
-      }
       if (type) {
+        if (!acc[type]) {
+          acc[type] = [];
+        }
         acc[type].push(violation);
       }
       return acc;
     }, {} as Record<string, any[]>);
 
     // Group violations by severity
-    const violationsBySeverity = violations.reduce((acc, violation) => {
+    const violationsBySeverity = violations.reduce((acc: Record<string, number>, violation) => {
       const severity = violation.severity;
-      if (severity && !acc[severity]) {
-        acc[severity] = 0;
-      }
       if (severity) {
+        if (!acc[severity]) {
+          acc[severity] = 0;
+        }
         acc[severity]++;
       }
       return acc;
@@ -204,8 +204,8 @@ export class ComplianceService {
         totalViolations: violations.length,
         violationsByType: Object.keys(violationsByType).map(type => ({
           type,
-          count: violationsByType[type].length,
-          violations: violationsByType[type],
+          count: violationsByType[type]?.length ?? 0,
+          violations: violationsByType[type] ?? [],
         })),
         violationsBySeverity,
       },
@@ -444,7 +444,7 @@ export class ComplianceService {
   }
 
   private groupTimeEntriesByDate(timeEntries: any[]): Record<string, any[]> {
-    return timeEntries.reduce((acc, entry) => {
+    return timeEntries.reduce((acc: Record<string, any[]>, entry: any) => {
       if (entry?.clockInTime) {
         const date = entry.clockInTime.split('T')[0];
         if (!acc[date]) {
@@ -457,12 +457,12 @@ export class ComplianceService {
   }
 
   private groupTimeEntriesByWeek(timeEntries: any[]): Record<string, any[]> {
-    return timeEntries.reduce((acc, entry) => {
+    return timeEntries.reduce((acc: Record<string, any[]>, entry: any) => {
       if (entry?.clockInTime) {
         const date = new Date(entry.clockInTime);
         const weekStart = new Date(date);
         weekStart.setDate(date.getDate() - date.getDay()); // Start of week (Sunday)
-        const weekKey = weekStart.toISOString().split('T')[0];
+        const weekKey = weekStart.toISOString().split('T')[0]!;
         
         if (!acc[weekKey]) {
           acc[weekKey] = [];
@@ -475,12 +475,12 @@ export class ComplianceService {
 
   private calculateComplianceTrends(complianceChecks: any[], startDate: Date, endDate: Date): any {
     // Group checks by week
-    const weeklyData = complianceChecks.reduce((acc, check) => {
+    const weeklyData = complianceChecks.reduce((acc: Record<string, { total: number; compliant: number }>, check: any) => {
       if (check?.checkDate) {
         const checkDate = new Date(check.checkDate);
         const weekStart = new Date(checkDate);
         weekStart.setDate(checkDate.getDate() - checkDate.getDay());
-        const weekKey = weekStart.toISOString().split('T')[0];
+        const weekKey = weekStart.toISOString().split('T')[0]!;
 
         if (!acc[weekKey]) {
           acc[weekKey] = { total: 0, compliant: 0 };
@@ -493,7 +493,7 @@ export class ComplianceService {
       return acc;
     }, {} as Record<string, { total: number; compliant: number }>);
 
-    const trends = Object.entries(weeklyData).map(([week, data]) => ({
+    const trends = Object.entries(weeklyData).map(([week, data]: [string, { total: number; compliant: number }]) => ({
       week,
       complianceRate: data.total > 0 ? (data.compliant / data.total) * 100 : 100,
       totalChecks: data.total,
@@ -518,7 +518,7 @@ export class ComplianceService {
       });
     }
 
-    const violationTypes = violations.reduce((acc, violation) => {
+    const violationTypes = violations.reduce((acc: Record<string, number>, violation) => {
       const type = violation.type;
       if (type) {
         acc[type] = (acc[type] || 0) + 1;

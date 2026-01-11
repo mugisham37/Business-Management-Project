@@ -7,7 +7,7 @@ import {
   UpdateEmployeeGoalDto,
   CreateTrainingRecordDto,
   UpdateTrainingRecordDto,
-  PerformanceAnalyticsDto
+  EmploymentStatus,
 } from '../dto/employee.dto';
 import { PerformanceReview, EmployeeGoal, TrainingRecord } from '../entities/employee.entity';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -345,7 +345,7 @@ export class PerformanceService {
     // Get all employees in the department
     const employees = await this.employeeRepository.findEmployees(tenantId, {
       department,
-      employmentStatus: 'active',
+      employmentStatus: EmploymentStatus.ACTIVE,
       page: 1,
       limit: 1000,
     });
@@ -440,8 +440,15 @@ export class PerformanceService {
       'unsatisfactory': 1,
     };
 
-    const firstRating = ratingValues[sortedReviews[0].overallRating as keyof typeof ratingValues];
-    const lastRating = ratingValues[sortedReviews[sortedReviews.length - 1].overallRating as keyof typeof ratingValues];
+    const firstReview = sortedReviews[0];
+    const lastReview = sortedReviews[sortedReviews.length - 1];
+
+    if (!firstReview || !lastReview || !firstReview.overallRating || !lastReview.overallRating) {
+      return 'insufficient_data';
+    }
+
+    const firstRating = ratingValues[firstReview.overallRating as keyof typeof ratingValues];
+    const lastRating = ratingValues[lastReview.overallRating as keyof typeof ratingValues];
 
     if (lastRating > firstRating) return 'improving';
     if (lastRating < firstRating) return 'declining';

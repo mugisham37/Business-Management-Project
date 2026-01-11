@@ -409,6 +409,8 @@ export class EmployeeRepository {
         tenantId,
         createdBy,
         updatedBy: createdBy,
+        completedAt: data.completedAt ? new Date(data.completedAt) : null,
+        acknowledgedAt: data.acknowledgedAt ? new Date(data.acknowledgedAt) : null,
       })
       .returning();
 
@@ -553,6 +555,8 @@ export class EmployeeRepository {
       .update(performanceReviews)
       .set({
         ...data,
+        completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
+        acknowledgedAt: data.acknowledgedAt ? new Date(data.acknowledgedAt) : undefined,
         updatedBy,
         updatedAt: new Date(),
         version: sql`${performanceReviews.version} + 1`

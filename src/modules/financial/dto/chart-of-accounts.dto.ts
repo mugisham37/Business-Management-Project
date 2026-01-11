@@ -64,20 +64,20 @@ export class CreateChartOfAccountDto {
   @ApiProperty({ description: 'Account number (unique within tenant)' })
   @IsString()
   @Length(1, 20)
-  accountNumber: string;
+  accountNumber!: string;
 
   @ApiProperty({ description: 'Account name' })
   @IsString()
   @Length(1, 255)
-  accountName: string;
+  accountName!: string;
 
   @ApiProperty({ enum: AccountType, description: 'Account type' })
   @IsEnum(AccountType)
-  accountType: AccountType;
+  accountType!: AccountType;
 
   @ApiProperty({ enum: AccountSubType, description: 'Account sub-type' })
   @IsEnum(AccountSubType)
-  accountSubType: AccountSubType;
+  accountSubType!: AccountSubType;
 
   @ApiPropertyOptional({ description: 'Parent account ID for hierarchical structure' })
   @IsOptional()
@@ -86,7 +86,7 @@ export class CreateChartOfAccountDto {
 
   @ApiProperty({ enum: NormalBalance, description: 'Normal balance (debit or credit)' })
   @IsEnum(NormalBalance)
-  normalBalance: NormalBalance;
+  normalBalance!: NormalBalance;
 
   @ApiPropertyOptional({ description: 'Account description' })
   @IsOptional()
@@ -181,52 +181,52 @@ export class UpdateChartOfAccountDto {
 
 export class ChartOfAccountResponseDto {
   @ApiProperty({ description: 'Account ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Tenant ID' })
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty({ description: 'Account number' })
-  accountNumber: string;
+  accountNumber!: string;
 
   @ApiProperty({ description: 'Account name' })
-  accountName: string;
+  accountName!: string;
 
   @ApiProperty({ enum: AccountType, description: 'Account type' })
-  accountType: AccountType;
+  accountType!: AccountType;
 
   @ApiProperty({ enum: AccountSubType, description: 'Account sub-type' })
-  accountSubType: AccountSubType;
+  accountSubType!: AccountSubType;
 
   @ApiPropertyOptional({ description: 'Parent account ID' })
   parentAccountId?: string;
 
   @ApiProperty({ description: 'Account level in hierarchy' })
-  accountLevel: number;
+  accountLevel!: number;
 
   @ApiPropertyOptional({ description: 'Account path for hierarchical queries' })
   accountPath?: string;
 
   @ApiProperty({ description: 'Whether account is active' })
-  isActive: boolean;
+  isActive!: boolean;
 
   @ApiProperty({ description: 'Whether this is a system account' })
-  isSystemAccount: boolean;
+  isSystemAccount!: boolean;
 
   @ApiProperty({ description: 'Whether manual entries are allowed' })
-  allowManualEntries: boolean;
+  allowManualEntries!: boolean;
 
   @ApiProperty({ description: 'Whether department is required' })
-  requireDepartment: boolean;
+  requireDepartment!: boolean;
 
   @ApiProperty({ description: 'Whether project is required' })
-  requireProject: boolean;
+  requireProject!: boolean;
 
   @ApiProperty({ description: 'Current account balance' })
-  currentBalance: string;
+  currentBalance!: string;
 
   @ApiProperty({ enum: NormalBalance, description: 'Normal balance' })
-  normalBalance: NormalBalance;
+  normalBalance!: NormalBalance;
 
   @ApiPropertyOptional({ description: 'Account description' })
   description?: string;
@@ -241,10 +241,10 @@ export class ChartOfAccountResponseDto {
   settings?: Record<string, any>;
 
   @ApiProperty({ description: 'Created timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ApiPropertyOptional({ description: 'Child accounts' })
   children?: ChartOfAccountResponseDto[];
@@ -252,41 +252,41 @@ export class ChartOfAccountResponseDto {
 
 export class AccountBalanceDto {
   @ApiProperty({ description: 'Account ID' })
-  accountId: string;
+  accountId!: string;
 
   @ApiProperty({ description: 'Balance date' })
-  balanceDate: Date;
+  balanceDate!: Date;
 
   @ApiProperty({ description: 'Opening balance' })
-  openingBalance: string;
+  openingBalance!: string;
 
   @ApiProperty({ description: 'Debit movements' })
-  debitMovements: string;
+  debitMovements!: string;
 
   @ApiProperty({ description: 'Credit movements' })
-  creditMovements: string;
+  creditMovements!: string;
 
   @ApiProperty({ description: 'Closing balance' })
-  closingBalance: string;
+  closingBalance!: string;
 
   @ApiProperty({ description: 'Fiscal year' })
-  fiscalYear: number;
+  fiscalYear!: number;
 
   @ApiProperty({ description: 'Fiscal period' })
-  fiscalPeriod: number;
+  fiscalPeriod!: number;
 }
 
 export class AccountHierarchyDto {
   @ApiProperty({ description: 'Account details' })
   @ValidateNested()
   @Type(() => ChartOfAccountResponseDto)
-  account: ChartOfAccountResponseDto;
+  account!: ChartOfAccountResponseDto;
 
   @ApiProperty({ description: 'Child accounts', type: [AccountHierarchyDto] })
   @ValidateNested({ each: true })
   @Type(() => AccountHierarchyDto)
-  children: AccountHierarchyDto[];
+  children!: AccountHierarchyDto[];
 
   @ApiProperty({ description: 'Total balance including children' })
-  totalBalance: string;
+  totalBalance!: string;
 }
