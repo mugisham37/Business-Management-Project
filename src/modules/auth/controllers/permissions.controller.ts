@@ -218,17 +218,24 @@ export class PermissionsController {
     @Body() grantDto: GrantPermissionDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<{ message: string }> {
+    const options: {
+      resource?: string;
+      resourceId?: string;
+      expiresAt?: Date;
+      conditions?: Record<string, any>;
+    } = {};
+
+    if (grantDto.resource) options.resource = grantDto.resource;
+    if (grantDto.resourceId) options.resourceId = grantDto.resourceId;
+    if (grantDto.expiresAt) options.expiresAt = grantDto.expiresAt;
+    if (grantDto.conditions) options.conditions = grantDto.conditions;
+
     await this.permissionsService.grantPermission(
       grantDto.userId,
       currentUser.tenantId,
       grantDto.permission,
       currentUser.id,
-      {
-        resource: grantDto.resource,
-        resourceId: grantDto.resourceId,
-        expiresAt: grantDto.expiresAt,
-        conditions: grantDto.conditions,
-      }
+      options
     );
 
     return { message: 'Permission granted successfully' };

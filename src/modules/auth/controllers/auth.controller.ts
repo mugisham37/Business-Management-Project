@@ -5,7 +5,6 @@ import {
   UseGuards, 
   HttpCode, 
   HttpStatus,
-  Get,
   Patch,
   Request,
 } from '@nestjs/common';
@@ -58,7 +57,27 @@ export class AuthController {
   @ApiResponse({ 
     status: 201, 
     description: 'User successfully registered',
-    type: LoginResponse,
+    schema: {
+      type: 'object',
+      properties: {
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            email: { type: 'string' },
+            tenantId: { type: 'string' },
+            role: { type: 'string' },
+            firstName: { type: 'string' },
+            lastName: { type: 'string' },
+            displayName: { type: 'string' },
+          },
+        },
+        accessToken: { type: 'string' },
+        refreshToken: { type: 'string' },
+        expiresIn: { type: 'number' },
+        tokenType: { type: 'string' },
+      },
+    },
   })
   @ApiResponse({ 
     status: 400, 
@@ -88,7 +107,27 @@ export class AuthController {
   @ApiResponse({ 
     status: 200, 
     description: 'User successfully authenticated',
-    type: LoginResponse,
+    schema: {
+      type: 'object',
+      properties: {
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            email: { type: 'string' },
+            tenantId: { type: 'string' },
+            role: { type: 'string' },
+            firstName: { type: 'string' },
+            lastName: { type: 'string' },
+            displayName: { type: 'string' },
+          },
+        },
+        accessToken: { type: 'string' },
+        refreshToken: { type: 'string' },
+        expiresIn: { type: 'number' },
+        tokenType: { type: 'string' },
+      },
+    },
   })
   @ApiResponse({ 
     status: 401, 
@@ -134,7 +173,27 @@ export class AuthController {
   @ApiResponse({ 
     status: 200, 
     description: 'User successfully authenticated with MFA',
-    type: LoginResponse,
+    schema: {
+      type: 'object',
+      properties: {
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            email: { type: 'string' },
+            tenantId: { type: 'string' },
+            role: { type: 'string' },
+            firstName: { type: 'string' },
+            lastName: { type: 'string' },
+            displayName: { type: 'string' },
+          },
+        },
+        accessToken: { type: 'string' },
+        refreshToken: { type: 'string' },
+        expiresIn: { type: 'number' },
+        tokenType: { type: 'string' },
+      },
+    },
   })
   @ApiResponse({ 
     status: 401, 
@@ -164,7 +223,15 @@ export class AuthController {
   @ApiResponse({ 
     status: 200, 
     description: 'Token successfully refreshed',
-    type: RefreshTokenResponse,
+    schema: {
+      type: 'object',
+      properties: {
+        accessToken: { type: 'string' },
+        refreshToken: { type: 'string' },
+        expiresIn: { type: 'number' },
+        tokenType: { type: 'string' },
+      },
+    },
   })
   @ApiResponse({ 
     status: 401, 

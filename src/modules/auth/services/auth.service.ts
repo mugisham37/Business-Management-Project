@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as bcrypt from 'bcryptjs';
+import * as jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 
 import { DrizzleService } from '../../database/drizzle.service';
@@ -28,10 +29,21 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly eventEmitter: EventEmitter2,
   ) {
+    const jwtSecret = this.configService.get<string>('JWT_SECRET');
+    const jwtRefreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
+    
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET is required but not provided');
+    }
+    
+    if (!jwtRefreshSecret) {
+      throw new Error('JWT_REFRESH_SECRET is required but not provided');
+    }
+
     this.authConfig = {
-      jwtSecret: this.configService.get<string>('JWT_SECRET'),
+      jwtSecret,
       jwtExpiresIn: this.configService.get<string>('JWT_EXPIRES_IN', '15m'),
-      jwtRefreshSecret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      jwtRefreshSecret,
       jwtRefreshExpiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '7d'),
       bcryptRounds: this.configService.get<number>('BCRYPT_ROUNDS', 12),
       maxFailedAttempts: this.configService.get<number>('MAX_FAILED_ATTEMPTS', 5),
@@ -78,6 +90,10 @@ export class AuthService {
       })
       .returning();
 
+    if (!newUser) {
+      throw new Error('Failed to create user');
+    }
+
     // Emit user registered event
     this.eventEmitter.emit('user.registered', {
       userId: newUser.id,
@@ -110,7 +126,7 @@ export class AuthService {
     }
 
     // Verify password
-    const isPasswordValid = await this.verifyPassword(loginDto.password, user.passwordHash);
+    const isPasswordValid = await this.verifyPassword(loginDto.password, user.passwordHash || '');
     
     if (!isPasswordValid) {
       await this.handleFailedLogin(user.id);
@@ -185,7 +201,7 @@ export class AuthService {
     }
 
     // Verify password
-    const isPasswordValid = await this.verifyPassword(password, user.passwordHash);
+    const isPasswordValid = await this.verifyPassword(password, user.passwordHash || '');
     
     if (!isPasswordValid) {
       await this.handleFailedLogin(user.id);
@@ -267,7 +283,7 @@ export class AuthService {
 
     return { 
       requiresMfa: user.mfaEnabled || false,
-      userId: user.mfaEnabled ? user.id : undefined,
+      ...(user.mfaEnabled ? { userId: user.id } : {}),
     };
   }
 
@@ -415,7 +431,7 @@ export class AuthService {
     // Verify current password
     const isCurrentPasswordValid = await this.verifyPassword(
       changePasswordDto.currentPassword,
-      user.passwordHash
+      user.passwordHash || ''
     );
 
     if (!isCurrentPasswordValid) {
@@ -561,18 +577,21 @@ export class AuthService {
       return null;
     }
 
-    return {
+    const sessionInfo: SessionInfo = {
       id: session.id,
       userId: session.userId,
       sessionToken: session.sessionToken,
       refreshToken: session.refreshToken,
-      ipAddress: session.ipAddress,
-      userAgent: session.userAgent,
       deviceInfo: session.deviceInfo as Record<string, any>,
       expiresAt: session.expiresAt,
-      lastAccessedAt: session.lastAccessedAt,
-      isRevoked: session.isRevoked,
+      lastAccessedAt: session.lastAccessedAt || new Date(),
+      isRevoked: session.isRevoked || false,
     };
+
+    if (session.ipAddress) sessionInfo.ipAddress = session.ipAddress;
+    if (session.userAgent) sessionInfo.userAgent = session.userAgent;
+
+    return sessionInfo;
   }
 
   private async createUserSession(
@@ -620,7 +639,7 @@ export class AuthService {
   }
 
   private async generateAccessToken(user: any, sessionId: string): Promise<string> {
-    const payload: Omit<JwtPayload, 'iat' | 'exp'> = {
+    const payload = {
       sub: user.id,
       email: user.email,
       tenantId: user.tenantId,
@@ -629,14 +648,11 @@ export class AuthService {
       sessionId,
     };
 
-    return this.jwtService.sign(payload, {
-      secret: this.authConfig.jwtSecret,
-      expiresIn: this.authConfig.jwtExpiresIn,
-    });
+    return this.jwtService.sign(payload);
   }
 
   private async generateRefreshToken(user: any, sessionId: string): Promise<string> {
-    const payload: Omit<JwtPayload, 'iat' | 'exp'> = {
+    const payload = {
       sub: user.id,
       email: user.email,
       tenantId: user.tenantId,
@@ -645,8 +661,11 @@ export class AuthService {
       sessionId,
     };
 
-    return this.jwtService.sign(payload, {
-      secret: this.authConfig.jwtRefreshSecret,
+    // For refresh tokens, we need to use a different secret
+    // Since JwtService is configured with the access token secret,
+    // we'll use the jwt library directly for refresh tokens
+    const jwt = require('jsonwebtoken');
+    return jwt.sign(payload, this.authConfig.jwtRefreshSecret, {
       expiresIn: this.authConfig.jwtRefreshExpiresIn,
     });
   }

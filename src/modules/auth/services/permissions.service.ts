@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DrizzleService } from '../../database/drizzle.service';
 import { users, userPermissions } from '../../database/schema/user.schema';
 import { userRoleEnum } from '../../database/schema/enums';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, isNull } from 'drizzle-orm';
 
 export interface Permission {
   id: string;
@@ -291,8 +291,8 @@ export class PermissionsService {
         eq(userPermissions.userId, userId),
         eq(userPermissions.tenantId, tenantId),
         eq(userPermissions.permission, permission),
-        resource ? eq(userPermissions.resource, resource) : eq(userPermissions.resource, null),
-        resourceId ? eq(userPermissions.resourceId, resourceId) : eq(userPermissions.resourceId, null)
+        resource ? eq(userPermissions.resource, resource) : isNull(userPermissions.resource),
+        resourceId ? eq(userPermissions.resourceId, resourceId) : isNull(userPermissions.resourceId)
       ));
   }
 
@@ -353,8 +353,8 @@ export class PermissionsService {
       .where(and(
         eq(userPermissions.tenantId, tenantId),
         eq(userPermissions.permission, permission),
-        resource ? eq(userPermissions.resource, resource) : eq(userPermissions.resource, null),
-        resourceId ? eq(userPermissions.resourceId, resourceId) : eq(userPermissions.resourceId, null)
+        resource ? eq(userPermissions.resource, resource) : isNull(userPermissions.resource),
+        resourceId ? eq(userPermissions.resourceId, resourceId) : isNull(userPermissions.resourceId)
       ));
 
     // Get users with roles that include this permission
