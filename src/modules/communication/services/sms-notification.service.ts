@@ -10,11 +10,11 @@ import { firstValueFrom } from 'rxjs';
 export interface SMSMessage {
   to: string | string[];
   message: string;
-  from?: string | undefined;
-  mediaUrls?: string[] | undefined;
-  scheduledAt?: Date | undefined;
-  validityPeriod?: number | undefined; // in minutes
-  priority?: 'high' | 'normal' | 'low' | undefined;
+  from?: string;
+  mediaUrls?: string[];
+  scheduledAt?: Date;
+  validityPeriod?: number; // in minutes
+  priority?: 'high' | 'normal' | 'low';
 }
 
 export interface SMSProvider {
@@ -255,7 +255,7 @@ export class SMSNotificationService {
             }
 
             const result = await this.sendSMS(tenantId, smsMessage, options);
-            return { userId: user.id, success: result.success, error: result.error };
+            return { userId: user.id, success: result.success, ...(result.error && { error: result.error }) };
 
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -520,7 +520,7 @@ export class SMSNotificationService {
         configuration: integration.configuration,
       } : null;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(`Failed to get SMS provider: ${errorMessage}`, errorStack);
@@ -543,7 +543,7 @@ export class SMSNotificationService {
         ? (template.configuration as SMSTemplate) 
         : null;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(`Failed to get SMS template: ${errorMessage}`, errorStack);

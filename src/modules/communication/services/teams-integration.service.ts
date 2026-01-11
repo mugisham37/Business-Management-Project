@@ -7,23 +7,23 @@ import { eq, and } from 'drizzle-orm';
 import { firstValueFrom } from 'rxjs';
 
 export interface TeamsMessage {
-  text?: string | undefined;
-  summary?: string | undefined;
-  themeColor?: string | undefined;
-  sections?: TeamsSection[] | undefined;
-  potentialAction?: TeamsAction[] | undefined;
+  text?: string;
+  summary?: string;
+  themeColor?: string;
+  sections?: TeamsSection[];
+  potentialAction?: TeamsAction[];
 }
 
 export interface TeamsSection {
-  activityTitle?: string | undefined;
-  activitySubtitle?: string | undefined;
-  activityImage?: string | undefined;
+  activityTitle?: string;
+  activitySubtitle?: string;
+  activityImage?: string;
   facts?: Array<{
     name: string;
     value: string;
-  }> | undefined;
-  markdown?: boolean | undefined;
-  text?: string | undefined;
+  }>;
+  markdown?: boolean;
+  text?: string;
 }
 
 export interface TeamsAction {
@@ -32,13 +32,13 @@ export interface TeamsAction {
   targets?: Array<{
     os: 'default' | 'iOS' | 'android' | 'windows';
     uri: string;
-  }> | undefined;
-  body?: string | undefined;
-  method?: 'POST' | 'GET' | undefined;
+  }>;
+  body?: string;
+  method?: 'POST' | 'GET';
   headers?: Array<{
     name: string;
     value: string;
-  }> | undefined;
+  }>;
 }
 
 export interface TeamsIntegrationConfig {
@@ -105,11 +105,13 @@ export class TeamsIntegrationService {
 
       return result;
 
-    } catch (error) {
-      this.logger.error(`Teams integration error: ${error.message}`, error.stack, {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Teams integration error: ${errorMessage}`, errorStack, {
         tenantId,
       });
-      return { success: false, error: error.message };
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -168,15 +170,15 @@ export class TeamsIntegrationService {
       };
 
       // Add metadata facts if present
-      if (notification.metadata && teamsMessage.sections && teamsMessage.sections.length > 0) {
+      if (notification.metadata && teamsMessage.sections?.[0]?.facts) {
         const metadataFacts = Object.entries(notification.metadata)
-          .filter(([key, value]) => value !== null && value !== undefined)
+          .filter(([, value]) => value !== null && value !== undefined)
           .map(([key, value]) => ({
             name: this.formatFieldName(key),
             value: String(value),
           }));
 
-        if (metadataFacts.length > 0 && teamsMessage.sections[0].facts) {
+        if (metadataFacts.length > 0) {
           teamsMessage.sections[0].facts.push(...metadataFacts);
         }
       }
@@ -201,12 +203,14 @@ export class TeamsIntegrationService {
 
       return await this.sendMessage(tenantId, teamsMessage);
 
-    } catch (error) {
-      this.logger.error(`Failed to send Teams notification: ${error.message}`, error.stack, {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to send Teams notification: ${errorMessage}`, errorStack, {
         tenantId,
         notificationType: notification.type,
       });
-      return { success: false, error: error.message };
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -259,15 +263,15 @@ export class TeamsIntegrationService {
       };
 
       // Add metadata facts
-      if (alert.metadata) {
+      if (alert.metadata && teamsMessage.sections?.[0]?.facts) {
         const metadataFacts = Object.entries(alert.metadata)
-          .filter(([key, value]) => value !== null && value !== undefined)
+          .filter(([, value]) => value !== null && value !== undefined)
           .map(([key, value]) => ({
             name: this.formatFieldName(key),
             value: String(value),
           }));
 
-        if (metadataFacts.length > 0 && teamsMessage.sections && teamsMessage.sections.length > 0 && teamsMessage.sections[0].facts) {
+        if (metadataFacts.length > 0) {
           teamsMessage.sections[0].facts.push(...metadataFacts);
         }
       }
@@ -290,12 +294,14 @@ export class TeamsIntegrationService {
 
       return await this.sendMessage(tenantId, teamsMessage);
 
-    } catch (error) {
-      this.logger.error(`Failed to send Teams alert: ${error.message}`, error.stack, {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to send Teams alert: ${errorMessage}`, errorStack, {
         tenantId,
         severity: alert.severity,
       });
-      return { success: false, error: error.message };
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -346,33 +352,29 @@ export class TeamsIntegrationService {
 
       // Add actions if provided
       if (card.actions && card.actions.length > 0) {
-        const actions = card.actions.map(action => {
-          if (action.type === 'OpenUri') {
-            return {
-              '@type': 'OpenUri' as const,
+        const actions: TeamsAction[] = [];
+        
+        for (const action of card.actions) {
+          if (action.type === 'OpenUri' && action.url) {
+            actions.push({
+              '@type': 'OpenUri',
               name: action.name,
-              targets: action.url ? [
+              targets: [
                 {
-                  os: 'default' as const,
+                  os: 'default',
                   uri: action.url,
                 },
-              ] : undefined,
-            };
-          } else {
-            return {
-              '@type': 'HttpPOST' as const,
+              ],
+            });
+          } else if (action.type === 'HttpPOST' && action.body && action.method) {
+            actions.push({
+              '@type': 'HttpPOST',
               name: action.name,
               body: action.body,
-              method: action.method,
-            };
+              method: action.method as 'GET' | 'POST',
+            });
           }
-        }).filter((action): action is ({ '@type': 'OpenUri'; name: string; targets: Array<{ os: 'default'; uri: string }> | undefined } | { '@type': 'HttpPOST'; name: string; body: string | undefined; method: string | undefined }) => {
-          if (action['@type'] === 'OpenUri') {
-            return action.targets !== undefined;
-          } else {
-            return action.body !== undefined;
-          }
-        });
+        }
         
         if (actions.length > 0) {
           teamsMessage.potentialAction = actions;
@@ -381,11 +383,13 @@ export class TeamsIntegrationService {
 
       return await this.sendMessage(tenantId, teamsMessage);
 
-    } catch (error) {
-      this.logger.error(`Failed to send Teams rich card: ${error.message}`, error.stack, {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to send Teams rich card: ${errorMessage}`, errorStack, {
         tenantId,
       });
-      return { success: false, error: error.message };
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -434,8 +438,10 @@ export class TeamsIntegrationService {
 
       this.logger.log(`Teams integration configured for tenant ${tenantId}`);
 
-    } catch (error) {
-      this.logger.error(`Failed to configure Teams integration: ${error.message}`, error.stack, {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to configure Teams integration: ${errorMessage}`, errorStack, {
         tenantId,
       });
       throw error;
@@ -472,8 +478,9 @@ export class TeamsIntegrationService {
       const payload = this.prepareMessagePayload(testMessage, config);
       return await this.sendViaWebhook(config.webhookUrl, payload, { retryAttempts: 1, timeout: 5000 });
 
-    } catch (error) {
-      return { success: false, error: error.message };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -493,8 +500,10 @@ export class TeamsIntegrationService {
         ));
 
       return integration ? (integration.configuration as TeamsIntegrationConfig) : null;
-    } catch (error) {
-      this.logger.error(`Failed to get Teams config: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to get Teams config: ${errorMessage}`, errorStack);
       return null;
     }
   }
@@ -548,9 +557,10 @@ export class TeamsIntegrationService {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
-      } catch (error) {
+      } catch (error: unknown) {
         if (attempt === options.retryAttempts) {
-          return { success: false, error: error.message };
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          return { success: false, error: errorMessage };
         }
         
         // Wait before retry

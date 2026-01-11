@@ -13,7 +13,7 @@ export interface BatchWithProduct {
   id: string;
   tenantId: string;
   productId: string;
-  variantId?: string;
+  variantId: string;
   locationId: string;
   batchNumber: string;
   lotNumber?: string;
@@ -49,6 +49,20 @@ export class BatchTrackingRepository {
     @Inject('DRIZZLE_SERVICE') private readonly drizzle: DrizzleService,
   ) {}
 
+  private mapBatchWithProduct(batch: any, product: any, variant: any): BatchWithProduct {
+    return {
+      ...batch,
+      variantId: batch.variantId || '',
+      originalQuantity: parseFloat(batch.originalQuantity),
+      currentQuantity: parseFloat(batch.currentQuantity),
+      reservedQuantity: parseFloat(batch.reservedQuantity),
+      unitCost: parseFloat(batch.unitCost),
+      totalCost: parseFloat(batch.totalCost),
+      product,
+      variant,
+    };
+  }
+
   async create(tenantId: string, data: CreateBatchDto, userId: string): Promise<BatchWithProduct> {
     const db = this.drizzle.getDb();
     
@@ -59,7 +73,7 @@ export class BatchTrackingRepository {
       .values({
         tenantId,
         productId: data.productId,
-        variantId: data.variantId,
+        variantId: data.variantId || '',
         locationId: data.locationId,
         batchNumber: data.batchNumber,
         lotNumber: data.lotNumber,
@@ -84,7 +98,15 @@ export class BatchTrackingRepository {
       })
       .returning();
 
-    return this.findById(tenantId, batch.id);
+    if (!batch) {
+      throw new Error('Failed to create batch');
+    }
+
+    const result = await this.findById(tenantId, batch.id);
+    if (!result) {
+      throw new Error('Failed to create batch');
+    }
+    return result;
   }
 
   async findById(tenantId: string, id: string): Promise<BatchWithProduct | null> {
@@ -106,22 +128,17 @@ export class BatchTrackingRepository {
       ))
       .limit(1);
 
-    if (result.length === 0) {
+    if (result.length === 0 || !result[0]) {
       return null;
     }
 
     const { batch, product, variant } = result[0];
     
-    return {
-      ...batch,
-      originalQuantity: parseFloat(batch.originalQuantity),
-      currentQuantity: parseFloat(batch.currentQuantity),
-      reservedQuantity: parseFloat(batch.reservedQuantity),
-      unitCost: parseFloat(batch.unitCost),
-      totalCost: parseFloat(batch.totalCost),
-      product,
-      variant,
-    };
+    if (!batch) {
+      return null;
+    }
+    
+    return this.mapBatchWithProduct(batch, product, variant);
   }
 
   async findByBatchNumber(tenantId: string, batchNumber: string, locationId: string): Promise<BatchWithProduct | null> {
@@ -144,22 +161,17 @@ export class BatchTrackingRepository {
       ))
       .limit(1);
 
-    if (result.length === 0) {
+    if (result.length === 0 || !result[0]) {
       return null;
     }
 
     const { batch, product, variant } = result[0];
     
-    return {
-      ...batch,
-      originalQuantity: parseFloat(batch.originalQuantity),
-      currentQuantity: parseFloat(batch.currentQuantity),
-      reservedQuantity: parseFloat(batch.reservedQuantity),
-      unitCost: parseFloat(batch.unitCost),
-      totalCost: parseFloat(batch.totalCost),
-      product,
-      variant,
-    };
+    if (!batch) {
+      return null;
+    }
+    
+    return this.mapBatchWithProduct(batch, product, variant);
   }
 
   async findByBatchNumberAllLocations(tenantId: string, batchNumber: string): Promise<BatchWithProduct[]> {
@@ -180,16 +192,9 @@ export class BatchTrackingRepository {
         eq(inventoryBatches.isActive, true)
       ));
 
-    return result.map(({ batch, product, variant }) => ({
-      ...batch,
-      originalQuantity: parseFloat(batch.originalQuantity),
-      currentQuantity: parseFloat(batch.currentQuantity),
-      reservedQuantity: parseFloat(batch.reservedQuantity),
-      unitCost: parseFloat(batch.unitCost),
-      totalCost: parseFloat(batch.totalCost),
-      product,
-      variant,
-    }));
+    return result.map(({ batch, product, variant }) => 
+      this.mapBatchWithProduct(batch, product, variant)
+    );
   }
 
   async findMany(tenantId: string, query: BatchQueryDto): Promise<{
@@ -201,11 +206,7 @@ export class BatchTrackingRepository {
   }> {
     const db = this.drizzle.getDb();
     
-    // Build where conditions
-    const conditions = [
-      eq(inventoryBatches.tenantId, tenantId),
-      eq(inventoryBatches.isActive, true),
-    ];
+    const conditions = [eq(inventoryBatches.tenantId, tenantId)];
 
     if (query.productId) {
       conditions.push(eq(inventoryBatches.productId, query.productId));
@@ -213,10 +214,6 @@ export class BatchTrackingRepository {
 
     if (query.locationId) {
       conditions.push(eq(inventoryBatches.locationId, query.locationId));
-    }
-
-    if (query.batchNumber) {
-      conditions.push(eq(inventoryBatches.batchNumber, query.batchNumber));
     }
 
     if (query.status) {
@@ -227,49 +224,23 @@ export class BatchTrackingRepository {
       conditions.push(eq(inventoryBatches.qualityStatus, query.qualityStatus));
     }
 
-    if (query.expiringBefore) {
-      conditions.push(lte(inventoryBatches.expiryDate, query.expiringBefore));
-    }
-
     const whereClause = and(...conditions);
 
     // Get total count
-    const [{ count: totalCount }] = await db
+    const countResult = await db
       .select({ count: count() })
       .from(inventoryBatches)
       .where(whereClause);
+    
+    const totalCount = countResult[0]?.count || 0;
 
-    // Build order by clause
-    let orderBy;
-    const sortField = query.sortBy || 'expiryDate';
-    const sortDirection = query.sortOrder || 'asc';
-
-    switch (sortField) {
-      case 'batchNumber':
-        orderBy = sortDirection === 'asc' ? asc(inventoryBatches.batchNumber) : desc(inventoryBatches.batchNumber);
-        break;
-      case 'expiryDate':
-        orderBy = sortDirection === 'asc' ? asc(inventoryBatches.expiryDate) : desc(inventoryBatches.expiryDate);
-        break;
-      case 'receivedDate':
-        orderBy = sortDirection === 'asc' ? asc(inventoryBatches.receivedDate) : desc(inventoryBatches.receivedDate);
-        break;
-      case 'currentQuantity':
-        orderBy = sortDirection === 'asc' ? 
-          sql`${inventoryBatches.currentQuantity}::numeric ASC` : 
-          sql`${inventoryBatches.currentQuantity}::numeric DESC`;
-        break;
-      default:
-        orderBy = sortDirection === 'asc' ? asc(inventoryBatches.createdAt) : desc(inventoryBatches.createdAt);
-        break;
-    }
-
-    // Pagination
+    // Calculate pagination
     const page = query.page || 1;
-    const limit = query.limit || 20;
+    const limit = query.limit || 50;
     const offset = (page - 1) * limit;
+    const totalPages = Math.ceil(totalCount / limit);
 
-    // Get batches with product info
+    // Get paginated results
     const result = await db
       .select({
         batch: inventoryBatches,
@@ -280,22 +251,13 @@ export class BatchTrackingRepository {
       .leftJoin(products, eq(inventoryBatches.productId, products.id))
       .leftJoin(productVariants, eq(inventoryBatches.variantId, productVariants.id))
       .where(whereClause)
-      .orderBy(orderBy)
+      .orderBy(desc(inventoryBatches.createdAt))
       .limit(limit)
       .offset(offset);
 
-    const batchesWithProducts = result.map(({ batch, product, variant }) => ({
-      ...batch,
-      originalQuantity: parseFloat(batch.originalQuantity),
-      currentQuantity: parseFloat(batch.currentQuantity),
-      reservedQuantity: parseFloat(batch.reservedQuantity),
-      unitCost: parseFloat(batch.unitCost),
-      totalCost: parseFloat(batch.totalCost),
-      product,
-      variant,
-    }));
-
-    const totalPages = Math.ceil(totalCount / limit);
+    const batchesWithProducts = result.map(({ batch, product, variant }) => 
+      this.mapBatchWithProduct(batch, product, variant)
+    );
 
     return {
       batches: batchesWithProducts,
@@ -314,24 +276,29 @@ export class BatchTrackingRepository {
     userId: string,
   ): Promise<BatchWithProduct> {
     const db = this.drizzle.getDb();
-    
+
     const [updated] = await db
       .update(inventoryBatches)
       .set({
-        currentQuantity: sql`${inventoryBatches.currentQuantity}::numeric - ${quantity}`,
-        status: sql`CASE WHEN (${inventoryBatches.currentQuantity}::numeric - ${quantity}) <= 0 THEN 'consumed' ELSE ${inventoryBatches.status} END`,
+        currentQuantity: sql`${inventoryBatches.currentQuantity} - ${quantity}`,
+        reservedQuantity: sql`${inventoryBatches.reservedQuantity} - ${quantity}`,
         updatedBy: userId,
-        updatedAt: new Date(),
-        version: sql`${inventoryBatches.version} + 1`,
       })
       .where(and(
         eq(inventoryBatches.tenantId, tenantId),
-        eq(inventoryBatches.id, batchId),
-        eq(inventoryBatches.isActive, true)
+        eq(inventoryBatches.id, batchId)
       ))
       .returning();
 
-    return this.findById(tenantId, updated.id);
+    if (!updated) {
+      throw new Error('Batch not found');
+    }
+
+    const result = await this.findById(tenantId, updated.id);
+    if (!result) {
+      throw new Error('Failed to update batch');
+    }
+    return result;
   }
 
   async updateStatus(
@@ -341,62 +308,74 @@ export class BatchTrackingRepository {
     userId: string,
   ): Promise<BatchWithProduct> {
     const db = this.drizzle.getDb();
-    
+
     const [updated] = await db
       .update(inventoryBatches)
       .set({
         status,
         updatedBy: userId,
-        updatedAt: new Date(),
-        version: sql`${inventoryBatches.version} + 1`,
       })
       .where(and(
         eq(inventoryBatches.tenantId, tenantId),
-        eq(inventoryBatches.id, batchId),
-        eq(inventoryBatches.isActive, true)
+        eq(inventoryBatches.id, batchId)
       ))
       .returning();
 
-    return this.findById(tenantId, updated.id);
+    if (!updated) {
+      throw new Error('Batch not found');
+    }
+
+    const result = await this.findById(tenantId, updated.id);
+    if (!result) {
+      throw new Error('Failed to update batch status');
+    }
+    return result;
   }
 
   async updateQualityStatus(
     tenantId: string,
     batchId: string,
     qualityStatus: string,
-    qualityNotes: string,
-    userId: string,
+    qualityNotes?: string,
+    userId?: string,
   ): Promise<BatchWithProduct> {
     const db = this.drizzle.getDb();
-    
+
     const [updated] = await db
       .update(inventoryBatches)
       .set({
         qualityStatus,
         qualityNotes,
         updatedBy: userId,
-        updatedAt: new Date(),
-        version: sql`${inventoryBatches.version} + 1`,
       })
       .where(and(
         eq(inventoryBatches.tenantId, tenantId),
-        eq(inventoryBatches.id, batchId),
-        eq(inventoryBatches.isActive, true)
+        eq(inventoryBatches.id, batchId)
       ))
       .returning();
 
-    return this.findById(tenantId, updated.id);
+    if (!updated) {
+      throw new Error('Batch not found');
+    }
+
+    const result = await this.findById(tenantId, updated.id);
+    if (!result) {
+      throw new Error('Failed to update batch quality status');
+    }
+    return result;
   }
 
-  async findExpiringBatches(tenantId: string, expiryDate: Date, locationId?: string): Promise<BatchWithProduct[]> {
+  async findExpiringBatches(
+    tenantId: string,
+    expiryDate: Date,
+    locationId?: string,
+  ): Promise<BatchWithProduct[]> {
     const db = this.drizzle.getDb();
     
     const conditions = [
       eq(inventoryBatches.tenantId, tenantId),
       eq(inventoryBatches.isActive, true),
-      eq(inventoryBatches.status, 'active'),
       lte(inventoryBatches.expiryDate, expiryDate),
-      sql`${inventoryBatches.currentQuantity}::numeric > 0`,
     ];
 
     if (locationId) {
@@ -415,16 +394,9 @@ export class BatchTrackingRepository {
       .where(and(...conditions))
       .orderBy(asc(inventoryBatches.expiryDate));
 
-    return result.map(({ batch, product, variant }) => ({
-      ...batch,
-      originalQuantity: parseFloat(batch.originalQuantity),
-      currentQuantity: parseFloat(batch.currentQuantity),
-      reservedQuantity: parseFloat(batch.reservedQuantity),
-      unitCost: parseFloat(batch.unitCost),
-      totalCost: parseFloat(batch.totalCost),
-      product,
-      variant,
-    }));
+    return result.map(({ batch, product, variant }) => 
+      this.mapBatchWithProduct(batch, product, variant)
+    );
   }
 
   async findExpiredBatches(tenantId: string): Promise<BatchWithProduct[]> {
@@ -442,24 +414,21 @@ export class BatchTrackingRepository {
       .where(and(
         eq(inventoryBatches.tenantId, tenantId),
         eq(inventoryBatches.isActive, true),
-        eq(inventoryBatches.status, 'active'),
         lt(inventoryBatches.expiryDate, new Date()),
-        sql`${inventoryBatches.currentQuantity}::numeric > 0`
-      ));
+      ))
+      .orderBy(asc(inventoryBatches.expiryDate));
 
-    return result.map(({ batch, product, variant }) => ({
-      ...batch,
-      originalQuantity: parseFloat(batch.originalQuantity),
-      currentQuantity: parseFloat(batch.currentQuantity),
-      reservedQuantity: parseFloat(batch.reservedQuantity),
-      unitCost: parseFloat(batch.unitCost),
-      totalCost: parseFloat(batch.totalCost),
-      product,
-      variant,
-    }));
+    return result.map(({ batch, product, variant }) => 
+      this.mapBatchWithProduct(batch, product, variant)
+    );
   }
 
-  async findFIFOBatches(tenantId: string, productId: string, variantId: string | null, locationId: string): Promise<BatchWithProduct[]> {
+  async findFIFOBatches(
+    tenantId: string,
+    productId: string,
+    variantId: string | null,
+    locationId: string,
+  ): Promise<BatchWithProduct[]> {
     const db = this.drizzle.getDb();
     
     const conditions = [
@@ -467,8 +436,6 @@ export class BatchTrackingRepository {
       eq(inventoryBatches.productId, productId),
       eq(inventoryBatches.locationId, locationId),
       eq(inventoryBatches.isActive, true),
-      eq(inventoryBatches.status, 'active'),
-      sql`${inventoryBatches.currentQuantity}::numeric > 0`,
     ];
 
     if (variantId) {
@@ -489,19 +456,17 @@ export class BatchTrackingRepository {
       .where(and(...conditions))
       .orderBy(asc(inventoryBatches.receivedDate));
 
-    return result.map(({ batch, product, variant }) => ({
-      ...batch,
-      originalQuantity: parseFloat(batch.originalQuantity),
-      currentQuantity: parseFloat(batch.currentQuantity),
-      reservedQuantity: parseFloat(batch.reservedQuantity),
-      unitCost: parseFloat(batch.unitCost),
-      totalCost: parseFloat(batch.totalCost),
-      product,
-      variant,
-    }));
+    return result.map(({ batch, product, variant }) => 
+      this.mapBatchWithProduct(batch, product, variant)
+    );
   }
 
-  async findLIFOBatches(tenantId: string, productId: string, variantId: string | null, locationId: string): Promise<BatchWithProduct[]> {
+  async findLIFOBatches(
+    tenantId: string,
+    productId: string,
+    variantId: string | null,
+    locationId: string,
+  ): Promise<BatchWithProduct[]> {
     const db = this.drizzle.getDb();
     
     const conditions = [
@@ -509,8 +474,6 @@ export class BatchTrackingRepository {
       eq(inventoryBatches.productId, productId),
       eq(inventoryBatches.locationId, locationId),
       eq(inventoryBatches.isActive, true),
-      eq(inventoryBatches.status, 'active'),
-      sql`${inventoryBatches.currentQuantity}::numeric > 0`,
     ];
 
     if (variantId) {
@@ -531,19 +494,17 @@ export class BatchTrackingRepository {
       .where(and(...conditions))
       .orderBy(desc(inventoryBatches.receivedDate));
 
-    return result.map(({ batch, product, variant }) => ({
-      ...batch,
-      originalQuantity: parseFloat(batch.originalQuantity),
-      currentQuantity: parseFloat(batch.currentQuantity),
-      reservedQuantity: parseFloat(batch.reservedQuantity),
-      unitCost: parseFloat(batch.unitCost),
-      totalCost: parseFloat(batch.totalCost),
-      product,
-      variant,
-    }));
+    return result.map(({ batch, product, variant }) => 
+      this.mapBatchWithProduct(batch, product, variant)
+    );
   }
 
-  async findFEFOBatches(tenantId: string, productId: string, variantId: string | null, locationId: string): Promise<BatchWithProduct[]> {
+  async findFEFOBatches(
+    tenantId: string,
+    productId: string,
+    variantId: string | null,
+    locationId: string,
+  ): Promise<BatchWithProduct[]> {
     const db = this.drizzle.getDb();
     
     const conditions = [
@@ -551,8 +512,6 @@ export class BatchTrackingRepository {
       eq(inventoryBatches.productId, productId),
       eq(inventoryBatches.locationId, locationId),
       eq(inventoryBatches.isActive, true),
-      eq(inventoryBatches.status, 'active'),
-      sql`${inventoryBatches.currentQuantity}::numeric > 0`,
     ];
 
     if (variantId) {
@@ -573,16 +532,9 @@ export class BatchTrackingRepository {
       .where(and(...conditions))
       .orderBy(asc(inventoryBatches.expiryDate));
 
-    return result.map(({ batch, product, variant }) => ({
-      ...batch,
-      originalQuantity: parseFloat(batch.originalQuantity),
-      currentQuantity: parseFloat(batch.currentQuantity),
-      reservedQuantity: parseFloat(batch.reservedQuantity),
-      unitCost: parseFloat(batch.unitCost),
-      totalCost: parseFloat(batch.totalCost),
-      product,
-      variant,
-    }));
+    return result.map(({ batch, product, variant }) => 
+      this.mapBatchWithProduct(batch, product, variant)
+    );
   }
 
   async getBatchHistory(tenantId: string, batchId: string): Promise<any[]> {

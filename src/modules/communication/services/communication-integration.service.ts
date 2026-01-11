@@ -22,28 +22,28 @@ export interface MultiChannelNotification {
   type: string;
   channels: string[];
   recipients?: {
-    userIds?: string[] | undefined;
-    emails?: string[] | undefined;
-    phoneNumbers?: string[] | undefined;
-    slackChannels?: string[] | undefined;
-    teamsChannels?: string[] | undefined;
-  } | undefined;
-  metadata?: Record<string, any> | undefined;
+    userIds?: string[];
+    emails?: string[];
+    phoneNumbers?: string[];
+    slackChannels?: string[];
+    teamsChannels?: string[];
+  };
+  metadata?: Record<string, any>;
   actions?: Array<{
     id: string;
     label: string;
-    url?: string | undefined;
-    style?: 'primary' | 'secondary' | 'danger' | undefined;
-  }> | undefined;
-  templateName?: string | undefined;
-  templateVariables?: Record<string, any> | undefined;
-  scheduledAt?: Date | undefined;
+    url?: string;
+    style?: 'primary' | 'secondary' | 'danger';
+  }>;
+  templateName?: string;
+  templateVariables?: Record<string, any>;
+  scheduledAt?: Date;
   options?: {
-    enableFallback?: boolean | undefined;
-    retryAttempts?: number | undefined;
-    batchSize?: number | undefined;
-    delayBetweenBatches?: number | undefined;
-  } | undefined;
+    enableFallback?: boolean;
+    retryAttempts?: number;
+    batchSize?: number;
+    delayBetweenBatches?: number;
+  };
 }
 
 export interface CommunicationResult {
@@ -298,7 +298,9 @@ export class CommunicationIntegrationService {
         priority: notification.priority || 'medium',
         type: notification.type,
         channels,
-        recipients: notification.recipients ? { userIds: notification.recipients.userIds } : undefined,
+        recipients: notification.recipients?.userIds ? { 
+          userIds: notification.recipients.userIds 
+        } : undefined,
         metadata: notification.metadata || undefined,
         templateName: notification.templateName || undefined,
         templateVariables: notification.templateVariables || undefined,

@@ -19,25 +19,25 @@ export interface SlackMessage {
 }
 
 export interface SlackAttachment {
-  color?: string | undefined;
-  pretext?: string | undefined;
-  author_name?: string | undefined;
-  author_link?: string | undefined;
-  author_icon?: string | undefined;
-  title?: string | undefined;
-  title_link?: string | undefined;
-  text?: string | undefined;
+  color?: string;
+  pretext?: string;
+  author_name?: string;
+  author_link?: string;
+  author_icon?: string;
+  title?: string;
+  title_link?: string;
+  text?: string;
   fields?: Array<{
     title: string;
     value: string;
-    short?: boolean | undefined;
-  }> | undefined;
-  image_url?: string | undefined;
-  thumb_url?: string | undefined;
-  footer?: string | undefined;
-  footer_icon?: string | undefined;
-  ts?: number | undefined;
-  actions?: SlackAction[] | undefined;
+    short?: boolean;
+  }>;
+  image_url?: string;
+  thumb_url?: string;
+  footer?: string;
+  footer_icon?: string;
+  ts?: number;
+  actions?: SlackAction[];
 }
 
 export interface SlackAction {
@@ -209,24 +209,24 @@ export class SlackIntegrationService {
             actions: notification.actions?.map(action => ({
               type: 'button' as const,
               text: action.label,
-              url: action.url || undefined,
+              url: action.url,
               style: this.mapActionStyle(action.style),
-            })) || undefined,
+            })).filter(action => action.url !== undefined),
           },
         ],
       };
 
       // Add metadata fields if present
-      if (notification.metadata && slackMessage.attachments && slackMessage.attachments.length > 0) {
+      if (notification.metadata && slackMessage.attachments?.[0]?.fields) {
         const metadataFields = Object.entries(notification.metadata)
-          .filter(([key, value]) => value !== null && value !== undefined)
+          .filter(([, value]) => value !== null && value !== undefined)
           .map(([key, value]) => ({
             title: this.formatFieldName(key),
             value: String(value),
             short: true,
           }));
 
-        if (metadataFields.length > 0 && slackMessage.attachments[0].fields) {
+        if (metadataFields.length > 0) {
           slackMessage.attachments[0].fields.push(...metadataFields);
         }
       }
@@ -303,16 +303,16 @@ export class SlackIntegrationService {
       };
 
       // Add metadata fields
-      if (alert.metadata && slackMessage.attachments && slackMessage.attachments.length > 0) {
+      if (alert.metadata && slackMessage.attachments?.[0]?.fields) {
         const metadataFields = Object.entries(alert.metadata)
-          .filter(([key, value]) => value !== null && value !== undefined)
+          .filter(([, value]) => value !== null && value !== undefined)
           .map(([key, value]) => ({
             title: this.formatFieldName(key),
             value: String(value),
             short: true,
           }));
 
-        if (metadataFields.length > 0 && slackMessage.attachments[0].fields) {
+        if (metadataFields.length > 0) {
           slackMessage.attachments[0].fields.push(...metadataFields);
         }
       }

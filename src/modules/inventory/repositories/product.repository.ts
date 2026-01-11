@@ -5,8 +5,8 @@ import {
   productVariants, 
   productCategories, 
   productBrands,
-  ProductType,
-  ProductStatus 
+  productTypeEnum,
+  productStatusEnum 
 } from '../../database/schema';
 import { eq, and, like, ilike, inArray, isNull, or, desc, asc, sql, count } from 'drizzle-orm';
 import { CreateProductDto, UpdateProductDto, ProductQueryDto } from '../dto/product.dto';
@@ -16,12 +16,52 @@ export interface ProductWithVariants {
   tenantId: string;
   sku: string;
   name: string;
-  description?: string;
+  description: string;
   shortDescription?: string;
-  type: ProductType;
-  status: ProductStatus;
+  type: 'simple' | 'variable' | 'grouped' | 'digital' | 'service';
+  status: 'active' | 'inactive' | 'discontinued' | 'out_of_stock';
   categoryId?: string;
   brandId?: string;
+  tags?: string[];
+  basePrice: string;
+  costPrice?: string;
+  msrp?: string;
+  trackInventory: boolean;
+  unitOfMeasure: string;
+  weight?: string;
+  dimensions?: any;
+  taxable: boolean;
+  taxCategoryId?: string;
+  slug?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  images?: any[];
+  primaryImageUrl?: string;
+  attributes?: any;
+  customFields?: any;
+  supplierId?: string;
+  supplierSku?: string;
+  minStockLevel: number;
+  maxStockLevel?: number;
+  reorderPoint: number;
+  reorderQuantity: number;
+  requiresBatchTracking: boolean;
+  requiresExpiryDate: boolean;
+  shelfLife?: number;
+  isFeatured: boolean;
+  allowBackorders: boolean;
+  launchedAt?: string;
+  discontinuedAt?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy?: string;
+  updatedBy?: string;
+  version: number;
+  variants: any[];
+  category?: any;
+  brand?: any;
+}
   tags?: string[];
   basePrice: string;
   costPrice?: string;
