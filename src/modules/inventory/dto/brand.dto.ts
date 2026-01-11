@@ -5,7 +5,6 @@ import {
   Length,
   IsUrl,
   IsEmail,
-  IsPhoneNumber,
   IsInt,
   Min,
   Max,
@@ -106,13 +105,13 @@ export class BrandQueryDto {
 
 export class BrandResponseDto {
   @ApiProperty({ description: 'Brand ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Tenant ID' })
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty({ description: 'Brand name' })
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Brand description' })
   description?: string;
@@ -142,13 +141,13 @@ export class BrandResponseDto {
   attributes?: Record<string, any>;
 
   @ApiProperty({ description: 'Is active' })
-  isActive: boolean;
+  isActive!: boolean;
 
   @ApiProperty({ description: 'Created at timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated at timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ApiPropertyOptional({ description: 'Created by user ID' })
   createdBy?: string;
@@ -157,7 +156,7 @@ export class BrandResponseDto {
   updatedBy?: string;
 
   @ApiProperty({ description: 'Version number' })
-  version: number;
+  version!: number;
 
   @ApiPropertyOptional({ description: 'Product count for brand' })
   productCount?: number;

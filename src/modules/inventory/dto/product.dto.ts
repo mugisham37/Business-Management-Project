@@ -11,7 +11,6 @@ import {
   Max, 
   Length,
   IsUUID,
-  IsDecimal,
   IsInt,
   ArrayMinSize,
   IsUrl,
@@ -82,7 +81,7 @@ export class ProductImageDto {
   @ApiProperty({ description: 'Image URL' })
   @IsString()
   @IsUrl()
-  url: string;
+  url!: string;
 
   @ApiPropertyOptional({ description: 'Alt text for the image' })
   @IsOptional()
@@ -106,19 +105,19 @@ export class ProductVariantAttributeDto {
   @ApiProperty({ description: 'Attribute name (e.g., size, color)' })
   @IsString()
   @Length(1, 100)
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Attribute value (e.g., Large, Red)' })
   @IsString()
   @Length(1, 100)
-  value: string;
+  value!: string;
 }
 
 export class CreateProductVariantDto {
   @ApiProperty({ description: 'Variant SKU' })
   @IsString()
   @Length(1, 100)
-  sku: string;
+  sku!: string;
 
   @ApiPropertyOptional({ description: 'Variant name' })
   @IsOptional()
@@ -134,7 +133,7 @@ export class CreateProductVariantDto {
   @ValidateNested({ each: true })
   @Type(() => ProductVariantAttributeDto)
   @ArrayMinSize(1)
-  attributes: ProductVariantAttributeDto[];
+  attributes!: ProductVariantAttributeDto[];
 
   @ApiPropertyOptional({ description: 'Variant price override' })
   @IsOptional()
@@ -208,12 +207,12 @@ export class CreateProductDto {
   @ApiProperty({ description: 'Product SKU (Stock Keeping Unit)' })
   @IsString()
   @Length(1, 100)
-  sku: string;
+  sku!: string;
 
   @ApiProperty({ description: 'Product name' })
   @IsString()
   @Length(1, 255)
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Product description' })
   @IsOptional()
@@ -255,7 +254,7 @@ export class CreateProductDto {
   @ApiProperty({ description: 'Base price' })
   @IsNumber()
   @Min(0)
-  basePrice: number;
+  basePrice!: number;
 
   @ApiPropertyOptional({ description: 'Cost price' })
   @IsOptional()
@@ -520,12 +519,12 @@ export class BulkUpdateProductsDto {
   @IsArray()
   @IsUUID(undefined, { each: true })
   @ArrayMinSize(1)
-  productIds: string[];
+  productIds!: string[];
 
   @ApiProperty({ description: 'Fields to update' })
   @ValidateNested()
   @Type(() => UpdateProductDto)
-  updates: UpdateProductDto;
+  updates!: UpdateProductDto;
 }
 
 export class ProductResponseDto {

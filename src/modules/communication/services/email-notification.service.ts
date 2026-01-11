@@ -3,22 +3,22 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { InjectDrizzle, DrizzleDB } from '../../database/drizzle.service';
 import { integrationSettings } from '../../database/schema/tenant.schema';
-import { users } from '../../database/schema/user.schema';
+import { users as usersTable } from '../../database/schema/user.schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { firstValueFrom } from 'rxjs';
-import * as nodemailer from 'nodemailer';
+import nodemailer from 'nodemailer';
 
 export interface EmailMessage {
   to: string | string[];
-  cc?: string | string[];
-  bcc?: string | string[];
+  cc?: string | string[] | undefined;
+  bcc?: string | string[] | undefined;
   subject: string;
-  text?: string;
-  html?: string;
-  attachments?: EmailAttachment[];
-  replyTo?: string;
-  priority?: 'high' | 'normal' | 'low';
-  headers?: Record<string, string>;
+  text?: string | undefined;
+  html?: string | undefined;
+  attachments?: EmailAttachment[] | undefined;
+  replyTo?: string | undefined;
+  priority?: 'high' | 'normal' | 'low' | undefined;
+  headers?: Record<string, string> | undefined;
 }
 
 export interface EmailAttachment {
@@ -168,10 +168,12 @@ export class EmailNotificationService {
       return result;
 
     } catch (error) {
-      this.logger.error(`Email service error: ${error.message}`, error.stack, {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Email service error: ${errorMessage}`, errorStack, {
         tenantId,
       });
-      return { success: false, error: error.message };
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -200,21 +202,21 @@ export class EmailNotificationService {
       const { batchSize = 50, delayBetweenBatches = 1000 } = options;
 
       // Get user email addresses
-      const users = await this.db
+      const fetchedUsers = await this.db
         .select({
-          id: users.id,
-          email: users.email,
-          firstName: users.firstName,
-          lastName: users.lastName,
+          id: usersTable.id,
+          email: usersTable.email,
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
         })
-        .from(users)
+        .from(usersTable)
         .where(and(
-          eq(users.tenantId, tenantId),
-          inArray(users.id, userIds),
-          eq(users.isActive, true),
+          eq(usersTable.tenantId, tenantId),
+          inArray(usersTable.id, userIds),
+          eq(usersTable.isActive, true),
         ));
 
-      if (users.length === 0) {
+      if (fetchedUsers.length === 0) {
         return { totalSent: 0, totalFailed: 0, results: [] };
       }
 
@@ -223,8 +225,8 @@ export class EmailNotificationService {
       let totalFailed = 0;
 
       // Process users in batches
-      for (let i = 0; i < users.length; i += batchSize) {
-        const batch = users.slice(i, i + batchSize);
+      for (let i = 0; i < fetchedUsers.length; i += batchSize) {
+        const batch = fetchedUsers.slice(i, i + batchSize);
         
         const batchPromises = batch.map(async (user) => {
           try {
@@ -273,7 +275,8 @@ export class EmailNotificationService {
             return { userId: user.id, success: result.success, error: result.error };
 
           } catch (error) {
-            return { userId: user.id, success: false, error: error.message };
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            return { userId: user.id, success: false, error: errorMessage };
           }
         });
 
@@ -294,14 +297,14 @@ export class EmailNotificationService {
         });
 
         // Delay between batches (except for the last batch)
-        if (i + batchSize < users.length && delayBetweenBatches > 0) {
+        if (i + batchSize < fetchedUsers.length && delayBetweenBatches > 0) {
           await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
         }
       }
 
       this.logger.log(`Bulk email notification completed`, {
         tenantId,
-        totalUsers: users.length,
+        totalUsers: fetchedUsers.length,
         totalSent,
         totalFailed,
       });
@@ -309,7 +312,9 @@ export class EmailNotificationService {
       return { totalSent, totalFailed, results };
 
     } catch (error) {
-      this.logger.error(`Failed to send bulk email notifications: ${error.message}`, error.stack, {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to send bulk email notifications: ${errorMessage}`, errorStack, {
         tenantId,
         userCount: userIds.length,
       });
@@ -366,7 +371,9 @@ export class EmailNotificationService {
       this.logger.log(`Email provider ${provider.type} configured for tenant ${tenantId}`);
 
     } catch (error) {
-      this.logger.error(`Failed to configure email provider: ${error.message}`, error.stack, {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to configure email provider: ${errorMessage}`, errorStack, {
         tenantId,
         providerType: provider.type,
       });
@@ -406,7 +413,9 @@ export class EmailNotificationService {
       this.logger.log(`Email template '${template.name}' created for tenant ${tenantId}`);
 
     } catch (error) {
-      this.logger.error(`Failed to create email template: ${error.message}`, error.stack, {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to create email template: ${errorMessage}`, errorStack, {
         tenantId,
         templateName: template.name,
       });
@@ -458,7 +467,7 @@ export class EmailNotificationService {
       } : null;
 
     } catch (error) {
-      this.logger.error(`Failed to get email provider: ${error.message}`, error.stack);
+      this.logger.error(`Failed to get email provider: ${(error as Error).message}`, (error as Error).stack);
       return null;
     }
   }
@@ -479,7 +488,7 @@ export class EmailNotificationService {
         : null;
 
     } catch (error) {
-      this.logger.error(`Failed to get email template: ${error.message}`, error.stack);
+      this.logger.error(`Failed to get email template: ${(error as Error).message}`, (error as Error).stack);
       return null;
     }
   }

@@ -7,23 +7,23 @@ import { eq, and } from 'drizzle-orm';
 import { firstValueFrom } from 'rxjs';
 
 export interface TeamsMessage {
-  text?: string;
-  summary?: string;
-  themeColor?: string;
-  sections?: TeamsSection[];
-  potentialAction?: TeamsAction[];
+  text?: string | undefined;
+  summary?: string | undefined;
+  themeColor?: string | undefined;
+  sections?: TeamsSection[] | undefined;
+  potentialAction?: TeamsAction[] | undefined;
 }
 
 export interface TeamsSection {
-  activityTitle?: string;
-  activitySubtitle?: string;
-  activityImage?: string;
+  activityTitle?: string | undefined;
+  activitySubtitle?: string | undefined;
+  activityImage?: string | undefined;
   facts?: Array<{
     name: string;
     value: string;
-  }>;
-  markdown?: boolean;
-  text?: string;
+  }> | undefined;
+  markdown?: boolean | undefined;
+  text?: string | undefined;
 }
 
 export interface TeamsAction {
@@ -32,13 +32,13 @@ export interface TeamsAction {
   targets?: Array<{
     os: 'default' | 'iOS' | 'android' | 'windows';
     uri: string;
-  }>;
-  body?: string;
-  method?: 'POST' | 'GET';
+  }> | undefined;
+  body?: string | undefined;
+  method?: 'POST' | 'GET' | undefined;
   headers?: Array<{
     name: string;
     value: string;
-  }>;
+  }> | undefined;
 }
 
 export interface TeamsIntegrationConfig {
@@ -168,7 +168,7 @@ export class TeamsIntegrationService {
       };
 
       // Add metadata facts if present
-      if (notification.metadata) {
+      if (notification.metadata && teamsMessage.sections && teamsMessage.sections.length > 0) {
         const metadataFacts = Object.entries(notification.metadata)
           .filter(([key, value]) => value !== null && value !== undefined)
           .map(([key, value]) => ({
@@ -176,14 +176,14 @@ export class TeamsIntegrationService {
             value: String(value),
           }));
 
-        if (metadataFacts.length > 0) {
-          teamsMessage.sections![0].facts!.push(...metadataFacts);
+        if (metadataFacts.length > 0 && teamsMessage.sections[0].facts) {
+          teamsMessage.sections[0].facts.push(...metadataFacts);
         }
       }
 
       // Add actions if present
       if (notification.actions && notification.actions.length > 0) {
-        teamsMessage.potentialAction = notification.actions.map(action => ({
+        const actions = notification.actions.map(action => ({
           '@type': 'OpenUri' as const,
           name: action.label,
           targets: action.url ? [
@@ -192,7 +192,11 @@ export class TeamsIntegrationService {
               uri: action.url,
             },
           ] : undefined,
-        })).filter(action => action.targets);
+        })).filter((action): action is { '@type': 'OpenUri'; name: string; targets: Array<{ os: 'default'; uri: string }> | undefined } => action.targets !== undefined);
+        
+        if (actions.length > 0) {
+          teamsMessage.potentialAction = actions;
+        }
       }
 
       return await this.sendMessage(tenantId, teamsMessage);
@@ -263,8 +267,8 @@ export class TeamsIntegrationService {
             value: String(value),
           }));
 
-        if (metadataFacts.length > 0) {
-          teamsMessage.sections![0].facts!.push(...metadataFacts);
+        if (metadataFacts.length > 0 && teamsMessage.sections && teamsMessage.sections.length > 0 && teamsMessage.sections[0].facts) {
+          teamsMessage.sections[0].facts.push(...metadataFacts);
         }
       }
 
@@ -342,7 +346,7 @@ export class TeamsIntegrationService {
 
       // Add actions if provided
       if (card.actions && card.actions.length > 0) {
-        teamsMessage.potentialAction = card.actions.map(action => {
+        const actions = card.actions.map(action => {
           if (action.type === 'OpenUri') {
             return {
               '@type': 'OpenUri' as const,
@@ -362,7 +366,17 @@ export class TeamsIntegrationService {
               method: action.method,
             };
           }
-        }).filter(action => action.targets || action.body);
+        }).filter((action): action is ({ '@type': 'OpenUri'; name: string; targets: Array<{ os: 'default'; uri: string }> | undefined } | { '@type': 'HttpPOST'; name: string; body: string | undefined; method: string | undefined }) => {
+          if (action['@type'] === 'OpenUri') {
+            return action.targets !== undefined;
+          } else {
+            return action.body !== undefined;
+          }
+        });
+        
+        if (actions.length > 0) {
+          teamsMessage.potentialAction = actions;
+        }
       }
 
       return await this.sendMessage(tenantId, teamsMessage);

@@ -19,25 +19,25 @@ export interface SlackMessage {
 }
 
 export interface SlackAttachment {
-  color?: string;
-  pretext?: string;
-  author_name?: string;
-  author_link?: string;
-  author_icon?: string;
-  title?: string;
-  title_link?: string;
-  text?: string;
+  color?: string | undefined;
+  pretext?: string | undefined;
+  author_name?: string | undefined;
+  author_link?: string | undefined;
+  author_icon?: string | undefined;
+  title?: string | undefined;
+  title_link?: string | undefined;
+  text?: string | undefined;
   fields?: Array<{
     title: string;
     value: string;
-    short?: boolean;
-  }>;
-  image_url?: string;
-  thumb_url?: string;
-  footer?: string;
-  footer_icon?: string;
-  ts?: number;
-  actions?: SlackAction[];
+    short?: boolean | undefined;
+  }> | undefined;
+  image_url?: string | undefined;
+  thumb_url?: string | undefined;
+  footer?: string | undefined;
+  footer_icon?: string | undefined;
+  ts?: number | undefined;
+  actions?: SlackAction[] | undefined;
 }
 
 export interface SlackAction {
@@ -144,11 +144,13 @@ export class SlackIntegrationService {
       return result;
 
     } catch (error) {
-      this.logger.error(`Slack integration error: ${error.message}`, error.stack, {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Slack integration error: ${errorMessage}`, errorStack, {
         tenantId,
         channel: message.channel,
       });
-      return { success: false, error: error.message };
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -207,15 +209,15 @@ export class SlackIntegrationService {
             actions: notification.actions?.map(action => ({
               type: 'button' as const,
               text: action.label,
-              url: action.url,
+              url: action.url || undefined,
               style: this.mapActionStyle(action.style),
-            })),
+            })) || undefined,
           },
         ],
       };
 
       // Add metadata fields if present
-      if (notification.metadata) {
+      if (notification.metadata && slackMessage.attachments && slackMessage.attachments.length > 0) {
         const metadataFields = Object.entries(notification.metadata)
           .filter(([key, value]) => value !== null && value !== undefined)
           .map(([key, value]) => ({
@@ -224,19 +226,21 @@ export class SlackIntegrationService {
             short: true,
           }));
 
-        if (metadataFields.length > 0) {
-          slackMessage.attachments![0].fields!.push(...metadataFields);
+        if (metadataFields.length > 0 && slackMessage.attachments[0].fields) {
+          slackMessage.attachments[0].fields.push(...metadataFields);
         }
       }
 
       return await this.sendMessage(tenantId, slackMessage);
 
     } catch (error) {
-      this.logger.error(`Failed to send Slack notification: ${error.message}`, error.stack, {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to send Slack notification: ${errorMessage}`, errorStack, {
         tenantId,
         notificationType: notification.type,
       });
-      return { success: false, error: error.message };
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -299,7 +303,7 @@ export class SlackIntegrationService {
       };
 
       // Add metadata fields
-      if (alert.metadata) {
+      if (alert.metadata && slackMessage.attachments && slackMessage.attachments.length > 0) {
         const metadataFields = Object.entries(alert.metadata)
           .filter(([key, value]) => value !== null && value !== undefined)
           .map(([key, value]) => ({
@@ -308,19 +312,21 @@ export class SlackIntegrationService {
             short: true,
           }));
 
-        if (metadataFields.length > 0) {
-          slackMessage.attachments![0].fields!.push(...metadataFields);
+        if (metadataFields.length > 0 && slackMessage.attachments[0].fields) {
+          slackMessage.attachments[0].fields.push(...metadataFields);
         }
       }
 
       return await this.sendMessage(tenantId, slackMessage);
 
     } catch (error) {
-      this.logger.error(`Failed to send Slack alert: ${error.message}`, error.stack, {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to send Slack alert: ${errorMessage}`, errorStack, {
         tenantId,
         severity: alert.severity,
       });
-      return { success: false, error: error.message };
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -370,7 +376,9 @@ export class SlackIntegrationService {
       this.logger.log(`Slack integration configured for tenant ${tenantId}`);
 
     } catch (error) {
-      this.logger.error(`Failed to configure Slack integration: ${error.message}`, error.stack, {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to configure Slack integration: ${errorMessage}`, errorStack, {
         tenantId,
       });
       throw error;
@@ -407,7 +415,8 @@ export class SlackIntegrationService {
       }
 
     } catch (error) {
-      return { success: false, error: error.message };
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -428,7 +437,9 @@ export class SlackIntegrationService {
 
       return integration ? (integration.configuration as SlackIntegrationConfig) : null;
     } catch (error) {
-      this.logger.error(`Failed to get Slack config: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to get Slack config: ${errorMessage}`, errorStack);
       return null;
     }
   }
@@ -498,7 +509,8 @@ export class SlackIntegrationService {
 
       } catch (error) {
         if (attempt === options.retryAttempts) {
-          return { success: false, error: error.message };
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          return { success: false, error: errorMessage };
         }
         
         // Wait before retry
@@ -534,7 +546,8 @@ export class SlackIntegrationService {
 
       } catch (error) {
         if (attempt === options.retryAttempts) {
-          return { success: false, error: error.message };
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          return { success: false, error: errorMessage };
         }
         
         // Wait before retry

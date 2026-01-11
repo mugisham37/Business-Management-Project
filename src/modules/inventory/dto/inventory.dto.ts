@@ -56,7 +56,7 @@ export enum InventoryValuationMethod {
 export class CreateInventoryLevelDto {
   @ApiProperty({ description: 'Product ID' })
   @IsUUID()
-  productId: string;
+  productId!: string;
 
   @ApiPropertyOptional({ description: 'Product variant ID' })
   @IsOptional()
@@ -65,7 +65,7 @@ export class CreateInventoryLevelDto {
 
   @ApiProperty({ description: 'Location ID' })
   @IsUUID()
-  locationId: string;
+  locationId!: string;
 
   @ApiPropertyOptional({ description: 'Current stock level' })
   @IsOptional()
@@ -131,7 +131,7 @@ export class UpdateInventoryLevelDto extends PartialType(CreateInventoryLevelDto
 export class InventoryAdjustmentDto {
   @ApiProperty({ description: 'Product ID' })
   @IsUUID()
-  productId: string;
+  productId!: string;
 
   @ApiPropertyOptional({ description: 'Product variant ID' })
   @IsOptional()
@@ -140,15 +140,15 @@ export class InventoryAdjustmentDto {
 
   @ApiProperty({ description: 'Location ID' })
   @IsUUID()
-  locationId: string;
+  locationId!: string;
 
   @ApiProperty({ description: 'Adjustment amount (positive or negative)' })
   @IsNumber()
-  adjustment: number;
+  adjustment!: number;
 
   @ApiProperty({ description: 'Reason for adjustment', enum: InventoryAdjustmentReason })
   @IsEnum(InventoryAdjustmentReason)
-  reason: InventoryAdjustmentReason;
+  reason!: InventoryAdjustmentReason;
 
   @ApiPropertyOptional({ description: 'Notes about the adjustment' })
   @IsOptional()
@@ -183,7 +183,7 @@ export class InventoryAdjustmentDto {
 export class InventoryTransferDto {
   @ApiProperty({ description: 'Product ID' })
   @IsUUID()
-  productId: string;
+  productId!: string;
 
   @ApiPropertyOptional({ description: 'Product variant ID' })
   @IsOptional()
@@ -192,16 +192,16 @@ export class InventoryTransferDto {
 
   @ApiProperty({ description: 'Source location ID' })
   @IsUUID()
-  fromLocationId: string;
+  fromLocationId!: string;
 
   @ApiProperty({ description: 'Destination location ID' })
   @IsUUID()
-  toLocationId: string;
+  toLocationId!: string;
 
   @ApiProperty({ description: 'Quantity to transfer' })
   @IsNumber()
   @Min(0.001)
-  quantity: number;
+  quantity!: number;
 
   @ApiPropertyOptional({ description: 'Transfer notes' })
   @IsOptional()
@@ -218,7 +218,7 @@ export class InventoryTransferDto {
 export class InventoryReservationDto {
   @ApiProperty({ description: 'Product ID' })
   @IsUUID()
-  productId: string;
+  productId!: string;
 
   @ApiPropertyOptional({ description: 'Product variant ID' })
   @IsOptional()
@@ -227,22 +227,22 @@ export class InventoryReservationDto {
 
   @ApiProperty({ description: 'Location ID' })
   @IsUUID()
-  locationId: string;
+  locationId!: string;
 
   @ApiProperty({ description: 'Quantity to reserve' })
   @IsNumber()
   @Min(0.001)
-  quantity: number;
+  quantity!: number;
 
   @ApiProperty({ description: 'What the inventory is reserved for' })
   @IsString()
   @Length(1, 50)
-  reservedFor: string;
+  reservedFor!: string;
 
   @ApiProperty({ description: 'Reference ID (order, quote, etc.)' })
   @IsString()
   @Length(1, 255)
-  referenceId: string;
+  referenceId!: string;
 
   @ApiPropertyOptional({ description: 'Reservation expiry date' })
   @IsOptional()
@@ -312,49 +312,49 @@ export class InventoryQueryDto {
 
 export class InventoryLevelResponseDto {
   @ApiProperty({ description: 'Inventory level ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Tenant ID' })
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty({ description: 'Product ID' })
-  productId: string;
+  productId!: string;
 
   @ApiPropertyOptional({ description: 'Product variant ID' })
   variantId?: string;
 
   @ApiProperty({ description: 'Location ID' })
-  locationId: string;
+  locationId!: string;
 
   @ApiProperty({ description: 'Current stock level' })
-  currentLevel: number;
+  currentLevel!: number;
 
   @ApiProperty({ description: 'Available stock level (current - reserved)' })
-  availableLevel: number;
+  availableLevel!: number;
 
   @ApiProperty({ description: 'Reserved stock level' })
-  reservedLevel: number;
+  reservedLevel!: number;
 
   @ApiProperty({ description: 'Minimum stock level' })
-  minStockLevel: number;
+  minStockLevel!: number;
 
   @ApiPropertyOptional({ description: 'Maximum stock level' })
   maxStockLevel?: number;
 
   @ApiProperty({ description: 'Reorder point' })
-  reorderPoint: number;
+  reorderPoint!: number;
 
   @ApiProperty({ description: 'Reorder quantity' })
-  reorderQuantity: number;
+  reorderQuantity!: number;
 
   @ApiProperty({ description: 'Valuation method', enum: InventoryValuationMethod })
-  valuationMethod: InventoryValuationMethod;
+  valuationMethod!: InventoryValuationMethod;
 
   @ApiProperty({ description: 'Average cost per unit' })
-  averageCost: number;
+  averageCost!: number;
 
   @ApiProperty({ description: 'Total inventory value' })
-  totalValue: number;
+  totalValue!: number;
 
   @ApiPropertyOptional({ description: 'Bin location' })
   binLocation?: string;
@@ -369,7 +369,7 @@ export class InventoryLevelResponseDto {
   lastCountAt?: Date;
 
   @ApiProperty({ description: 'Low stock alert sent flag' })
-  lowStockAlertSent: boolean;
+  lowStockAlertSent!: boolean;
 
   @ApiPropertyOptional({ description: 'Last alert sent timestamp' })
   lastAlertSentAt?: Date;
@@ -378,13 +378,13 @@ export class InventoryLevelResponseDto {
   attributes?: Record<string, any>;
 
   @ApiProperty({ description: 'Is active' })
-  isActive: boolean;
+  isActive!: boolean;
 
   @ApiProperty({ description: 'Created at timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated at timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ApiPropertyOptional({ description: 'Created by user ID' })
   createdBy?: string;
@@ -393,7 +393,7 @@ export class InventoryLevelResponseDto {
   updatedBy?: string;
 
   @ApiProperty({ description: 'Version number' })
-  version: number;
+  version!: number;
 
   @ApiPropertyOptional({ description: 'Product information' })
   product?: any;
@@ -404,25 +404,25 @@ export class InventoryLevelResponseDto {
 
 export class InventoryMovementResponseDto {
   @ApiProperty({ description: 'Movement ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Tenant ID' })
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty({ description: 'Product ID' })
-  productId: string;
+  productId!: string;
 
   @ApiPropertyOptional({ description: 'Product variant ID' })
   variantId?: string;
 
   @ApiProperty({ description: 'Location ID' })
-  locationId: string;
+  locationId!: string;
 
   @ApiProperty({ description: 'Movement type', enum: InventoryMovementType })
-  movementType: InventoryMovementType;
+  movementType!: InventoryMovementType;
 
   @ApiProperty({ description: 'Quantity moved (positive for in, negative for out)' })
-  quantity: number;
+  quantity!: number;
 
   @ApiPropertyOptional({ description: 'Unit cost' })
   unitCost?: number;
@@ -431,10 +431,10 @@ export class InventoryMovementResponseDto {
   totalCost?: number;
 
   @ApiProperty({ description: 'Stock level before movement' })
-  previousLevel: number;
+  previousLevel!: number;
 
   @ApiProperty({ description: 'Stock level after movement' })
-  newLevel: number;
+  newLevel!: number;
 
   @ApiPropertyOptional({ description: 'Reference document type' })
   referenceType?: string;
@@ -461,7 +461,7 @@ export class InventoryMovementResponseDto {
   notes?: string;
 
   @ApiProperty({ description: 'Requires approval flag' })
-  requiresApproval: boolean;
+  requiresApproval!: boolean;
 
   @ApiPropertyOptional({ description: 'Approved by user ID' })
   approvedBy?: string;
@@ -479,13 +479,13 @@ export class InventoryMovementResponseDto {
   metadata?: Record<string, any>;
 
   @ApiProperty({ description: 'Is active' })
-  isActive: boolean;
+  isActive!: boolean;
 
   @ApiProperty({ description: 'Created at timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated at timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ApiPropertyOptional({ description: 'Created by user ID' })
   createdBy?: string;
@@ -494,7 +494,7 @@ export class InventoryMovementResponseDto {
   updatedBy?: string;
 
   @ApiProperty({ description: 'Version number' })
-  version: number;
+  version!: number;
 
   @ApiPropertyOptional({ description: 'Product information' })
   product?: any;

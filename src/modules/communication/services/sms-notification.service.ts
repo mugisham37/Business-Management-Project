@@ -3,18 +3,18 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { InjectDrizzle, DrizzleDB } from '../../database/drizzle.service';
 import { integrationSettings } from '../../database/schema/tenant.schema';
-import { users } from '../../database/schema/user.schema';
+import { users as usersTable } from '../../database/schema/user.schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { firstValueFrom } from 'rxjs';
 
 export interface SMSMessage {
   to: string | string[];
   message: string;
-  from?: string;
-  mediaUrls?: string[];
-  scheduledAt?: Date;
-  validityPeriod?: number; // in minutes
-  priority?: 'high' | 'normal' | 'low';
+  from?: string | undefined;
+  mediaUrls?: string[] | undefined;
+  scheduledAt?: Date | undefined;
+  validityPeriod?: number | undefined; // in minutes
+  priority?: 'high' | 'normal' | 'low' | undefined;
 }
 
 export interface SMSProvider {
@@ -157,10 +157,12 @@ export class SMSNotificationService {
       return result;
 
     } catch (error) {
-      this.logger.error(`SMS service error: ${error.message}`, error.stack, {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`SMS service error: ${errorMessage}`, errorStack, {
         tenantId,
       });
-      return { success: false, error: error.message };
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -187,21 +189,21 @@ export class SMSNotificationService {
       const { batchSize = 50, delayBetweenBatches = 1000 } = options;
 
       // Get user phone numbers
-      const users = await this.db
+      const fetchedUsers = await this.db
         .select({
-          id: users.id,
-          phoneNumber: users.phoneNumber,
-          firstName: users.firstName,
-          lastName: users.lastName,
+          id: usersTable.id,
+          phoneNumber: usersTable.phoneNumber,
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
         })
-        .from(users)
+        .from(usersTable)
         .where(and(
-          eq(users.tenantId, tenantId),
-          inArray(users.id, userIds),
-          eq(users.isActive, true),
+          eq(usersTable.tenantId, tenantId),
+          inArray(usersTable.id, userIds),
+          eq(usersTable.isActive, true),
         ));
 
-      if (users.length === 0) {
+      if (fetchedUsers.length === 0) {
         return { totalSent: 0, totalFailed: 0, results: [] };
       }
 
@@ -210,8 +212,8 @@ export class SMSNotificationService {
       let totalFailed = 0;
 
       // Process users in batches
-      for (let i = 0; i < users.length; i += batchSize) {
-        const batch = users.slice(i, i + batchSize);
+      for (let i = 0; i < fetchedUsers.length; i += batchSize) {
+        const batch = fetchedUsers.slice(i, i + batchSize);
         
         const batchPromises = batch.map(async (user) => {
           try {
@@ -256,7 +258,8 @@ export class SMSNotificationService {
             return { userId: user.id, success: result.success, error: result.error };
 
           } catch (error) {
-            return { userId: user.id, success: false, error: error.message };
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            return { userId: user.id, success: false, error: errorMessage };
           }
         });
 
@@ -277,14 +280,14 @@ export class SMSNotificationService {
         });
 
         // Delay between batches (except for the last batch)
-        if (i + batchSize < users.length && delayBetweenBatches > 0) {
+        if (i + batchSize < fetchedUsers.length && delayBetweenBatches > 0) {
           await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
         }
       }
 
       this.logger.log(`Bulk SMS notification completed`, {
         tenantId,
-        totalUsers: users.length,
+        totalUsers: fetchedUsers.length,
         totalSent,
         totalFailed,
       });
@@ -292,7 +295,9 @@ export class SMSNotificationService {
       return { totalSent, totalFailed, results };
 
     } catch (error) {
-      this.logger.error(`Failed to send bulk SMS notifications: ${error.message}`, error.stack, {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to send bulk SMS notifications: ${errorMessage}`, errorStack, {
         tenantId,
         userCount: userIds.length,
       });
@@ -326,11 +331,13 @@ export class SMSNotificationService {
       return await this.sendSMS(tenantId, message, options);
 
     } catch (error) {
-      this.logger.error(`Failed to send OTP SMS: ${error.message}`, error.stack, {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to send OTP SMS: ${errorMessage}`, errorStack, {
         tenantId,
         phoneNumber: this.maskPhoneNumber(phoneNumber),
       });
-      return { success: false, error: error.message };
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -362,12 +369,14 @@ export class SMSNotificationService {
       return await this.sendSMS(tenantId, message, options);
 
     } catch (error) {
-      this.logger.error(`Failed to send alert SMS: ${error.message}`, error.stack, {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to send alert SMS: ${errorMessage}`, errorStack, {
         tenantId,
         severity: alert.severity,
         recipientCount: phoneNumbers.length,
       });
-      return { success: false, error: error.message };
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -417,7 +426,9 @@ export class SMSNotificationService {
       this.logger.log(`SMS provider ${provider.type} configured for tenant ${tenantId}`);
 
     } catch (error) {
-      this.logger.error(`Failed to configure SMS provider: ${error.message}`, error.stack, {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to configure SMS provider: ${errorMessage}`, errorStack, {
         tenantId,
         providerType: provider.type,
       });
@@ -456,7 +467,9 @@ export class SMSNotificationService {
       this.logger.log(`SMS template '${template.name}' created for tenant ${tenantId}`);
 
     } catch (error) {
-      this.logger.error(`Failed to create SMS template: ${error.message}`, error.stack, {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to create SMS template: ${errorMessage}`, errorStack, {
         tenantId,
         templateName: template.name,
       });
@@ -508,7 +521,9 @@ export class SMSNotificationService {
       } : null;
 
     } catch (error) {
-      this.logger.error(`Failed to get SMS provider: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to get SMS provider: ${errorMessage}`, errorStack);
       return null;
     }
   }
@@ -529,7 +544,9 @@ export class SMSNotificationService {
         : null;
 
     } catch (error) {
-      this.logger.error(`Failed to get SMS template: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to get SMS template: ${errorMessage}`, errorStack);
       return null;
     }
   }

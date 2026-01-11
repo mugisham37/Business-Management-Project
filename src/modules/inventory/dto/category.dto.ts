@@ -130,13 +130,13 @@ export class CategoryQueryDto {
 
 export class CategoryResponseDto {
   @ApiProperty({ description: 'Category ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Tenant ID' })
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty({ description: 'Category name' })
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Category description' })
   description?: string;
@@ -148,16 +148,16 @@ export class CategoryResponseDto {
   parentId?: string;
 
   @ApiProperty({ description: 'Level in hierarchy' })
-  level: number;
+  level!: number;
 
   @ApiPropertyOptional({ description: 'Path in hierarchy' })
   path?: string;
 
   @ApiProperty({ description: 'Sort order' })
-  sortOrder: number;
+  sortOrder!: number;
 
   @ApiProperty({ description: 'Is visible' })
-  isVisible: boolean;
+  isVisible!: boolean;
 
   @ApiPropertyOptional({ description: 'Image URL' })
   imageUrl?: string;
@@ -175,13 +175,13 @@ export class CategoryResponseDto {
   attributes?: Record<string, any>;
 
   @ApiProperty({ description: 'Is active' })
-  isActive: boolean;
+  isActive!: boolean;
 
   @ApiProperty({ description: 'Created at timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated at timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ApiPropertyOptional({ description: 'Created by user ID' })
   createdBy?: string;
@@ -190,7 +190,7 @@ export class CategoryResponseDto {
   updatedBy?: string;
 
   @ApiProperty({ description: 'Version number' })
-  version: number;
+  version!: number;
 
   @ApiPropertyOptional({ description: 'Child categories' })
   children?: CategoryResponseDto[];
