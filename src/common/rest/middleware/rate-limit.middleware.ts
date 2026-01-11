@@ -56,9 +56,9 @@ export class RateLimitMiddleware implements NestMiddleware {
     next();
   }
 
-  private getKey(req: Request): string {
+  protected getKey(req: Request): string {
     // Use IP address and user ID (if authenticated) for rate limiting
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const userId = (req as any).user?.id || 'anonymous';
     return `${ip}:${userId}`;
   }
@@ -70,32 +70,4 @@ export class RateLimitMiddleware implements NestMiddleware {
       }
     }
   }
-}
-
-/**
- * Configurable rate limiting middleware factory
- */
-export function createRateLimitMiddleware(options: {
-  windowMs?: number;
-  maxRequests?: number;
-  keyGenerator?: (req: Request) => string;
-}) {
-  return class extends RateLimitMiddleware {
-    constructor(configService: ConfigService) {
-      super(configService);
-      if (options.windowMs) {
-        (this as any).windowMs = options.windowMs;
-      }
-      if (options.maxRequests) {
-        (this as any).maxRequests = options.maxRequests;
-      }
-    }
-
-    protected getKey(req: Request): string {
-      if (options.keyGenerator) {
-        return options.keyGenerator(req);
-      }
-      return super['getKey'](req);
-    }
-  };
 }

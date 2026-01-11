@@ -37,7 +37,7 @@ export class ValidationPipe extends NestValidationPipe {
       field: error.property,
       value: error.value,
       constraints: error.constraints,
-      children: error.children?.length > 0 ? this.formatValidationErrors(error.children) : undefined,
+      children: error.children && error.children.length > 0 ? this.formatValidationErrors(error.children) : undefined,
     }));
   }
 }
@@ -81,7 +81,7 @@ export class QueryValidationPipe implements PipeTransform {
       field: error.property,
       value: error.value,
       constraints: error.constraints,
-      children: error.children?.length > 0 ? this.formatValidationErrors(error.children) : undefined,
+      children: error.children && error.children.length > 0 ? this.formatValidationErrors(error.children) : undefined,
     }));
   }
 }
@@ -99,7 +99,7 @@ export class FileValidationPipe implements PipeTransform {
     } = {},
   ) {}
 
-  transform(file: Express.Multer.File): Express.Multer.File {
+  transform(file: any): any {
     if (!file && this.options.required) {
       throw new BadRequestException({
         message: 'File is required',

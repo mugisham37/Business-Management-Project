@@ -46,13 +46,24 @@ export function IsUnique(
   validationOptions?: ValidationOptions,
 ) {
   return function (object: Object, propertyName: string) {
-    registerDecorator({
+    const decoratorOptions: {
+      target: Function;
+      propertyName: string;
+      options?: ValidationOptions;
+      constraints: (string | undefined)[];
+      validator: typeof IsUniqueConstraint;
+    } = {
       target: object.constructor,
       propertyName: propertyName,
-      options: validationOptions,
       constraints: [table, field || propertyName, excludeId],
       validator: IsUniqueConstraint,
-    });
+    };
+    
+    if (validationOptions !== undefined) {
+      decoratorOptions.options = validationOptions;
+    }
+    
+    registerDecorator(decoratorOptions);
   };
 }
 
@@ -94,13 +105,24 @@ export function Exists(
   validationOptions?: ValidationOptions,
 ) {
   return function (object: Object, propertyName: string) {
-    registerDecorator({
+    const decoratorOptions: {
+      target: Function;
+      propertyName: string;
+      options?: ValidationOptions;
+      constraints: string[];
+      validator: typeof ExistsConstraint;
+    } = {
       target: object.constructor,
       propertyName: propertyName,
-      options: validationOptions,
       constraints: [table, field || 'id'],
       validator: ExistsConstraint,
-    });
+    };
+    
+    if (validationOptions !== undefined) {
+      decoratorOptions.options = validationOptions;
+    }
+    
+    registerDecorator(decoratorOptions);
   };
 }
 
@@ -141,13 +163,24 @@ export function BelongsToTenant(
   validationOptions?: ValidationOptions,
 ) {
   return function (object: Object, propertyName: string) {
-    registerDecorator({
+    const decoratorOptions: {
+      target: Function;
+      propertyName: string;
+      options?: ValidationOptions;
+      constraints: string[];
+      validator: typeof BelongsToTenantConstraint;
+    } = {
       target: object.constructor,
       propertyName: propertyName,
-      options: validationOptions,
       constraints: [table, field || 'id'],
       validator: BelongsToTenantConstraint,
-    });
+    };
+    
+    if (validationOptions !== undefined) {
+      decoratorOptions.options = validationOptions;
+    }
+    
+    registerDecorator(decoratorOptions);
   };
 }
 
@@ -187,13 +220,24 @@ export function ValidateBusinessRule(
   validationOptions?: ValidationOptions,
 ) {
   return function (object: Object, propertyName: string) {
-    registerDecorator({
+    const decoratorOptions: {
+      target: Function;
+      propertyName: string;
+      options?: ValidationOptions;
+      constraints: any[];
+      validator: typeof BusinessRuleConstraint;
+    } = {
       target: object.constructor,
       propertyName: propertyName,
-      options: validationOptions,
       constraints: [ruleName, context],
       validator: BusinessRuleConstraint,
-    });
+    };
+    
+    if (validationOptions !== undefined) {
+      decoratorOptions.options = validationOptions;
+    }
+    
+    registerDecorator(decoratorOptions);
   };
 }
 
@@ -253,12 +297,23 @@ export function ValidateFile(
   validationOptions?: ValidationOptions,
 ) {
   return function (object: Object, propertyName: string) {
-    registerDecorator({
+    const decoratorOptions: {
+      target: Function;
+      propertyName: string;
+      options?: ValidationOptions;
+      constraints: ({ maxSize?: number; allowedTypes?: string[]; maxFiles?: number; } | undefined)[];
+      validator: typeof FileValidationConstraint;
+    } = {
       target: object.constructor,
       propertyName: propertyName,
-      options: validationOptions,
       constraints: [options],
       validator: FileValidationConstraint,
-    });
+    };
+    
+    if (validationOptions !== undefined) {
+      decoratorOptions.options = validationOptions;
+    }
+    
+    registerDecorator(decoratorOptions);
   };
 }

@@ -2,7 +2,6 @@ import { applyDecorators, Type } from '@nestjs/common';
 import {
   ApiOperation,
   ApiResponse,
-  ApiParam,
   ApiQuery,
   ApiBody,
   ApiConsumes,
@@ -75,8 +74,13 @@ export function ApiCreateOperation(
   summary: string,
   description?: string,
 ) {
+  const operationOptions: { summary: string; description?: string } = { summary };
+  if (description !== undefined) {
+    operationOptions.description = description;
+  }
+  
   return applyDecorators(
-    ApiOperation({ summary, description }),
+    ApiOperation(operationOptions),
     ApiResponse({ status: 201, description: 'Resource created successfully' }),
     ApiResponse({ status: 400, description: 'Bad Request - Invalid input data' }),
     ApiResponse({ status: 409, description: 'Conflict - Resource already exists' }),
@@ -90,8 +94,13 @@ export function ApiReadOperation(
   summary: string,
   description?: string,
 ) {
+  const operationOptions: { summary: string; description?: string } = { summary };
+  if (description !== undefined) {
+    operationOptions.description = description;
+  }
+  
   return applyDecorators(
-    ApiOperation({ summary, description }),
+    ApiOperation(operationOptions),
     ApiResponse({ status: 200, description: 'Resource retrieved successfully' }),
     ApiResponse({ status: 404, description: 'Not Found - Resource does not exist' }),
   );
@@ -104,8 +113,13 @@ export function ApiUpdateOperation(
   summary: string,
   description?: string,
 ) {
+  const operationOptions: { summary: string; description?: string } = { summary };
+  if (description !== undefined) {
+    operationOptions.description = description;
+  }
+  
   return applyDecorators(
-    ApiOperation({ summary, description }),
+    ApiOperation(operationOptions),
     ApiResponse({ status: 200, description: 'Resource updated successfully' }),
     ApiResponse({ status: 400, description: 'Bad Request - Invalid input data' }),
     ApiResponse({ status: 404, description: 'Not Found - Resource does not exist' }),
@@ -120,8 +134,13 @@ export function ApiDeleteOperation(
   summary: string,
   description?: string,
 ) {
+  const operationOptions: { summary: string; description?: string } = { summary };
+  if (description !== undefined) {
+    operationOptions.description = description;
+  }
+  
   return applyDecorators(
-    ApiOperation({ summary, description }),
+    ApiOperation(operationOptions),
     ApiResponse({ status: 200, description: 'Resource deleted successfully' }),
     ApiResponse({ status: 404, description: 'Not Found - Resource does not exist' }),
     ApiResponse({ status: 409, description: 'Conflict - Cannot delete resource' }),
@@ -135,8 +154,13 @@ export function ApiListOperation(
   summary: string,
   description?: string,
 ) {
+  const operationOptions: { summary: string; description?: string } = { summary };
+  if (description !== undefined) {
+    operationOptions.description = description;
+  }
+  
   return applyDecorators(
-    ApiOperation({ summary, description }),
+    ApiOperation(operationOptions),
     ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' }),
     ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page' }),
     ApiQuery({ name: 'sortBy', required: false, type: String, description: 'Field to sort by' }),
@@ -154,8 +178,13 @@ export function ApiFileUpload(
   description?: string,
   fieldName: string = 'file',
 ) {
+  const operationOptions: { summary: string; description?: string } = { summary };
+  if (description !== undefined) {
+    operationOptions.description = description;
+  }
+  
   return applyDecorators(
-    ApiOperation({ summary, description }),
+    ApiOperation(operationOptions),
     ApiConsumes('multipart/form-data'),
     ApiBody({
       schema: {
@@ -181,8 +210,13 @@ export function ApiBulkOperation(
   summary: string,
   description?: string,
 ) {
+  const operationOptions: { summary: string; description?: string } = { summary };
+  if (description !== undefined) {
+    operationOptions.description = description;
+  }
+  
   return applyDecorators(
-    ApiOperation({ summary, description }),
+    ApiOperation(operationOptions),
     ApiResponse({ status: 200, description: 'Bulk operation completed successfully' }),
     ApiResponse({ status: 207, description: 'Multi-Status - Partial success' }),
     ApiResponse({ status: 400, description: 'Bad Request - Invalid bulk data' }),
@@ -196,8 +230,13 @@ export function ApiSearchOperation(
   summary: string,
   description?: string,
 ) {
+  const operationOptions: { summary: string; description?: string } = { summary };
+  if (description !== undefined) {
+    operationOptions.description = description;
+  }
+  
   return applyDecorators(
-    ApiOperation({ summary, description }),
+    ApiOperation(operationOptions),
     ApiQuery({ name: 'q', required: true, type: String, description: 'Search query' }),
     ApiQuery({ name: 'fields', required: false, type: [String], description: 'Fields to search in' }),
     ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' }),
@@ -214,8 +253,13 @@ export function ApiExportOperation(
   description?: string,
   formats: string[] = ['csv', 'xlsx', 'pdf'],
 ) {
+  const operationOptions: { summary: string; description?: string } = { summary };
+  if (description !== undefined) {
+    operationOptions.description = description;
+  }
+  
   return applyDecorators(
-    ApiOperation({ summary, description }),
+    ApiOperation(operationOptions),
     ApiQuery({ name: 'format', required: false, enum: formats, description: 'Export format' }),
     ApiProduces('application/octet-stream'),
     ApiResponse({ status: 200, description: 'Data exported successfully' }),
@@ -230,8 +274,13 @@ export function ApiHealthCheck(
   summary: string = 'Health check',
   description?: string,
 ) {
+  const operationOptions: { summary: string; description?: string } = { summary };
+  if (description !== undefined) {
+    operationOptions.description = description;
+  }
+  
   return applyDecorators(
-    ApiOperation({ summary, description }),
+    ApiOperation(operationOptions),
     ApiResponse({
       status: 200,
       description: 'Service is healthy',

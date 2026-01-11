@@ -157,6 +157,7 @@ export class BaseQueryDto extends PaginationDto {
   @ApiPropertyOptional({
     description: 'Additional filters as key-value pairs',
     type: 'object',
+    additionalProperties: true,
     example: { status: 'active', category: 'electronics' },
   })
   @IsOptional()

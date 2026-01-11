@@ -27,13 +27,24 @@ export class IsUuidConstraint implements ValidatorConstraintInterface {
  */
 export function IsUuid(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {
-    registerDecorator({
+    const decoratorOptions: {
+      target: Function;
+      propertyName: string;
+      options?: ValidationOptions;
+      constraints: never[];
+      validator: typeof IsUuidConstraint;
+    } = {
       target: object.constructor,
       propertyName: propertyName,
-      options: validationOptions,
       constraints: [],
       validator: IsUuidConstraint,
-    });
+    };
+    
+    if (validationOptions !== undefined) {
+      decoratorOptions.options = validationOptions;
+    }
+    
+    registerDecorator(decoratorOptions);
   };
 }
 
@@ -57,13 +68,24 @@ export class IsBusinessTierConstraint implements ValidatorConstraintInterface {
  */
 export function IsBusinessTier(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {
-    registerDecorator({
+    const decoratorOptions: {
+      target: Function;
+      propertyName: string;
+      options?: ValidationOptions;
+      constraints: never[];
+      validator: typeof IsBusinessTierConstraint;
+    } = {
       target: object.constructor,
       propertyName: propertyName,
-      options: validationOptions,
       constraints: [],
       validator: IsBusinessTierConstraint,
-    });
+    };
+    
+    if (validationOptions !== undefined) {
+      decoratorOptions.options = validationOptions;
+    }
+    
+    registerDecorator(decoratorOptions);
   };
 }
 
@@ -89,13 +111,24 @@ export class IsTenantSlugConstraint implements ValidatorConstraintInterface {
  */
 export function IsTenantSlug(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {
-    registerDecorator({
+    const decoratorOptions: {
+      target: Function;
+      propertyName: string;
+      options?: ValidationOptions;
+      constraints: never[];
+      validator: typeof IsTenantSlugConstraint;
+    } = {
       target: object.constructor,
       propertyName: propertyName,
-      options: validationOptions,
       constraints: [],
       validator: IsTenantSlugConstraint,
-    });
+    };
+    
+    if (validationOptions !== undefined) {
+      decoratorOptions.options = validationOptions;
+    }
+    
+    registerDecorator(decoratorOptions);
   };
 }
 
@@ -121,13 +154,24 @@ export class IsPhoneNumberConstraint implements ValidatorConstraintInterface {
  */
 export function IsPhoneNumber(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {
-    registerDecorator({
+    const decoratorOptions: {
+      target: Function;
+      propertyName: string;
+      options?: ValidationOptions;
+      constraints: never[];
+      validator: typeof IsPhoneNumberConstraint;
+    } = {
       target: object.constructor,
       propertyName: propertyName,
-      options: validationOptions,
       constraints: [],
       validator: IsPhoneNumberConstraint,
-    });
+    };
+    
+    if (validationOptions !== undefined) {
+      decoratorOptions.options = validationOptions;
+    }
+    
+    registerDecorator(decoratorOptions);
   };
 }
 
@@ -153,13 +197,24 @@ export class IsCurrencyCodeConstraint implements ValidatorConstraintInterface {
  */
 export function IsCurrencyCode(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {
-    registerDecorator({
+    const decoratorOptions: {
+      target: Function;
+      propertyName: string;
+      options?: ValidationOptions;
+      constraints: never[];
+      validator: typeof IsCurrencyCodeConstraint;
+    } = {
       target: object.constructor,
       propertyName: propertyName,
-      options: validationOptions,
       constraints: [],
       validator: IsCurrencyCodeConstraint,
-    });
+    };
+    
+    if (validationOptions !== undefined) {
+      decoratorOptions.options = validationOptions;
+    }
+    
+    registerDecorator(decoratorOptions);
   };
 }
 
@@ -189,13 +244,24 @@ export class IsTimezoneConstraint implements ValidatorConstraintInterface {
  */
 export function IsTimezone(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {
-    registerDecorator({
+    const decoratorOptions: {
+      target: Function;
+      propertyName: string;
+      options?: ValidationOptions;
+      constraints: never[];
+      validator: typeof IsTimezoneConstraint;
+    } = {
       target: object.constructor,
       propertyName: propertyName,
-      options: validationOptions,
       constraints: [],
       validator: IsTimezoneConstraint,
-    });
+    };
+    
+    if (validationOptions !== undefined) {
+      decoratorOptions.options = validationOptions;
+    }
+    
+    registerDecorator(decoratorOptions);
   };
 }
 
@@ -221,13 +287,24 @@ export class IsMonetaryAmountConstraint implements ValidatorConstraintInterface 
  */
 export function IsMonetaryAmount(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {
-    registerDecorator({
+    const decoratorOptions: {
+      target: Function;
+      propertyName: string;
+      options?: ValidationOptions;
+      constraints: never[];
+      validator: typeof IsMonetaryAmountConstraint;
+    } = {
       target: object.constructor,
       propertyName: propertyName,
-      options: validationOptions,
       constraints: [],
       validator: IsMonetaryAmountConstraint,
-    });
+    };
+    
+    if (validationOptions !== undefined) {
+      decoratorOptions.options = validationOptions;
+    }
+    
+    registerDecorator(decoratorOptions);
   };
 }
 
@@ -253,13 +330,24 @@ export class IsSkuConstraint implements ValidatorConstraintInterface {
  */
 export function IsSku(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {
-    registerDecorator({
+    const decoratorOptions: {
+      target: Function;
+      propertyName: string;
+      options?: ValidationOptions;
+      constraints: never[];
+      validator: typeof IsSkuConstraint;
+    } = {
       target: object.constructor,
       propertyName: propertyName,
-      options: validationOptions,
       constraints: [],
       validator: IsSkuConstraint,
-    });
+    };
+    
+    if (validationOptions !== undefined) {
+      decoratorOptions.options = validationOptions;
+    }
+    
+    registerDecorator(decoratorOptions);
   };
 }
 
@@ -284,12 +372,23 @@ export class IsHexColorConstraint implements ValidatorConstraintInterface {
  */
 export function IsHexColor(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {
-    registerDecorator({
+    const decoratorOptions: {
+      target: Function;
+      propertyName: string;
+      options?: ValidationOptions;
+      constraints: never[];
+      validator: typeof IsHexColorConstraint;
+    } = {
       target: object.constructor,
       propertyName: propertyName,
-      options: validationOptions,
       constraints: [],
       validator: IsHexColorConstraint,
-    });
+    };
+    
+    if (validationOptions !== undefined) {
+      decoratorOptions.options = validationOptions;
+    }
+    
+    registerDecorator(decoratorOptions);
   };
 }

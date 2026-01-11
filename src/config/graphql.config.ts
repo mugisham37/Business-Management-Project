@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GqlOptionsFactory, GqlModuleOptions } from '@nestjs/graphql';
+import { GqlOptionsFactory } from '@nestjs/graphql';
 import { ApolloDriverConfig } from '@nestjs/apollo';
 import { GraphQLError, GraphQLFormattedError } from 'graphql';
 import { join } from 'path';
@@ -42,20 +42,22 @@ export class GraphQLConfigService implements GqlOptionsFactory {
       },
 
       // Enhanced error formatting
-      formatError: (error: GraphQLError): GraphQLFormattedError => {
+      formatError: (formattedError: GraphQLFormattedError, error: unknown): GraphQLFormattedError => {
+        const originalError = error as GraphQLError;
+        
         // Log errors in development
         if (isDevelopment) {
           console.error('GraphQL Error:', {
-            message: error.message,
-            locations: error.locations,
-            path: error.path,
-            extensions: error.extensions,
-            stack: error.stack,
+            message: originalError.message,
+            locations: originalError.locations,
+            path: originalError.path,
+            extensions: originalError.extensions,
+            stack: originalError.stack,
           });
         }
 
         // Don't expose internal errors in production
-        if (isProduction && error.extensions?.code === 'INTERNAL_SERVER_ERROR') {
+        if (isProduction && originalError.extensions?.code === 'INTERNAL_SERVER_ERROR') {
           return {
             message: 'Internal server error',
             extensions: {
@@ -66,19 +68,19 @@ export class GraphQLConfigService implements GqlOptionsFactory {
         }
 
         // Format validation errors
-        if (error.extensions?.code === 'BAD_USER_INPUT') {
+        if (originalError.extensions?.code === 'BAD_USER_INPUT') {
           return {
-            message: error.message,
+            message: originalError.message,
             extensions: {
               code: 'VALIDATION_ERROR',
               timestamp: new Date().toISOString(),
-              validationErrors: error.extensions.validationErrors,
+              validationErrors: originalError.extensions.validationErrors,
             },
           };
         }
 
         // Format authentication errors
-        if (error.extensions?.code === 'UNAUTHENTICATED') {
+        if (originalError.extensions?.code === 'UNAUTHENTICATED') {
           return {
             message: 'Authentication required',
             extensions: {
@@ -89,7 +91,7 @@ export class GraphQLConfigService implements GqlOptionsFactory {
         }
 
         // Format authorization errors
-        if (error.extensions?.code === 'FORBIDDEN') {
+        if (originalError.extensions?.code === 'FORBIDDEN') {
           return {
             message: 'Insufficient permissions',
             extensions: {
@@ -101,11 +103,11 @@ export class GraphQLConfigService implements GqlOptionsFactory {
 
         // Default error formatting
         return {
-          message: error.message,
-          ...(error.locations && { locations: error.locations }),
-          ...(error.path && { path: error.path }),
+          message: originalError.message,
+          ...(originalError.locations && { locations: originalError.locations }),
+          ...(originalError.path && { path: originalError.path }),
           extensions: {
-            code: error.extensions?.code || 'UNKNOWN_ERROR',
+            code: originalError.extensions?.code || 'UNKNOWN_ERROR',
             timestamp: new Date().toISOString(),
           },
         };
@@ -115,9 +117,9 @@ export class GraphQLConfigService implements GqlOptionsFactory {
       plugins: [
         // Query complexity analysis
         {
-          requestDidStart() {
+          async requestDidStart() {
             return {
-              didResolveOperation(requestContext: any) {
+              async didResolveOperation(requestContext: any) {
                 const { request } = requestContext;
                 
                 // Log query in development
@@ -129,7 +131,7 @@ export class GraphQLConfigService implements GqlOptionsFactory {
                 }
               },
               
-              willSendResponse(requestContext: any) {
+              async willSendResponse(requestContext: any) {
                 // Add performance headers
                 const { response } = requestContext;
                 if (response.http) {

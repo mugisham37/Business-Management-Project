@@ -7,7 +7,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { ValidationError } from 'class-validator';
 
 /**
  * Global exception filter for REST API error handling
@@ -103,7 +102,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
   private getApiVersion(url: string): string {
     const versionMatch = url.match(/\/api\/v(\d+)\//);
-    return versionMatch ? versionMatch[1] : '1';
+    return versionMatch?.[1] ?? '1';
   }
 
   private getErrorCode(status: number): string {

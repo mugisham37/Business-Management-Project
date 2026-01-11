@@ -6,15 +6,12 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { Reflector } from '@nestjs/core';
 
 /**
  * Interceptor to standardize REST API responses
  */
 @Injectable()
 export class ResponseInterceptor implements NestInterceptor {
-  constructor(private reflector: Reflector) {}
-
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(
       map((data) => {
@@ -53,7 +50,7 @@ export class ResponseInterceptor implements NestInterceptor {
 
   private getApiVersion(url: string): string {
     const versionMatch = url.match(/\/api\/v(\d+)\//);
-    return versionMatch ? versionMatch[1] : '1';
+    return versionMatch?.[1] ?? '1';
   }
 
   private getSuccessMessage(context: ExecutionContext, statusCode: number): string {

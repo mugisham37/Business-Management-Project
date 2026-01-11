@@ -97,13 +97,13 @@ export function setupSwagger(app: INestApplication): void {
     .build();
 
   const document = SwaggerModule.createDocument(app, config, {
-    operationIdFactory: (controllerKey: string, methodKey: string) => methodKey,
+    operationIdFactory: (_controllerKey: string, methodKey: string) => methodKey,
     deepScanRoutes: true,
   });
 
   // Customize the document
   document.info.version = '1.0.0';
-  document.info['x-logo'] = {
+  (document.info as any)['x-logo'] = {
     url: 'https://example.com/logo.png',
     altText: 'Unified Business Platform Logo',
   };
