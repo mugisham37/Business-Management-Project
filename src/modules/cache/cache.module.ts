@@ -1,7 +1,6 @@
 import { Module, Global } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { CacheModule as NestCacheModule } from '@nestjs/cache-manager';
-import { SimpleRedisService } from './simple-redis.service';
 import { RedisService } from './redis.service';
 import { IntelligentCacheService } from './intelligent-cache.service';
 import { AdvancedCacheService } from './advanced-cache.service';
@@ -17,7 +16,6 @@ import { APIPerformanceService } from './api-performance.service';
     }),
   ],
   providers: [
-    SimpleRedisService,
     RedisService,
     IntelligentCacheService,
     AdvancedCacheService,
@@ -25,7 +23,6 @@ import { APIPerformanceService } from './api-performance.service';
     APIPerformanceService,
   ],
   exports: [
-    SimpleRedisService,
     RedisService,
     IntelligentCacheService,
     AdvancedCacheService,

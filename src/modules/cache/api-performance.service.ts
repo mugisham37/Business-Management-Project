@@ -3,8 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { CustomLoggerService } from '../logger/logger.service';
 import { IntelligentCacheService } from './intelligent-cache.service';
 import { RedisService } from './redis.service';
-import * as compression from 'compression';
-import * as helmet from 'helmet';
+// Note: compression and helmet would be used in middleware setup, not imported here
 
 interface CompressionConfig {
   enabled: boolean;
@@ -114,13 +113,16 @@ export class APIPerformanceService {
     };
 
     // Load CDN configuration
+    const apiKey = this.configService.get('CDN_API_KEY');
     this.cdnConfig = {
       enabled: this.configService.get('CDN_ENABLED') === 'true',
       provider: (this.configService.get('CDN_PROVIDER') as any) || 'cloudflare',
       endpoint: this.configService.get('CDN_ENDPOINT') || '',
-      apiKey: this.configService.get('CDN_API_KEY'),
       cacheTTL: parseInt(this.configService.get('CDN_CACHE_TTL') || '3600'),
     };
+    if (apiKey) {
+      this.cdnConfig.apiKey = apiKey;
+    }
 
     // Load response cache configuration
     this.responseCacheConfig = {
@@ -383,7 +385,7 @@ export class APIPerformanceService {
     if (!metrics) {
       metrics = {
         endpoint,
-        method: endpoint.split(' ')[0],
+        method: endpoint.split(' ')[0] || 'GET',
         averageResponseTime: 0,
         requestCount: 0,
         errorCount: 0,
@@ -393,20 +395,21 @@ export class APIPerformanceService {
       this.endpointMetrics.set(endpoint, metrics);
     }
 
-    // Update metrics
-    metrics.requestCount++;
-    metrics.averageResponseTime = 
-      (metrics.averageResponseTime * (metrics.requestCount - 1) + responseTime) / metrics.requestCount;
+    // Update metrics - metrics is now guaranteed to be defined
+    const currentMetrics = metrics;
+    currentMetrics.requestCount++;
+    currentMetrics.averageResponseTime = 
+      (currentMetrics.averageResponseTime * (currentMetrics.requestCount - 1) + responseTime) / currentMetrics.requestCount;
     
     if (isError) {
-      metrics.errorCount++;
+      currentMetrics.errorCount++;
     }
     
     // Update cache hit rate
-    const hitCount = metrics.cacheHitRate * (metrics.requestCount - 1) + (isCacheHit ? 1 : 0);
-    metrics.cacheHitRate = hitCount / metrics.requestCount;
+    const hitCount = currentMetrics.cacheHitRate * (currentMetrics.requestCount - 1) + (isCacheHit ? 1 : 0);
+    currentMetrics.cacheHitRate = hitCount / currentMetrics.requestCount;
     
-    metrics.lastAccessed = new Date();
+    currentMetrics.lastAccessed = new Date();
   }
 
   /**

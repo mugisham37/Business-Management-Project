@@ -2,7 +2,7 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { RedisService } from './redis.service';
-import { CustomLoggerService } from '../logger/logger.service';
+import { CustomLoggerService, LogContext } from '../logger/logger.service';
 
 interface CacheOptions {
   ttl?: number;
@@ -399,7 +399,7 @@ export class IntelligentCacheService {
     // Log cache statistics every 5 minutes
     setInterval(() => {
       const stats = this.getStats();
-      this.customLogger.log('Cache statistics', stats);
+      this.customLogger.log('Cache statistics', stats as unknown as LogContext);
     }, 300000); // Every 5 minutes
   }
 }

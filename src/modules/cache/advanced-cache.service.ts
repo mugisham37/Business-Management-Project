@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { IntelligentCacheService } from './intelligent-cache.service';
 import { RedisService } from './redis.service';
-import { CustomLoggerService } from '../logger/logger.service';
+import { CustomLoggerService, LogContext } from '../logger/logger.service';
 
 interface CacheWarmingConfig {
   key: string;
@@ -108,7 +108,15 @@ export class AdvancedCacheService {
         
         if (result !== null) {
           // Store in cache
-          await this.set(key, result, { tenantId, ttl, useDistributed });
+          const setOptions: {
+            tenantId?: string;
+            ttl: number;
+            useDistributed: boolean;
+          } = { ttl, useDistributed };
+          if (tenantId) {
+            setOptions.tenantId = tenantId;
+          }
+          await this.set(key, result, setOptions);
           
           // Schedule cache warming if enabled
           if (warmOnMiss) {
@@ -412,7 +420,7 @@ export class AdvancedCacheService {
       
       // Log metrics every 5 minutes
       if (Date.now() % (5 * 60 * 1000) < 60000) {
-        this.customLogger.log('Advanced cache metrics', this.getCacheMetrics());
+        this.customLogger.log('Advanced cache metrics', this.getCacheMetrics() as unknown as LogContext);
       }
     }, 60000);
   }
@@ -429,3 +437,4 @@ export class AdvancedCacheService {
       }
     }
   }
+}

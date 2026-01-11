@@ -380,8 +380,14 @@ export class HorizontalScalingService {
   }
 
   private getRoundRobinNode(nodes: NodeMetrics[]): string {
+    if (nodes.length === 0) {
+      throw new Error('No nodes available');
+    }
     const node = nodes[this.currentNodeIndex % nodes.length];
     this.currentNodeIndex++;
+    if (!node) {
+      throw new Error('Invalid node selection');
+    }
     return node.nodeId;
   }
 
@@ -393,29 +399,47 @@ export class HorizontalScalingService {
 
   private getWeightedNode(nodes: NodeMetrics[]): string {
     // Simple weighted selection based on inverse of CPU usage
+    if (nodes.length === 0) {
+      throw new Error('No nodes available');
+    }
     const weights = nodes.map(node => 100 - node.cpuUsage);
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
     const random = Math.random() * totalWeight;
     
     let currentWeight = 0;
     for (let i = 0; i < nodes.length; i++) {
-      currentWeight += weights[i];
+      currentWeight += weights[i] || 0;
       if (random <= currentWeight) {
-        return nodes[i].nodeId;
+        const selectedNode = nodes[i];
+        if (selectedNode) {
+          return selectedNode.nodeId;
+        }
       }
     }
     
-    return nodes[0].nodeId;
+    // Fallback to first node
+    const firstNode = nodes[0];
+    if (!firstNode) {
+      throw new Error('No valid nodes available');
+    }
+    return firstNode.nodeId;
   }
 
   private getIpHashNode(nodes: NodeMetrics[]): string {
     // Simple hash-based selection (would use client IP in real implementation)
+    if (nodes.length === 0) {
+      throw new Error('No nodes available');
+    }
     const hash = Math.abs(this.nodeId.split('').reduce((a, b) => {
       a = ((a << 5) - a) + b.charCodeAt(0);
       return a & a;
     }, 0));
     
-    return nodes[hash % nodes.length].nodeId;
+    const selectedNode = nodes[hash % nodes.length];
+    if (!selectedNode) {
+      throw new Error('Invalid node selection');
+    }
+    return selectedNode.nodeId;
   }
 
   private async replicateSession(sessionKey: string, sessionData: any): Promise<void> {
@@ -445,12 +469,15 @@ export class HorizontalScalingService {
 
   private async getSessionFromDatabase(sessionId: string): Promise<any | null> {
     try {
-      const result = await this.databaseService.executeOptimizedQuery(
+      const result = await this.databaseService.executeOptimizedQuery<{ data: string }>(
         'SELECT data FROM sessions WHERE id = $1 AND expires_at > NOW()',
         [sessionId]
       );
       
-      return result.length > 0 ? JSON.parse(result[0].data) : null;
+      if (result.length > 0 && result[0]) {
+        return JSON.parse(result[0].data);
+      }
+      return null;
     } catch (error) {
       this.customLogger.error('Database session retrieval failed', error instanceof Error ? error.stack : undefined, { sessionId });
       return null;
