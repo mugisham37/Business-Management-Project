@@ -107,17 +107,17 @@ export class CreateEmployeeDto {
   @ApiProperty()
   @IsString()
   @Length(1, 50)
-  employeeNumber: string;
+  employeeNumber!: string;
 
   @ApiProperty()
   @IsString()
   @Length(1, 100)
-  firstName: string;
+  firstName!: string;
 
   @ApiProperty()
   @IsString()
   @Length(1, 100)
-  lastName: string;
+  lastName!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -167,7 +167,7 @@ export class CreateEmployeeDto {
   @ApiProperty()
   @IsString()
   @Length(1, 100)
-  position: string;
+  position!: string;
 
   @ApiPropertyOptional({ enum: EmploymentType })
   @IsOptional()
@@ -181,7 +181,7 @@ export class CreateEmployeeDto {
 
   @ApiProperty()
   @IsDateString()
-  hireDate: string;
+  hireDate!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -248,19 +248,19 @@ export class UpdateEmployeeDto extends PartialType(CreateEmployeeDto) {}
 export class CreateEmployeeScheduleDto {
   @ApiProperty()
   @IsUUID()
-  employeeId: string;
+  employeeId!: string;
 
   @ApiProperty()
   @IsDateString()
-  scheduleDate: string;
+  scheduleDate!: string;
 
   @ApiProperty()
   @IsDateString()
-  startTime: string;
+  startTime!: string;
 
   @ApiProperty()
   @IsDateString()
-  endTime: string;
+  endTime!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -311,11 +311,11 @@ export class UpdateEmployeeScheduleDto extends PartialType(CreateEmployeeSchedul
 export class CreateTimeEntryDto {
   @ApiProperty()
   @IsUUID()
-  employeeId: string;
+  employeeId!: string;
 
   @ApiProperty()
   @IsDateString()
-  clockInTime: string;
+  clockInTime!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -446,19 +446,19 @@ export class ClockOutDto {
 export class CreatePerformanceReviewDto {
   @ApiProperty()
   @IsUUID()
-  employeeId: string;
+  employeeId!: string;
 
   @ApiProperty()
   @IsUUID()
-  reviewerId: string;
+  reviewerId!: string;
 
   @ApiProperty()
   @IsDateString()
-  reviewPeriodStart: string;
+  reviewPeriodStart!: string;
 
   @ApiProperty()
   @IsDateString()
-  reviewPeriodEnd: string;
+  reviewPeriodEnd!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -512,12 +512,12 @@ export class UpdatePerformanceReviewDto extends PartialType(CreatePerformanceRev
 export class CreateTrainingRecordDto {
   @ApiProperty()
   @IsUUID()
-  employeeId: string;
+  employeeId!: string;
 
   @ApiProperty()
   @IsString()
   @Length(1, 255)
-  trainingName: string;
+  trainingName!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -600,12 +600,12 @@ export class UpdateTrainingRecordDto extends PartialType(CreateTrainingRecordDto
 export class CreateEmployeeGoalDto {
   @ApiProperty()
   @IsUUID()
-  employeeId: string;
+  employeeId!: string;
 
   @ApiProperty()
   @IsString()
   @Length(1, 255)
-  title: string;
+  title!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -619,11 +619,11 @@ export class CreateEmployeeGoalDto {
 
   @ApiProperty()
   @IsDateString()
-  startDate: string;
+  startDate!: string;
 
   @ApiProperty()
   @IsDateString()
-  targetDate: string;
+  targetDate!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -2,11 +2,11 @@ import { Injectable, LoggerService, Scope } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 export interface LogContext {
-  tenantId?: string;
-  userId?: string;
-  requestId?: string;
-  operation?: string;
-  duration?: number;
+  tenantId?: string | undefined;
+  userId?: string | undefined;
+  requestId?: string | undefined;
+  operation?: string | undefined;
+  duration?: number | undefined;
   [key: string]: unknown;
 }
 

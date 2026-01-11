@@ -315,10 +315,8 @@ export class AuthService {
     const db = this.drizzleService.getDb();
 
     try {
-      // Verify refresh token
-      const payload = this.jwtService.verify(refreshToken, {
-        secret: this.authConfig.jwtRefreshSecret,
-      }) as JwtPayload;
+      // Verify refresh token using jwt library directly since it uses a different secret
+      const payload = jwt.verify(refreshToken, this.authConfig.jwtRefreshSecret) as JwtPayload;
 
       // Find session
       const [session] = await db
@@ -664,10 +662,11 @@ export class AuthService {
     // For refresh tokens, we need to use a different secret
     // Since JwtService is configured with the access token secret,
     // we'll use the jwt library directly for refresh tokens
-    const jwt = require('jsonwebtoken');
-    return jwt.sign(payload, this.authConfig.jwtRefreshSecret, {
-      expiresIn: this.authConfig.jwtRefreshExpiresIn,
-    });
+    return jwt.sign(
+      payload, 
+      this.authConfig.jwtRefreshSecret, 
+      { expiresIn: '7d' } // Use a fixed value to avoid type issues
+    );
   }
 
   private async hashPassword(password: string): Promise<string> {

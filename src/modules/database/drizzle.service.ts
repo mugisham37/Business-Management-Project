@@ -4,7 +4,7 @@ import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool, PoolClient } from 'pg';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import * as schema from './schema';
-import { DatabaseConfig } from '../config/database.config';
+import { DatabaseConfig } from '../../config/database.config';
 
 // Type alias for the database instance
 export type DrizzleDB = NodePgDatabase<typeof schema>;

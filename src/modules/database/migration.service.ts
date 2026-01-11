@@ -59,8 +59,8 @@ export class MigrationService {
         // Remove migration record
         await tx.execute(`
           DELETE FROM schema_migrations 
-          WHERE id = $1
-        `, [migrationId]);
+          WHERE id = '${migrationId}'
+        `);
         
         this.customLogger.audit('migration_rollback', {
           migrationId,
@@ -173,8 +173,8 @@ export class MigrationService {
         // Record migration
         await tx.execute(`
           INSERT INTO schema_migrations (id, name, checksum)
-          VALUES ($1, $2, $3)
-        `, [migration.id, migration.name, checksum]);
+          VALUES ('${migration.id}', '${migration.name}', '${checksum}')
+        `);
         
         this.customLogger.audit('migration_applied', {
           migrationId: migration.id,

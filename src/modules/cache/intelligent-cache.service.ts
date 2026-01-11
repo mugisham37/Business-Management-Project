@@ -6,7 +6,7 @@ import { CustomLoggerService } from '../logger/logger.service';
 
 interface CacheOptions {
   ttl?: number;
-  tenantId?: string;
+  tenantId?: string | undefined;
   useL1Cache?: boolean;
   useL2Cache?: boolean;
   warmCache?: boolean;

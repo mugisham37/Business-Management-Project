@@ -61,19 +61,19 @@ export enum BreakType {
 export class ComplianceCheckDto {
   @ApiProperty()
   @IsUUID()
-  employeeId: string;
+  employeeId!: string;
 
   @ApiProperty()
   @IsDateString()
-  checkDate: string;
+  checkDate!: string;
 
   @ApiProperty({ enum: ComplianceCheckType })
   @IsEnum(ComplianceCheckType)
-  checkType: ComplianceCheckType;
+  checkType!: ComplianceCheckType;
 
   @ApiProperty({ enum: ComplianceStatus })
   @IsEnum(ComplianceStatus)
-  status: ComplianceStatus;
+  status!: ComplianceStatus;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -103,19 +103,19 @@ export class UpdateComplianceCheckDto extends PartialType(ComplianceCheckDto) {}
 export class BreakTimeDto {
   @ApiProperty()
   @IsUUID()
-  employeeId: string;
+  employeeId!: string;
 
   @ApiProperty()
   @IsDateString()
-  startTime: string;
+  startTime!: string;
 
   @ApiProperty()
   @IsDateString()
-  endTime: string;
+  endTime!: string;
 
   @ApiProperty({ enum: BreakType })
   @IsEnum(BreakType)
-  breakType: BreakType;
+  breakType!: BreakType;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -145,7 +145,7 @@ export class UpdateBreakTimeDto extends PartialType(BreakTimeDto) {}
 export class LaborLawViolationDto {
   @ApiProperty()
   @IsUUID()
-  employeeId: string;
+  employeeId!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -154,20 +154,20 @@ export class LaborLawViolationDto {
 
   @ApiProperty({ enum: ViolationType })
   @IsEnum(ViolationType)
-  violationType: ViolationType;
+  violationType!: ViolationType;
 
   @ApiProperty()
   @IsDateString()
-  violationDate: string;
+  violationDate!: string;
 
   @ApiProperty()
   @IsString()
   @Length(1, 500)
-  description: string;
+  description!: string;
 
   @ApiProperty({ enum: ViolationSeverity })
   @IsEnum(ViolationSeverity)
-  severity: ViolationSeverity;
+  severity!: ViolationSeverity;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -201,11 +201,11 @@ export class UpdateLaborLawViolationDto extends PartialType(LaborLawViolationDto
 export class ComplianceReportDto {
   @ApiProperty()
   @IsDateString()
-  startDate: string;
+  startDate!: string;
 
   @ApiProperty()
   @IsDateString()
-  endDate: string;
+  endDate!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -284,12 +284,12 @@ export class AuditTrailQueryDto {
 export class ComplianceRemediationDto {
   @ApiProperty()
   @IsUUID()
-  violationId: string;
+  violationId!: string;
 
   @ApiProperty()
   @IsString()
   @Length(1, 1000)
-  correctiveAction: string;
+  correctiveAction!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

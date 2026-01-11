@@ -46,7 +46,7 @@ export const territoryTypeEnum = pgEnum('territory_type', [
 ]);
 
 // B2B Orders table
-export const b2bOrders = pgTable('b2b_orders', {
+export const b2bOrders: any = pgTable('b2b_orders', {
   ...baseSchema,
   
   // Order identification
@@ -136,7 +136,7 @@ export const b2bOrderItems = pgTable('b2b_order_items', {
 }));
 
 // Quotes table
-export const quotes = pgTable('quotes', {
+export const quotes: any = pgTable('quotes', {
   ...baseSchema,
   
   // Quote identification

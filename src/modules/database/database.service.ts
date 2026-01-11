@@ -84,9 +84,23 @@ export class DatabaseService {
   async getHealthStatus(): Promise<{
     isHealthy: boolean;
     poolStats: {
-      totalCount: number;
-      idleCount: number;
-      waitingCount: number;
+      primary: {
+        totalCount: number;
+        idleCount: number;
+        waitingCount: number;
+      };
+      readReplicas: Array<{
+        index: number;
+        totalCount: number;
+        idleCount: number;
+        waitingCount: number;
+      }>;
+      summary: {
+        totalConnections: number;
+        totalIdle: number;
+        totalWaiting: number;
+        readReplicaCount: number;
+      };
     };
   }> {
     const isHealthy = await this.drizzleService.isHealthy();

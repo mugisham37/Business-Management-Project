@@ -386,9 +386,23 @@ export class OptimizedDatabaseService {
     preparedStatements: number;
     readReplicaEnabled: boolean;
     connectionPool: {
-      totalCount: number;
-      idleCount: number;
-      waitingCount: number;
+      primary: {
+        totalCount: number;
+        idleCount: number;
+        waitingCount: number;
+      };
+      readReplicas: Array<{
+        index: number;
+        totalCount: number;
+        idleCount: number;
+        waitingCount: number;
+      }>;
+      summary: {
+        totalConnections: number;
+        totalIdle: number;
+        totalWaiting: number;
+        readReplicaCount: number;
+      };
     };
   }> {
     const dbHealth = await this.drizzleService.isHealthy();
@@ -688,7 +702,7 @@ export class OptimizedDatabaseService {
     // Log query statistics every 5 minutes
     setInterval(() => {
       const stats = this.getQueryStats();
-      this.customLogger.log('Query performance statistics', stats);
+      this.customLogger.log('Query performance statistics', stats as any);
     }, 300000); // Every 5 minutes
   }
 }

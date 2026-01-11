@@ -50,23 +50,23 @@ export class CreatePayrollPeriodDto {
   @ApiProperty()
   @IsString()
   @Length(1, 100)
-  periodName: string;
+  periodName!: string;
 
   @ApiProperty()
   @IsDateString()
-  startDate: string;
+  startDate!: string;
 
   @ApiProperty()
   @IsDateString()
-  endDate: string;
+  endDate!: string;
 
   @ApiProperty()
   @IsDateString()
-  payDate: string;
+  payDate!: string;
 
   @ApiProperty({ enum: PayrollPeriodType })
   @IsEnum(PayrollPeriodType)
-  periodType: PayrollPeriodType;
+  periodType!: PayrollPeriodType;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -119,11 +119,11 @@ export class UpdatePayrollPeriodDto extends PartialType(CreatePayrollPeriodDto) 
 export class PayrollCalculationDto {
   @ApiProperty()
   @IsUUID()
-  employeeId: string;
+  employeeId!: string;
 
   @ApiProperty()
   @IsUUID()
-  payrollPeriodId: string;
+  payrollPeriodId!: string;
 
   // Hours worked
   @ApiPropertyOptional()
