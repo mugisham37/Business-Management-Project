@@ -66,7 +66,7 @@ export class MultiCurrencyService {
   async createCurrency(tenantId: string, data: Partial<Currency>): Promise<Currency> {
     // Ensure only one base currency per tenant
     if (data.isBaseCurrency) {
-      await this.drizzle.database
+      await this.drizzle.getDb()
         .update(currencies)
         .set({ isBaseCurrency: false, updatedAt: new Date() })
         .where(
@@ -77,7 +77,7 @@ export class MultiCurrencyService {
         );
     }
 
-    const currency = await this.drizzle.database
+    const currency = await this.drizzle.getDb()
       .insert(currencies)
       .values({
         tenantId,
@@ -111,7 +111,7 @@ export class MultiCurrencyService {
         conditions.push(eq(currencies.isActive, true));
       }
 
-      currencies_list = await this.drizzle.database
+      currencies_list = await this.drizzle.getDb()
         .select()
         .from(currencies)
         .where(and(...conditions))
@@ -128,7 +128,7 @@ export class MultiCurrencyService {
     let baseCurrency = await this.cacheService.get<Currency>(cacheKey);
 
     if (!baseCurrency) {
-      const result = await this.drizzle.database
+      const result = await this.drizzle.getDb()
         .select()
         .from(currencies)
         .where(
@@ -156,7 +156,7 @@ export class MultiCurrencyService {
     let currency = await this.cacheService.get<Currency>(cacheKey);
 
     if (!currency) {
-      const result = await this.drizzle.database
+      const result = await this.drizzle.getDb()
         .select()
         .from(currencies)
         .where(
@@ -344,8 +344,8 @@ export class MultiCurrencyService {
 
     // Get currency details
     const [fromCurrency, toCurrency] = await Promise.all([
-      this.drizzle.database.select().from(currencies).where(eq(currencies.id, fromCurrencyId)).limit(1),
-      this.drizzle.database.select().from(currencies).where(eq(currencies.id, toCurrencyId)).limit(1),
+      this.drizzle.getDb().select().from(currencies).where(eq(currencies.id, fromCurrencyId)).limit(1),
+      this.drizzle.getDb().select().from(currencies).where(eq(currencies.id, toCurrencyId)).limit(1),
     ]);
 
     // Record conversion for audit trail

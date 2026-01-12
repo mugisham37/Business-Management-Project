@@ -27,6 +27,9 @@ import {
   ConsolidatedReportDto,
   LocationComparisonReportDto,
   LocationBenchmarkReportDto,
+  ReportType,
+  GroupByType,
+  DrillDownLevel,
 } from '../dto/location-reporting.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
@@ -152,9 +155,9 @@ export class LocationReportingController {
     const query: ConsolidatedReportQueryDto = {
       startDate: new Date(startDate),
       endDate: new Date(endDate),
-      reportType: 'comprehensive' as any,
-      groupBy: groupBy as any,
-      drillDownLevel: 'summary' as any,
+      reportType: ReportType.COMPREHENSIVE,
+      groupBy: groupBy as GroupByType,
+      drillDownLevel: DrillDownLevel.SUMMARY,
     };
 
     const report = await this.locationReportingService.generateConsolidatedReport(tenantId, query);

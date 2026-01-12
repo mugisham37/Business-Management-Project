@@ -153,7 +153,7 @@ export class AccountsReceivablePayableService {
 
   // Invoice Management
   async createInvoice(tenantId: string, input: CreateInvoiceInput, userId: string): Promise<ARAPInvoice> {
-    return await this.drizzle.db.transaction(async (tx) => {
+    return await this.drizzle.getDb().transaction(async (tx) => {
       // Generate invoice number if not provided
       if (!input.invoiceNumber) {
         input.invoiceNumber = await this.generateInvoiceNumber(tenantId, input.invoiceType);
@@ -317,7 +317,7 @@ export class AccountsReceivablePayableService {
 
   // Payment Management
   async createPayment(tenantId: string, input: CreatePaymentInput, userId: string): Promise<ARAPPayment> {
-    return await this.drizzle.db.transaction(async (tx) => {
+    return await this.drizzle.getDb().transaction(async (tx) => {
       // Generate payment number if not provided
       if (!input.paymentNumber) {
         input.paymentNumber = await this.generatePaymentNumber(tenantId, input.paymentType);

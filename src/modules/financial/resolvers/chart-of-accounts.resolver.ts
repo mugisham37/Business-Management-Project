@@ -2,7 +2,7 @@ import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { CreateChartOfAccountDto, UpdateChartOfAccountDto, AccountType } from '../dto/chart-of-accounts.dto';
-import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
 import { RequireFeature } from '../../tenant/decorators/tenant.decorators';

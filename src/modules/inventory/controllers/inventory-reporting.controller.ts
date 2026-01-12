@@ -9,7 +9,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { InventoryReportingService, ReportQueryDto } from '../services/inventory-reporting.service';
 import { InventoryValuationService } from '../services/inventory-valuation.service';
-import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
 import { RequireFeature } from '../../tenant/decorators/tenant.decorators';

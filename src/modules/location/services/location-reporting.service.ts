@@ -236,7 +236,7 @@ export class LocationReportingService {
   async generateLocationComparison(
     tenantId: string,
     locationIds: string[],
-    comparisonType: 'peer' | 'historical' | 'benchmark',
+    comparisonType: ComparisonType,
     startDate: Date,
     endDate: Date,
   ): Promise<LocationComparisonReport> {
@@ -254,9 +254,9 @@ export class LocationReportingService {
         locationIds,
         startDate,
         endDate,
-        reportType: 'comprehensive',
+        reportType: ReportType.COMPREHENSIVE,
         includeComparisons: true,
-        includeBenchmarks: comparisonType === 'benchmark',
+        includeBenchmarks: comparisonType === ComparisonType.BENCHMARK,
       };
       
       const locationMetrics = await Promise.all(
@@ -311,7 +311,7 @@ export class LocationReportingService {
       const query: ConsolidatedReportQuery = {
         startDate,
         endDate,
-        reportType: 'comprehensive',
+        reportType: ReportType.COMPREHENSIVE,
         includeBenchmarks: true,
       };
       
@@ -1016,7 +1016,7 @@ export class LocationReportingService {
       throw new BadRequestException(`Report period cannot exceed ${maxDays} days`);
     }
     
-    const validReportTypes = ['financial', 'inventory', 'sales', 'customer', 'procurement', 'comprehensive'];
+    const validReportTypes = Object.values(ReportType);
     if (!validReportTypes.includes(query.reportType)) {
       throw new BadRequestException(`Invalid report type. Must be one of: ${validReportTypes.join(', ')}`);
     }
