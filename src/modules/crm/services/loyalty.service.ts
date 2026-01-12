@@ -8,7 +8,8 @@ import {
   UpdateRewardDto, 
   CreateCampaignDto,
   LoyaltyQueryDto,
-  RewardQueryDto 
+  RewardQueryDto,
+  LoyaltyTransactionType 
 } from '../dto/loyalty.dto';
 import { LoyaltyTransaction } from '../entities/customer.entity';
 import { IntelligentCacheService } from '../../cache/intelligent-cache.service';
@@ -45,18 +46,26 @@ export class LoyaltyService {
       const expiresAt = new Date();
       expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 
+      // Create loyalty transaction - build object only with defined values for exactOptionalPropertyTypes
+      const transactionData: any = {
+        customerId,
+        type: LoyaltyTransactionType.EARNED,
+        points,
+        description: reason,
+        expiresAt: expiresAt.toISOString(),
+      };
+
+      if (relatedTransactionId !== undefined) {
+        transactionData.relatedTransactionId = relatedTransactionId;
+      }
+      if (campaignId !== undefined) {
+        transactionData.campaignId = campaignId;
+      }
+
       // Create loyalty transaction
       const transaction = await this.loyaltyRepository.createTransaction(
         tenantId,
-        {
-          customerId,
-          type: 'earned',
-          points,
-          description: reason,
-          relatedTransactionId,
-          campaignId,
-          expiresAt: expiresAt.toISOString(),
-        },
+        transactionData,
         userId || 'system'
       );
 
@@ -104,16 +113,22 @@ export class LoyaltyService {
         throw new BadRequestException(`Customer has insufficient points. Available: ${customer.loyaltyPoints}, Required: ${points}`);
       }
 
-      // Create loyalty transaction (negative points for redemption)
+      // Create loyalty transaction (negative points for redemption) - build object only with defined values for exactOptionalPropertyTypes
+      const transactionData: any = {
+        customerId,
+        type: LoyaltyTransactionType.REDEEMED,
+        points: -points, // Negative for redemption
+        description: reason,
+      };
+
+      if (relatedTransactionId !== undefined) {
+        transactionData.relatedTransactionId = relatedTransactionId;
+      }
+
+      // Create loyalty transaction
       const transaction = await this.loyaltyRepository.createTransaction(
         tenantId,
-        {
-          customerId,
-          type: 'redeemed',
-          points: -points, // Negative for redemption
-          description: reason,
-          relatedTransactionId,
-        },
+        transactionData,
         userId || 'system'
       );
 
@@ -165,7 +180,7 @@ export class LoyaltyService {
         tenantId,
         {
           customerId,
-          type: 'adjusted',
+          type: LoyaltyTransactionType.ADJUSTED,
           points: pointsChange,
           description: reason,
         },

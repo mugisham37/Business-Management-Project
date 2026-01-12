@@ -17,48 +17,48 @@ export interface B2BCustomer {
   tenantId: string;
   customerNumber: string;
   companyName: string;
-  primaryContactFirstName?: string;
-  primaryContactLastName?: string;
-  primaryContactTitle?: string;
-  email?: string;
-  phone?: string;
-  website?: string;
-  taxId?: string;
-  dunsNumber?: string;
+  primaryContactFirstName?: string | undefined;
+  primaryContactLastName?: string | undefined;
+  primaryContactTitle?: string | undefined;
+  email?: string | undefined;
+  phone?: string | undefined;
+  website?: string | undefined;
+  taxId?: string | undefined;
+  dunsNumber?: string | undefined;
   creditLimit: number;
   paymentTermsType: string;
-  customPaymentTermsDays?: number;
-  earlyPaymentDiscountPercentage?: number;
-  earlyPaymentDiscountDays?: number;
+  customPaymentTermsDays?: number | undefined;
+  earlyPaymentDiscountPercentage?: number | undefined;
+  earlyPaymentDiscountDays?: number | undefined;
   creditStatus: string;
   pricingTier: string;
-  volumeDiscountPercentage?: number;
-  minimumOrderAmount?: number;
-  salesRepId?: string;
-  accountManagerId?: string;
-  industry?: string;
-  employeeCount?: number;
-  annualRevenue?: number;
-  contractStartDate?: Date;
-  contractEndDate?: Date;
-  contractValue?: number;
+  volumeDiscountPercentage?: number | undefined;
+  minimumOrderAmount?: number | undefined;
+  salesRepId?: string | undefined;
+  accountManagerId?: string | undefined;
+  industry?: string | undefined;
+  employeeCount?: number | undefined;
+  annualRevenue?: number | undefined;
+  contractStartDate?: Date | undefined;
+  contractEndDate?: Date | undefined;
+  contractValue?: number | undefined;
   autoRenewal: boolean;
-  specialInstructions?: string;
+  specialInstructions?: string | undefined;
   billingAddress: {
-    line1?: string;
-    line2?: string;
-    city?: string;
-    state?: string;
-    postalCode?: string;
-    country?: string;
+    line1?: string | undefined;
+    line2?: string | undefined;
+    city?: string | undefined;
+    state?: string | undefined;
+    postalCode?: string | undefined;
+    country?: string | undefined;
   };
   shippingAddress: {
-    line1?: string;
-    line2?: string;
-    city?: string;
-    state?: string;
-    postalCode?: string;
-    country?: string;
+    line1?: string | undefined;
+    line2?: string | undefined;
+    city?: string | undefined;
+    state?: string | undefined;
+    postalCode?: string | undefined;
+    country?: string | undefined;
   };
   b2bMetadata: Record<string, any>;
   createdAt: Date;
@@ -81,28 +81,32 @@ export class B2BCustomerService {
       // Validate B2B customer data
       await this.validateB2BCustomerData(tenantId, data);
 
-      // Create base customer record
+      // Create base customer record - filter out undefined values for exactOptionalPropertyTypes compatibility
+      const baseCustomerData: any = {
+        type: 'business' as any,
+        companyName: data.companyName,
+        creditLimit: data.creditLimit,
+        paymentTerms: this.convertPaymentTermsToDays(data.paymentTerms, data.customPaymentTermsDays),
+        discountPercentage: data.volumeDiscountPercentage || 0,
+      };
+
+      // Only add optional properties if they are defined
+      if (data.primaryContactFirstName !== undefined) baseCustomerData.firstName = data.primaryContactFirstName;
+      if (data.primaryContactLastName !== undefined) baseCustomerData.lastName = data.primaryContactLastName;
+      if (data.email !== undefined) baseCustomerData.email = data.email;
+      if (data.phone !== undefined) baseCustomerData.phone = data.phone;
+      if (data.website !== undefined) baseCustomerData.website = data.website;
+      if (data.taxId !== undefined) baseCustomerData.taxId = data.taxId;
+      if (data.billingAddressLine1 !== undefined) baseCustomerData.addressLine1 = data.billingAddressLine1;
+      if (data.billingAddressLine2 !== undefined) baseCustomerData.addressLine2 = data.billingAddressLine2;
+      if (data.billingCity !== undefined) baseCustomerData.city = data.billingCity;
+      if (data.billingState !== undefined) baseCustomerData.state = data.billingState;
+      if (data.billingPostalCode !== undefined) baseCustomerData.postalCode = data.billingPostalCode;
+      if (data.billingCountry !== undefined) baseCustomerData.country = data.billingCountry;
+
       const baseCustomer = await this.customerRepository.create(
         tenantId,
-        {
-          type: 'business' as any,
-          companyName: data.companyName,
-          firstName: data.primaryContactFirstName,
-          lastName: data.primaryContactLastName,
-          email: data.email,
-          phone: data.phone,
-          website: data.website,
-          taxId: data.taxId,
-          creditLimit: data.creditLimit,
-          paymentTerms: this.convertPaymentTermsToDays(data.paymentTerms, data.customPaymentTermsDays),
-          discountPercentage: data.volumeDiscountPercentage || 0,
-          addressLine1: data.billingAddressLine1,
-          addressLine2: data.billingAddressLine2,
-          city: data.billingCity,
-          state: data.billingState,
-          postalCode: data.billingPostalCode,
-          country: data.billingCountry,
-        },
+        baseCustomerData,
         userId
       );
 
