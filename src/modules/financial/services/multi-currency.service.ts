@@ -222,6 +222,11 @@ export class MultiCurrencyService {
       .returning();
 
     await this.invalidateExchangeRateCache(tenantId);
+    
+    if (!exchangeRate[0]) {
+      throw new Error('Failed to create exchange rate');
+    }
+    
     return {
       ...exchangeRate[0],
       exchangeRate: Number(exchangeRate[0].exchangeRate),
@@ -280,7 +285,7 @@ export class MultiCurrencyService {
           .orderBy(desc(exchangeRates.effectiveDate))
           .limit(1);
 
-        if (result.length > 0) {
+        if (result.length > 0 && result[0]) {
           // Use inverse rate
           const inverseRate = result[0];
           rate = {
@@ -291,7 +296,7 @@ export class MultiCurrencyService {
             inverseRate: Number(inverseRate.exchangeRate || 1),
           } as ExchangeRate;
         }
-      } else {
+      } else if (result[0]) {
         rate = {
           ...result[0],
           exchangeRate: Number(result[0].exchangeRate || 1),

@@ -26,8 +26,7 @@ import {
   MultiCurrencyService, 
   Currency, 
   ExchangeRate, 
-  ConversionResult,
-  CurrencyRevaluation
+  ConversionResult
 } from '../services/multi-currency.service';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 

@@ -229,7 +229,7 @@ export class AccountsReceivablePayableService {
           .insert(arApInvoiceLines)
           .values({
             tenantId,
-            invoiceId: invoice[0].id,
+            invoiceId: invoice[0]?.id || '',
             productId: line.productId,
             lineNumber,
             description: line.description,
@@ -617,11 +617,13 @@ export class AccountsReceivablePayableService {
       .limit(1);
 
     let nextNumber = 1;
-    if (lastInvoice.length > 0) {
+    if (lastInvoice.length > 0 && lastInvoice[0]) {
       const lastNumber = lastInvoice[0].invoiceNumber;
-      const match = lastNumber.match(/(\d+)$/);
-      if (match) {
-        nextNumber = parseInt(match[1]) + 1;
+      if (lastNumber) {
+        const match = lastNumber.match(/(\d+)$/);
+        if (match) {
+          nextNumber = parseInt(match[1]) + 1;
+        }
       }
     }
 

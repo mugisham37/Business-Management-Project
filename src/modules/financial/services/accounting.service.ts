@@ -294,7 +294,7 @@ export class AccountingService {
         details: {
           assets: summary.balanceSheet.assets,
           liabilitiesAndEquity: summary.balanceSheet.totalLiabilitiesAndEquity,
-          difference: (summary.balanceSheet.assets - summary.balanceSheet.totalLiabilitiesAndEquity).toFixed(2),
+          difference: (parseFloat(summary.balanceSheet.assets.toString()) - parseFloat(summary.balanceSheet.totalLiabilitiesAndEquity.toString())).toFixed(2),
         },
       });
     }

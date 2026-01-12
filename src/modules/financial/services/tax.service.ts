@@ -118,16 +118,17 @@ export class TaxService {
         tenantId,
         jurisdictionCode: data.jurisdictionCode || '',
         jurisdictionName: data.jurisdictionName || '',
-        jurisdictionType: data.jurisdictionType,
-        country: data.country,
-        stateProvince: data.stateProvince,
-        county: data.county,
-        city: data.city,
-        postalCode: data.postalCode,
-        isActive: data.isActive !== undefined ? data.isActive : true,
-        settings: data.settings,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        jurisdictionType: data.jurisdictionType || '',
+        country: data.country || '',
+        stateProvince: data.stateProvince || null,
+        county: data.county || null,
+        city: data.city || null,
+        postalCode: data.postalCode || null,
+        taxAuthorityName: data.taxAuthorityName || null,
+        taxAuthorityId: data.taxAuthorityId || null,
+        effectiveDate: data.effectiveDate || new Date(),
+        expirationDate: data.expirationDate || null,
+        settings: data.settings || {},
       })
       .returning();
 
@@ -157,6 +158,12 @@ export class TaxService {
     return (jurisdictions || []).map(jurisdiction => ({
       ...jurisdiction,
       stateProvince: jurisdiction.stateProvince || '',
+      county: jurisdiction.county || '',
+      city: jurisdiction.city || '',
+      postalCode: jurisdiction.postalCode || '',
+      taxAuthorityName: jurisdiction.taxAuthorityName || '',
+      taxAuthorityId: jurisdiction.taxAuthorityId || '',
+    })) as TaxJurisdiction[];
     })) as TaxJurisdiction[];
   }
 
@@ -194,31 +201,34 @@ export class TaxService {
         tenantId,
         effectiveDate: data.effectiveDate || new Date(),
         jurisdictionId: data.jurisdictionId || '',
-        taxType: data.taxType,
-        taxName: data.taxName,
-        taxCode: data.taxCode,
-        rate: data.rate,
-        flatAmount: data.flatAmount,
-        calculationMethod: data.calculationMethod,
-        compoundingOrder: data.compoundingOrder,
-        applicableToProducts: data.applicableToProducts,
-        applicableToServices: data.applicableToServices,
-        applicableToShipping: data.applicableToShipping,
-        minimumTaxableAmount: data.minimumTaxableAmount,
-        maximumTaxableAmount: data.maximumTaxableAmount,
-        expirationDate: data.expirationDate,
-        isActive: data.isActive !== undefined ? data.isActive : true,
-        glAccountId: data.glAccountId,
-        settings: data.settings,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        taxType: data.taxType || '',
+        taxName: data.taxName || '',
+        taxCode: data.taxCode || '',
+        rate: data.rate || 0,
+        flatAmount: data.flatAmount || null,
+        calculationMethod: data.calculationMethod || 'percentage',
+        compoundingOrder: data.compoundingOrder || null,
+        applicableToProducts: data.applicableToProducts || false,
+        applicableToServices: data.applicableToServices || false,
+        applicableToShipping: data.applicableToShipping || false,
+        minimumTaxableAmount: data.minimumTaxableAmount || null,
+        maximumTaxableAmount: data.maximumTaxableAmount || null,
+        expirationDate: data.expirationDate || null,
+        glAccountId: data.glAccountId || null,
+        settings: data.settings || {},
       })
       .returning();
 
     await this.invalidateTaxRateCache(tenantId);
+    
+    if (!taxRate[0]) {
+      throw new Error('Failed to create tax rate');
+    }
+    
     return {
       ...taxRate[0],
-      rate: parseFloat(taxRate[0]?.rate || '0'),
+      rate: typeof taxRate[0].rate === 'string' ? parseFloat(taxRate[0].rate) : taxRate[0].rate,
+      flatAmount: typeof taxRate[0].flatAmount === 'string' ? parseFloat(taxRate[0].flatAmount || '0') : (taxRate[0].flatAmount || 0),
     } as TaxRate;
   }
 
@@ -239,12 +249,13 @@ export class TaxService {
       
       if (activeOnly) {
         conditions.push(eq(taxRates.isActive, true));
-        conditions.push(
-          or(
-            isNull(taxRates.expirationDate),
-            gte(taxRates.expirationDate, new Date())
-          )
+        const expirationCondition = or(
+          isNull(taxRates.expirationDate),
+          gte(taxRates.expirationDate, new Date())
         );
+        if (expirationCondition) {
+          conditions.push(expirationCondition);
+        }
       }
 
       rates = await this.drizzle.getDb()
@@ -348,25 +359,23 @@ export class TaxService {
         tenantId,
         jurisdictionId: data.jurisdictionId || '',
         returnNumber: data.returnNumber,
-        periodType: data.periodType,
-        periodYear: data.periodYear,
-        periodNumber: data.periodNumber,
-        periodStartDate: data.periodStartDate,
-        periodEndDate: data.periodEndDate,
-        filingDate: data.filingDate,
-        dueDate: data.dueDate,
-        totalTaxableAmount: data.totalTaxableAmount,
-        totalTaxAmount: data.totalTaxAmount,
-        totalPaymentsCredits: data.totalPaymentsCredits,
-        balanceDue: data.balanceDue,
-        refundAmount: data.refundAmount,
+        periodType: data.periodType || '',
+        periodYear: data.periodYear || new Date().getFullYear(),
+        periodNumber: data.periodNumber || 1,
+        periodStartDate: data.periodStartDate || new Date(),
+        periodEndDate: data.periodEndDate || new Date(),
+        filingDate: data.filingDate || null,
+        dueDate: data.dueDate || null,
+        totalTaxableAmount: data.totalTaxableAmount || '0.00',
+        totalTaxAmount: data.totalTaxAmount || '0.00',
+        totalPaymentsCredits: data.totalPaymentsCredits || '0.00',
+        balanceDue: data.balanceDue || '0.00',
+        refundAmount: data.refundAmount || '0.00',
         status: data.status || 'draft',
-        filedBy: data.filedBy,
-        reviewedBy: data.reviewedBy,
-        notes: data.notes,
-        attachments: data.attachments,
-        isActive: data.isActive !== undefined ? data.isActive : true,
-        createdAt: new Date(),
+        filedBy: data.filedBy || null,
+        reviewedBy: data.reviewedBy || null,
+        notes: data.notes || null,
+        attachments: data.attachments || null,
         updatedAt: new Date(),
       })
       .returning();
@@ -478,11 +487,12 @@ export class TaxService {
             lineNumber,
             lineDescription: rate[0].taxName || '',
             taxableAmount: group.taxableAmount.toFixed(2),
-            taxRate: Number(rate[0].rate || 0),
+            taxRate: (typeof rate[0].rate === 'string' ? rate[0].rate : rate[0].rate?.toString()) || '0',
             taxAmount: group.taxAmount.toFixed(2),
             calculationMethod: 'aggregated',
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            sourceType: null,
+            sourceId: null,
+            sourceAccountId: null,
           });
         lineNumber++;
       }
@@ -580,7 +590,7 @@ export class TaxService {
       .where(eq(taxJurisdictions.id, jurisdictionId))
       .limit(1);
 
-    if (jurisdiction.length === 0) {
+    if (jurisdiction.length === 0 || !jurisdiction[0]) {
       throw new NotFoundException('Jurisdiction not found');
     }
 
