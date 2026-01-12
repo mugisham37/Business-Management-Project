@@ -186,7 +186,7 @@ export class MultiCurrencyService {
 
     // Deactivate existing rates for the same currency pair
     if (data.fromCurrencyId && data.toCurrencyId) {
-      await this.drizzle.database
+      await this.drizzle.getDb()
         .update(exchangeRates)
         .set({ isActive: false, updatedAt: new Date() })
         .where(
@@ -199,7 +199,7 @@ export class MultiCurrencyService {
         );
     }
 
-    const exchangeRate = await this.drizzle.database
+    const exchangeRate = await this.drizzle.getDb()
       .insert(exchangeRates)
       .values({
         tenantId,
@@ -237,7 +237,7 @@ export class MultiCurrencyService {
 
     if (!rate) {
       // Try direct rate first
-      let result = await this.drizzle.database
+      let result = await this.drizzle.getDb()
         .select()
         .from(exchangeRates)
         .where(
@@ -258,7 +258,7 @@ export class MultiCurrencyService {
 
       if (result.length === 0) {
         // Try inverse rate
-        result = await this.drizzle.database
+        result = await this.drizzle.getDb()
           .select()
           .from(exchangeRates)
           .where(
@@ -316,7 +316,7 @@ export class MultiCurrencyService {
   ): Promise<ConversionResult> {
     // If same currency, no conversion needed
     if (fromCurrencyId === toCurrencyId) {
-      const currency = await this.drizzle.database
+      const currency = await this.drizzle.getDb()
         .select()
         .from(currencies)
         .where(eq(currencies.id, fromCurrencyId))
@@ -350,7 +350,7 @@ export class MultiCurrencyService {
 
     // Record conversion for audit trail
     if (sourceType && sourceId) {
-      await this.drizzle.database
+      await this.drizzle.getDb()
         .insert(currencyConversions)
         .values({
           tenantId,
@@ -402,7 +402,7 @@ export class MultiCurrencyService {
 
   // Utility Methods
   async formatCurrencyAmount(amount: number, currencyId: string): Promise<string> {
-    const currency = await this.drizzle.database
+    const currency = await this.drizzle.getDb()
       .select()
       .from(currencies)
       .where(eq(currencies.id, currencyId))

@@ -142,7 +142,7 @@ export class TaxService {
         .where(and(...conditions))
         .orderBy(asc(taxJurisdictions.jurisdictionName));
 
-      await this.cacheService.set(cacheKey, jurisdictions, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, jurisdictions, { ttl: 300 }); // 5 minutes
     }
 
     return jurisdictions as TaxJurisdiction[];
@@ -167,7 +167,7 @@ export class TaxService {
 
       jurisdiction = result[0] as TaxJurisdiction || null;
       if (jurisdiction) {
-        await this.cacheService.set(cacheKey, jurisdiction, 300);
+        await this.cacheService.set(cacheKey, jurisdiction, { ttl: 300 });
       }
     }
 
@@ -221,7 +221,7 @@ export class TaxService {
         .where(and(...conditions))
         .orderBy(asc(taxRates.compoundingOrder), asc(taxRates.taxName));
 
-      await this.cacheService.set(cacheKey, rates, 300);
+      await this.cacheService.set(cacheKey, rates, { ttl: 300 });
     }
 
     return rates as TaxRate[];

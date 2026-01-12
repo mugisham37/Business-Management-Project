@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ChartOfAccountsService } from './chart-of-accounts.service';
 import { JournalEntryService } from './journal-entry.service';
 import { AccountType } from '../dto/chart-of-accounts.dto';
+import { ChartOfAccount } from '../types/chart-of-accounts.types';
 
 @Injectable()
 export class AccountingService {
@@ -17,7 +18,7 @@ export class AccountingService {
     return {
       message: 'Accounting system initialized successfully',
       accountsCreated: accounts.length,
-      accounts: accounts.map(account => ({
+      accounts: (accounts as ChartOfAccount[]).map((account: ChartOfAccount) => ({
         accountNumber: account.accountNumber,
         accountName: account.accountName,
         accountType: account.accountType,
@@ -28,9 +29,9 @@ export class AccountingService {
   async getTrialBalance(tenantId: string, asOfDate?: Date) {
     const allAccounts = await this.chartOfAccountsService.getAllAccounts(tenantId, {
       includeInactive: false,
-    });
+    }) as ChartOfAccount[];
 
-    const trialBalance = allAccounts.map(account => {
+    const trialBalance = (allAccounts || []).map((account: ChartOfAccount) => {
       const balance = parseFloat(account.currentBalance);
       const isDebitAccount = account.normalBalance === 'debit';
 
@@ -60,9 +61,9 @@ export class AccountingService {
 
   async getAccountBalances(tenantId: string, accountType?: AccountType, asOfDate?: Date) {
     const options = accountType ? { accountType } : undefined;
-    const accounts = await this.chartOfAccountsService.getAllAccounts(tenantId, options);
+    const accounts = await this.chartOfAccountsService.getAllAccounts(tenantId, options) as ChartOfAccount[];
 
-    return accounts.map(account => ({
+    return (accounts || []).map((account: ChartOfAccount) => ({
       accountId: account.id,
       accountNumber: account.accountNumber,
       accountName: account.accountName,
@@ -97,15 +98,15 @@ export class AccountingService {
     userId: string
   ) {
     // Get relevant accounts
-    const accounts = await this.chartOfAccountsService.getAllAccounts(tenantId);
-    const accountMap = new Map(accounts.map(acc => [acc.accountNumber, acc]));
+    const accounts = await this.chartOfAccountsService.getAllAccounts(tenantId) as ChartOfAccount[];
+    const accountMap = new Map((accounts || []).map((acc: ChartOfAccount) => [acc.accountNumber, acc]));
 
     // Find required accounts
-    const cashAccount = accountMap.get('1110'); // Cash and Cash Equivalents
-    const salesRevenueAccount = accountMap.get('4100'); // Sales Revenue
-    const cogsAccount = accountMap.get('5000'); // Cost of Goods Sold
-    const inventoryAccount = accountMap.get('1130'); // Inventory
-    const salesTaxAccount = accountMap.get('2120'); // Accrued Expenses (for sales tax)
+    const cashAccount = accountMap.get('1110') as ChartOfAccount; // Cash and Cash Equivalents
+    const salesRevenueAccount = accountMap.get('4100') as ChartOfAccount; // Sales Revenue
+    const cogsAccount = accountMap.get('5000') as ChartOfAccount; // Cost of Goods Sold
+    const inventoryAccount = accountMap.get('1130') as ChartOfAccount; // Inventory
+    const salesTaxAccount = accountMap.get('2120') as ChartOfAccount; // Accrued Expenses (for sales tax)
 
     if (!cashAccount || !salesRevenueAccount || !cogsAccount || !inventoryAccount) {
       throw new Error('Required accounts not found. Please initialize chart of accounts.');

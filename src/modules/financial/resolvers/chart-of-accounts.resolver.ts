@@ -2,6 +2,7 @@ import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { CreateChartOfAccountDto, UpdateChartOfAccountDto, AccountType } from '../dto/chart-of-accounts.dto';
+import { ChartOfAccount } from '../types/chart-of-accounts.types';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
@@ -12,7 +13,7 @@ import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 @Resolver()
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('financial-management')
 export class ChartOfAccountsResolver {
   constructor(private readonly chartOfAccountsService: ChartOfAccountsService) {}
@@ -35,13 +36,21 @@ export class ChartOfAccountsResolver {
     @Args('isActive', { nullable: true }) isActive?: boolean,
     @Args('parentAccountId', { nullable: true }) parentAccountId?: string,
     @Args('includeInactive', { nullable: true }) includeInactive?: boolean,
-  ): Promise<any[]> {
-    return await this.chartOfAccountsService.getAllAccounts(tenantId, {
-      accountType,
-      isActive,
-      parentAccountId,
-      includeInactive,
-    });
+  ): Promise<ChartOfAccount[]> {
+    const options: {
+      accountType?: AccountType;
+      isActive?: boolean;
+      parentAccountId?: string;
+      includeInactive?: boolean;
+    } = {};
+    
+    if (accountType !== undefined) options.accountType = accountType;
+    if (isActive !== undefined) options.isActive = isActive;
+    if (parentAccountId !== undefined) options.parentAccountId = parentAccountId;
+    if (includeInactive !== undefined) options.includeInactive = includeInactive;
+    
+    const accounts = await this.chartOfAccountsService.getAllAccounts(tenantId, options);
+    return accounts as ChartOfAccount[];
   }
 
   @Query(() => String)
@@ -58,8 +67,9 @@ export class ChartOfAccountsResolver {
   async accountHierarchy(
     @CurrentTenant() tenantId: string,
     @Args('rootAccountId', { nullable: true }) rootAccountId?: string,
-  ): Promise<any[]> {
-    return await this.chartOfAccountsService.getAccountHierarchy(tenantId, rootAccountId);
+  ): Promise<ChartOfAccount[]> {
+    const hierarchy = await this.chartOfAccountsService.getAccountHierarchy(tenantId, rootAccountId);
+    return hierarchy as ChartOfAccount[];
   }
 
   @Query(() => [String])

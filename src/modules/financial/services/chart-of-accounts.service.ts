@@ -57,7 +57,7 @@ export class ChartOfAccountsService {
     if (!account) {
       account = await this.chartOfAccountsRepository.findById(tenantId, id);
       if (account) {
-        await this.cacheService.set(cacheKey, account, 300); // 5 minutes
+        await this.cacheService.set(cacheKey, account, { ttl: 300 }); // 5 minutes
       }
     }
 
@@ -75,7 +75,7 @@ export class ChartOfAccountsService {
     if (!account) {
       account = await this.chartOfAccountsRepository.findByAccountNumber(tenantId, accountNumber);
       if (account) {
-        await this.cacheService.set(cacheKey, account, 300); // 5 minutes
+        await this.cacheService.set(cacheKey, account, { ttl: 300 }); // 5 minutes
       }
     }
 
@@ -93,7 +93,7 @@ export class ChartOfAccountsService {
 
     if (!accounts) {
       accounts = await this.chartOfAccountsRepository.findAll(tenantId, options);
-      await this.cacheService.set(cacheKey, accounts, 180); // 3 minutes
+      await this.cacheService.set(cacheKey, accounts, { ttl: 180 }); // 3 minutes
     }
 
     return accounts;
@@ -105,7 +105,7 @@ export class ChartOfAccountsService {
 
     if (!hierarchy) {
       hierarchy = await this.chartOfAccountsRepository.findHierarchy(tenantId, rootAccountId);
-      await this.cacheService.set(cacheKey, hierarchy, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, hierarchy, { ttl: 300 }); // 5 minutes
     }
 
     return hierarchy;
@@ -154,7 +154,7 @@ export class ChartOfAccountsService {
 
     if (!accounts) {
       accounts = await this.chartOfAccountsRepository.getAccountsByType(tenantId, accountTypes);
-      await this.cacheService.set(cacheKey, accounts, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, accounts, { ttl: 300 }); // 5 minutes
     }
 
     return accounts;

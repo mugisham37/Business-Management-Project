@@ -105,9 +105,9 @@ export class ProductController {
     type: [ProductResponseDto] 
   })
   async searchProducts(
+    @CurrentTenant() tenantId: string,
     @Query('q') searchTerm: string,
     @Query('limit') limit: number = 10,
-    @CurrentTenant() tenantId: string,
   ): Promise<ProductResponseDto[]> {
     return this.productService.searchProducts(tenantId, searchTerm, limit);
   }
@@ -124,8 +124,8 @@ export class ProductController {
     type: [ProductResponseDto] 
   })
   async getLowStockProducts(
-    @Query('locationId') locationId?: string,
     @CurrentTenant() tenantId: string,
+    @Query('locationId') locationId?: string,
   ): Promise<ProductResponseDto[]> {
     return this.productService.findLowStockProducts(tenantId, locationId);
   }

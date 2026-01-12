@@ -111,9 +111,9 @@ export class BatchTrackingController {
   @ApiParam({ name: 'days', description: 'Number of days ahead to check' })
   @ApiQuery({ name: 'locationId', required: false })
   async getExpiringBatches(
+    @CurrentTenant() tenantId: string,
     @Param('days') days: string,
     @Query('locationId') locationId?: string,
-    @CurrentTenant() tenantId: string,
   ) {
     return this.batchTrackingService.getExpiringBatches(tenantId, parseInt(days), locationId);
   }

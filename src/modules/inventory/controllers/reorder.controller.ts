@@ -70,8 +70,8 @@ export class ReorderController {
     },
   })
   async getReorderSuggestions(
-    @Query('locationId') locationId?: string,
     @CurrentTenant() tenantId: string,
+    @Query('locationId') locationId?: string,
   ): Promise<ReorderSuggestion[]> {
     return this.reorderService.generateReorderSuggestions(tenantId, locationId);
   }
@@ -112,8 +112,8 @@ export class ReorderController {
     },
   })
   async getPurchaseOrderSuggestions(
-    @Query('supplierId') supplierId?: string,
     @CurrentTenant() tenantId: string,
+    @Query('supplierId') supplierId?: string,
   ): Promise<{ [supplierId: string]: ReorderSuggestion[] }> {
     return this.reorderService.generatePurchaseOrderSuggestions(tenantId, supplierId);
   }
@@ -147,9 +147,9 @@ export class ReorderController {
   })
   async getForecastData(
     @Query('productId') productId: string,
+    @CurrentTenant() tenantId: string,
     @Query('variantId') variantId?: string,
     @Query('locationId') locationId?: string,
-    @CurrentTenant() tenantId: string,
   ): Promise<ForecastData[]> {
     return this.reorderService.getForecastData(tenantId, productId, variantId, locationId);
   }
@@ -193,8 +193,8 @@ export class ReorderController {
     },
   })
   async updateReorderPoints(
-    @Query('locationId') locationId?: string,
     @CurrentTenant() tenantId: string,
+    @Query('locationId') locationId?: string,
   ): Promise<{ success: boolean; message: string }> {
     await this.reorderService.updateReorderPoints(tenantId, locationId);
     return { success: true, message: 'Reorder points updated successfully' };

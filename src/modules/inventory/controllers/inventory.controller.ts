@@ -108,10 +108,10 @@ export class InventoryController {
   })
   @ApiResponse({ status: 404, description: 'Inventory level not found' })
   async getInventoryLevel(
+    @CurrentTenant() tenantId: string,
     @Param('productId', ParseUUIDPipe) productId: string,
     @Param('locationId', ParseUUIDPipe) locationId: string,
     @Query('variantId') variantId?: string,
-    @CurrentTenant() tenantId: string,
   ): Promise<InventoryLevelResponseDto> {
     return this.inventoryService.getInventoryLevel(tenantId, productId, variantId || null, locationId);
   }
@@ -210,8 +210,8 @@ export class InventoryController {
     type: [InventoryLevelResponseDto] 
   })
   async getLowStockProducts(
-    @Query('locationId') locationId?: string,
     @CurrentTenant() tenantId: string,
+    @Query('locationId') locationId?: string,
   ): Promise<InventoryLevelResponseDto[]> {
     return this.inventoryService.getLowStockProducts(tenantId, locationId);
   }
@@ -228,9 +228,9 @@ export class InventoryController {
     type: [InventoryMovementResponseDto] 
   })
   async getInventoryMovements(
+    @CurrentTenant() tenantId: string,
     @Param('productId', ParseUUIDPipe) productId: string,
     @Query('locationId') locationId?: string,
-    @CurrentTenant() tenantId: string,
   ): Promise<InventoryMovementResponseDto[]> {
     return this.inventoryService.getInventoryMovements(tenantId, productId, locationId);
   }
