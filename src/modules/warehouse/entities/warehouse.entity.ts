@@ -24,23 +24,23 @@ export enum SecurityLevel {
 export class Warehouse {
   @ApiProperty({ description: 'Unique identifier' })
   @IsUUID()
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Tenant ID' })
   @IsUUID()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty({ description: 'Location ID reference' })
   @IsUUID()
-  locationId: string;
+  locationId!: string;
 
   @ApiProperty({ description: 'Warehouse code' })
   @IsString()
-  warehouseCode: string;
+  warehouseCode!: string;
 
   @ApiProperty({ description: 'Warehouse name' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Warehouse description' })
   @IsOptional()
@@ -185,7 +185,7 @@ export class Warehouse {
 
   @ApiProperty({ description: 'Warehouse status', enum: WarehouseStatus })
   @IsEnum(WarehouseStatus)
-  status: WarehouseStatus;
+  status!: WarehouseStatus;
 
   @ApiPropertyOptional({ description: 'Configuration settings' })
   @IsOptional()
@@ -198,10 +198,10 @@ export class Warehouse {
   integrationSettings?: Record<string, any>;
 
   @ApiProperty({ description: 'Created at timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated at timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ApiPropertyOptional({ description: 'Deleted at timestamp' })
   @IsOptional()
@@ -219,29 +219,29 @@ export class Warehouse {
 
   @ApiProperty({ description: 'Version number' })
   @IsNumber()
-  version: number;
+  version!: number;
 }
 
 export class WarehouseZone {
   @ApiProperty({ description: 'Unique identifier' })
   @IsUUID()
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Tenant ID' })
   @IsUUID()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty({ description: 'Warehouse ID' })
   @IsUUID()
-  warehouseId: string;
+  warehouseId!: string;
 
   @ApiProperty({ description: 'Zone code' })
   @IsString()
-  zoneCode: string;
+  zoneCode!: string;
 
   @ApiProperty({ description: 'Zone name' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Zone description' })
   @IsOptional()
@@ -250,7 +250,7 @@ export class WarehouseZone {
 
   @ApiProperty({ description: 'Zone type' })
   @IsString()
-  zoneType: string;
+  zoneType!: string;
 
   @ApiPropertyOptional({ description: 'Priority level' })
   @IsOptional()
@@ -323,7 +323,7 @@ export class WarehouseZone {
 
   @ApiProperty({ description: 'Zone status' })
   @IsString()
-  status: string;
+  status!: string;
 
   @ApiPropertyOptional({ description: 'Configuration settings' })
   @IsOptional()
@@ -331,36 +331,36 @@ export class WarehouseZone {
   configuration?: Record<string, any>;
 
   @ApiProperty({ description: 'Created at timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated at timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 
 export class BinLocation {
   @ApiProperty({ description: 'Unique identifier' })
   @IsUUID()
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Tenant ID' })
   @IsUUID()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty({ description: 'Zone ID' })
   @IsUUID()
-  zoneId: string;
+  zoneId!: string;
 
   @ApiProperty({ description: 'Warehouse ID' })
   @IsUUID()
-  warehouseId: string;
+  warehouseId!: string;
 
   @ApiProperty({ description: 'Bin code' })
   @IsString()
-  binCode: string;
+  binCode!: string;
 
   @ApiProperty({ description: 'Display name' })
   @IsString()
-  displayName: string;
+  displayName!: string;
 
   @ApiPropertyOptional({ description: 'Aisle' })
   @IsOptional()
@@ -429,7 +429,7 @@ export class BinLocation {
 
   @ApiProperty({ description: 'Bin status' })
   @IsString()
-  status: string;
+  status!: string;
 
   @ApiPropertyOptional({ description: 'Occupancy percentage' })
   @IsOptional()
@@ -518,8 +518,8 @@ export class BinLocation {
   notes?: string;
 
   @ApiProperty({ description: 'Created at timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated at timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }

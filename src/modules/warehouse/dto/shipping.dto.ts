@@ -6,7 +6,6 @@ import {
   IsBoolean, 
   IsEnum, 
   IsUUID, 
-  IsObject, 
   IsArray, 
   Min, 
   Max,
@@ -15,10 +14,9 @@ import {
   Length,
   IsPositive,
   IsDateString,
-  IsEmail,
-  IsPhoneNumber
+  IsEmail
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
 
 // Enums
 export enum CarrierType {
@@ -71,7 +69,7 @@ export class ShippingAddressDto {
   @IsString()
   @IsNotEmpty()
   @Length(1, 100)
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Company name' })
   @IsOptional()
@@ -83,7 +81,7 @@ export class ShippingAddressDto {
   @IsString()
   @IsNotEmpty()
   @Length(1, 100)
-  addressLine1: string;
+  addressLine1!: string;
 
   @ApiPropertyOptional({ description: 'Address line 2' })
   @IsOptional()
@@ -95,25 +93,25 @@ export class ShippingAddressDto {
   @IsString()
   @IsNotEmpty()
   @Length(1, 50)
-  city: string;
+  city!: string;
 
   @ApiProperty({ description: 'State or province' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 50)
-  state: string;
+  state!: string;
 
   @ApiProperty({ description: 'Postal or ZIP code' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 20)
-  postalCode: string;
+  postalCode!: string;
 
   @ApiProperty({ description: 'Country code (ISO 3166-1 alpha-2)' })
   @IsString()
   @IsNotEmpty()
   @Length(2, 2)
-  country: string;
+  country!: string;
 
   @ApiPropertyOptional({ description: 'Phone number' })
   @IsOptional()
@@ -139,21 +137,21 @@ export class PackageDimensionsDto {
   @IsPositive()
   @Min(0.1)
   @Max(108)
-  length: number;
+  length!: number;
 
   @ApiProperty({ description: 'Width in inches' })
   @IsNumber()
   @IsPositive()
   @Min(0.1)
   @Max(108)
-  width: number;
+  width!: number;
 
   @ApiProperty({ description: 'Height in inches' })
   @IsNumber()
   @IsPositive()
   @Min(0.1)
   @Max(108)
-  height: number;
+  height!: number;
 }
 
 // Shipment item DTO
@@ -161,42 +159,42 @@ export class ShipmentItemDto {
   @ApiProperty({ description: 'Product ID' })
   @IsUUID()
   @IsNotEmpty()
-  productId: string;
+  productId!: string;
 
   @ApiProperty({ description: 'Product SKU' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 100)
-  sku: string;
+  sku!: string;
 
   @ApiProperty({ description: 'Item description' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 255)
-  description: string;
+  description!: string;
 
   @ApiProperty({ description: 'Quantity' })
   @IsNumber()
   @IsPositive()
   @Min(1)
-  quantity: number;
+  quantity!: number;
 
   @ApiProperty({ description: 'Weight per item in pounds' })
   @IsNumber()
   @IsPositive()
   @Min(0.01)
-  weight: number;
+  weight!: number;
 
   @ApiProperty({ description: 'Item dimensions' })
   @ValidateNested()
   @Type(() => PackageDimensionsDto)
-  dimensions: PackageDimensionsDto;
+  dimensions!: PackageDimensionsDto;
 
   @ApiProperty({ description: 'Declared value per item' })
   @IsNumber()
   @IsPositive()
   @Min(0.01)
-  value: number;
+  value!: number;
 
   @ApiPropertyOptional({ description: 'Harmonized tariff code' })
   @IsOptional()
@@ -233,7 +231,7 @@ export class CustomsInfoDto {
   @ApiProperty({ description: 'Contents type' })
   @IsString()
   @IsNotEmpty()
-  contentsType: 'merchandise' | 'documents' | 'gift' | 'returned_goods' | 'sample';
+  contentsType!: 'merchandise' | 'documents' | 'gift' | 'returned_goods' | 'sample';
 
   @ApiPropertyOptional({ description: 'Contents explanation' })
   @IsOptional()
@@ -281,7 +279,7 @@ export class CreateShipmentDto {
   @ApiProperty({ description: 'Warehouse ID' })
   @IsUUID()
   @IsNotEmpty()
-  warehouseId: string;
+  warehouseId!: string;
 
   @ApiPropertyOptional({ description: 'Order ID reference' })
   @IsOptional()
@@ -295,42 +293,42 @@ export class CreateShipmentDto {
 
   @ApiProperty({ description: 'Carrier ID', enum: CarrierType })
   @IsEnum(CarrierType)
-  carrierId: CarrierType;
+  carrierId!: CarrierType;
 
   @ApiProperty({ description: 'Service type', enum: ServiceType })
   @IsEnum(ServiceType)
-  serviceType: ServiceType;
+  serviceType!: ServiceType;
 
   @ApiProperty({ description: 'Sender address' })
   @ValidateNested()
   @Type(() => ShippingAddressDto)
-  fromAddress: ShippingAddressDto;
+  fromAddress!: ShippingAddressDto;
 
   @ApiProperty({ description: 'Recipient address' })
   @ValidateNested()
   @Type(() => ShippingAddressDto)
-  toAddress: ShippingAddressDto;
+  toAddress!: ShippingAddressDto;
 
   @ApiProperty({ description: 'Shipment items' })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ShipmentItemDto)
-  items: ShipmentItemDto[];
+  items!: ShipmentItemDto[];
 
   @ApiProperty({ description: 'Package type', enum: PackageType })
   @IsEnum(PackageType)
-  packageType: PackageType;
+  packageType!: PackageType;
 
   @ApiProperty({ description: 'Total weight in pounds' })
   @IsNumber()
   @IsPositive()
   @Min(0.01)
-  weight: number;
+  weight!: number;
 
   @ApiProperty({ description: 'Package dimensions' })
   @ValidateNested()
   @Type(() => PackageDimensionsDto)
-  dimensions: PackageDimensionsDto;
+  dimensions!: PackageDimensionsDto;
 
   @ApiPropertyOptional({ description: 'Declared value for insurance' })
   @IsOptional()
@@ -442,34 +440,34 @@ export class UpdateShipmentDto {
 // Shipping rate response DTO
 export class ShippingRateDto {
   @ApiProperty({ description: 'Carrier ID' })
-  carrierId: string;
+  carrierId!: string;
 
   @ApiProperty({ description: 'Carrier name' })
-  carrierName: string;
+  carrierName!: string;
 
   @ApiProperty({ description: 'Service type' })
-  serviceType: string;
+  serviceType!: string;
 
   @ApiProperty({ description: 'Service name' })
-  serviceName: string;
+  serviceName!: string;
 
   @ApiProperty({ description: 'Estimated delivery date' })
-  estimatedDeliveryDate: Date;
+  estimatedDeliveryDate!: Date;
 
   @ApiProperty({ description: 'Transit days' })
-  transitDays: number;
+  transitDays!: number;
 
   @ApiProperty({ description: 'Shipping cost' })
-  cost: number;
+  cost!: number;
 
   @ApiProperty({ description: 'Currency' })
-  currency: string;
+  currency!: string;
 
   @ApiProperty({ description: 'Guaranteed delivery' })
-  guaranteedDelivery: boolean;
+  guaranteedDelivery!: boolean;
 
   @ApiProperty({ description: 'Tracking included' })
-  trackingIncluded: boolean;
+  trackingIncluded!: boolean;
 
   @ApiPropertyOptional({ description: 'Signature required' })
   signatureRequired?: boolean;
@@ -484,34 +482,34 @@ export class ShippingRateDto {
 // Shipping label DTO
 export class ShippingLabelDto {
   @ApiProperty({ description: 'Label ID' })
-  labelId: string;
+  labelId!: string;
 
   @ApiProperty({ description: 'Tracking number' })
-  trackingNumber: string;
+  trackingNumber!: string;
 
   @ApiProperty({ description: 'Carrier ID' })
-  carrierId: string;
+  carrierId!: string;
 
   @ApiProperty({ description: 'Service type' })
-  serviceType: string;
+  serviceType!: string;
 
   @ApiProperty({ description: 'Label format' })
-  labelFormat: LabelFormat;
+  labelFormat!: LabelFormat;
 
   @ApiProperty({ description: 'Base64 encoded label data' })
-  labelData: string;
+  labelData!: string;
 
   @ApiPropertyOptional({ description: 'Label download URL' })
   labelUrl?: string;
 
   @ApiProperty({ description: 'Shipping cost' })
-  cost: number;
+  cost!: number;
 
   @ApiProperty({ description: 'Currency' })
-  currency: string;
+  currency!: string;
 
   @ApiProperty({ description: 'Created timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiPropertyOptional({ description: 'Label expiration timestamp' })
   expiresAt?: Date;
@@ -520,19 +518,19 @@ export class ShippingLabelDto {
 // Tracking event DTO
 export class TrackingEventDto {
   @ApiProperty({ description: 'Event ID' })
-  eventId: string;
+  eventId!: string;
 
   @ApiProperty({ description: 'Tracking number' })
-  trackingNumber: string;
+  trackingNumber!: string;
 
   @ApiProperty({ description: 'Event type' })
-  eventType: string;
+  eventType!: string;
 
   @ApiProperty({ description: 'Event description' })
-  eventDescription: string;
+  eventDescription!: string;
 
   @ApiProperty({ description: 'Event date' })
-  eventDate: Date;
+  eventDate!: Date;
 
   @ApiPropertyOptional({ description: 'Event location' })
   location?: {
@@ -546,10 +544,10 @@ export class TrackingEventDto {
   carrierEventCode?: string;
 
   @ApiProperty({ description: 'Is delivered' })
-  isDelivered: boolean;
+  isDelivered!: boolean;
 
   @ApiProperty({ description: 'Is exception' })
-  isException: boolean;
+  isException!: boolean;
 
   @ApiPropertyOptional({ description: 'Exception reason' })
   exceptionReason?: string;
@@ -624,7 +622,7 @@ export class BulkCreateShipmentsDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateShipmentDto)
-  shipments: CreateShipmentDto[];
+  shipments!: CreateShipmentDto[];
 
   @ApiPropertyOptional({ description: 'Default carrier for all shipments', enum: CarrierType })
   @IsOptional()
@@ -643,7 +641,6 @@ export class BulkCreateShipmentsDto {
 
   @ApiPropertyOptional({ description: 'Batch processing options' })
   @IsOptional()
-  @IsObject()
   batchOptions?: {
     continueOnError?: boolean;
     maxConcurrent?: number;
@@ -656,7 +653,7 @@ export class ValidateAddressDto {
   @ApiProperty({ description: 'Address to validate' })
   @ValidateNested()
   @Type(() => ShippingAddressDto)
-  address: ShippingAddressDto;
+  address!: ShippingAddressDto;
 
   @ApiPropertyOptional({ description: 'Carrier to use for validation', enum: CarrierType })
   @IsOptional()
@@ -672,25 +669,25 @@ export class ValidateAddressDto {
 // Shipping metrics DTO
 export class ShippingMetricsDto {
   @ApiProperty({ description: 'Total shipments' })
-  totalShipments: number;
+  totalShipments!: number;
 
   @ApiProperty({ description: 'Total shipping cost' })
-  totalCost: number;
+  totalCost!: number;
 
   @ApiProperty({ description: 'Average shipping cost' })
-  averageCost: number;
+  averageCost!: number;
 
   @ApiProperty({ description: 'On-time delivery rate percentage' })
-  onTimeDeliveryRate: number;
+  onTimeDeliveryRate!: number;
 
   @ApiProperty({ description: 'Carrier breakdown' })
-  carrierBreakdown: Record<string, number>;
+  carrierBreakdown!: Record<string, number>;
 
   @ApiProperty({ description: 'Service type breakdown' })
-  serviceTypeBreakdown: Record<string, number>;
+  serviceTypeBreakdown!: Record<string, number>;
 
   @ApiProperty({ description: 'Delivery performance metrics' })
-  deliveryPerformance: {
+  deliveryPerformance!: {
     delivered: number;
     inTransit: number;
     exceptions: number;
@@ -698,32 +695,32 @@ export class ShippingMetricsDto {
   };
 
   @ApiProperty({ description: 'Average transit time in days' })
-  averageTransitTime: number;
+  averageTransitTime!: number;
 
   @ApiProperty({ description: 'Exception rate percentage' })
-  exceptionRate: number;
+  exceptionRate!: number;
 
   @ApiProperty({ description: 'Cost per shipment by carrier' })
-  costPerShipmentByCarrier: Record<string, number>;
+  costPerShipmentByCarrier!: Record<string, number>;
 
   @ApiProperty({ description: 'Delivery time by service type' })
-  deliveryTimeByService: Record<string, number>;
+  deliveryTimeByService!: Record<string, number>;
 }
 
 // Carrier configuration DTO
 export class CarrierConfigDto {
   @ApiProperty({ description: 'Carrier ID', enum: CarrierType })
   @IsEnum(CarrierType)
-  carrierId: CarrierType;
+  carrierId!: CarrierType;
 
   @ApiProperty({ description: 'Carrier name' })
   @IsString()
   @IsNotEmpty()
-  carrierName: string;
+  carrierName!: string;
 
   @ApiProperty({ description: 'Available services' })
   @IsArray()
-  services: Array<{
+  services!: Array<{
     serviceType: string;
     serviceName: string;
     description?: string;
@@ -733,20 +730,19 @@ export class CarrierConfigDto {
   @ApiProperty({ description: 'Supported features' })
   @IsArray()
   @IsString({ each: true })
-  features: string[];
+  features!: string[];
 
   @ApiProperty({ description: 'Supported countries' })
   @IsArray()
   @IsString({ each: true })
-  supportedCountries: string[];
+  supportedCountries!: string[];
 
   @ApiProperty({ description: 'Is enabled' })
   @IsBoolean()
-  enabled: boolean;
+  enabled!: boolean;
 
   @ApiPropertyOptional({ description: 'API configuration' })
   @IsOptional()
-  @IsObject()
   apiConfig?: {
     baseUrl?: string;
     timeout?: number;
@@ -755,7 +751,6 @@ export class CarrierConfigDto {
 
   @ApiPropertyOptional({ description: 'Default settings' })
   @IsOptional()
-  @IsObject()
   defaultSettings?: {
     labelFormat?: LabelFormat;
     signatureRequired?: boolean;

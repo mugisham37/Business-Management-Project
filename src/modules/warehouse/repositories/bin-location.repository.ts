@@ -1,12 +1,13 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { eq, and, like, desc, asc, count, sql, isNull, inArray } from 'drizzle-orm';
+import { eq, and, desc, asc, count, sql, isNull, inArray } from 'drizzle-orm';
 import { DrizzleService } from '../../database/drizzle.service';
-import { binLocations, BinLocationStatus } from '../../database/schema/warehouse.schema';
+import { binLocations, binLocationStatusEnum } from '../../database/schema/warehouse.schema';
 import { 
   CreateBinLocationDto, 
   UpdateBinLocationDto, 
   BinLocationQueryDto,
-  BulkCreateBinLocationsDto 
+  BulkCreateBinLocationsDto,
+  BinLocationStatus 
 } from '../dto/warehouse.dto';
 
 @Injectable()
@@ -15,7 +16,7 @@ export class BinLocationRepository {
 
   async create(tenantId: string, data: CreateBinLocationDto, userId: string): Promise<any> {
     // Check if bin code already exists in warehouse
-    const existing = await this.drizzle.db
+    const existing = await this.drizzle.getDb()
       .select()
       .from(binLocations)
       .where(
@@ -38,7 +39,7 @@ export class BinLocationRepository {
       volume = data.length * data.width * data.height;
     }
 
-    const [binLocation] = await this.drizzle.db
+    const [binLocation] = await this.drizzle.getDb()
       .insert(binLocations)
       .values({
         tenantId,
@@ -142,7 +143,7 @@ export class BinLocationRepository {
     
     for (let i = 0; i < binLocationsToCreate.length; i += batchSize) {
       const batch = binLocationsToCreate.slice(i, i + batchSize);
-      const batchResult = await this.drizzle.db
+      const batchResult = await this.drizzle.getDb()
         .insert(binLocations)
         .values(batch)
         .returning();
@@ -154,7 +155,7 @@ export class BinLocationRepository {
   }
 
   async findById(tenantId: string, id: string): Promise<any> {
-    const [binLocation] = await this.drizzle.db
+    const [binLocation] = await this.drizzle.getDb()
       .select()
       .from(binLocations)
       .where(
@@ -174,7 +175,7 @@ export class BinLocationRepository {
   }
 
   async findByCode(tenantId: string, warehouseId: string, binCode: string): Promise<any> {
-    const [binLocation] = await this.drizzle.db
+    const [binLocation] = await this.drizzle.getDb()
       .select()
       .from(binLocations)
       .where(
@@ -250,15 +251,28 @@ export class BinLocationRepository {
     const whereClause = and(...conditions);
 
     // Get total count
-    const [{ count: totalCount }] = await this.drizzle.db
+    const [countResult] = await this.drizzle.getDb()
       .select({ count: count() })
       .from(binLocations)
       .where(whereClause);
 
-    // Get bin locations with sorting
-    const orderBy = sortOrder === 'desc' ? desc(binLocations[sortBy]) : asc(binLocations[sortBy]);
+    const totalCount = countResult?.count || 0;
+
+    // Get bin locations with sorting - use a safe column mapping
+    const columnMap: Record<string, any> = {
+      binCode: binLocations.binCode,
+      displayName: binLocations.displayName,
+      status: binLocations.status,
+      aisle: binLocations.aisle,
+      pickingSequence: binLocations.pickingSequence,
+      createdAt: binLocations.createdAt,
+      updatedAt: binLocations.updatedAt,
+    };
+
+    const sortColumn = columnMap[sortBy] || binLocations.binCode;
+    const orderBy = sortOrder === 'desc' ? desc(sortColumn) : asc(sortColumn);
     
-    const binLocationList = await this.drizzle.db
+    const binLocationList = await this.drizzle.getDb()
       .select()
       .from(binLocations)
       .where(whereClause)
@@ -276,7 +290,7 @@ export class BinLocationRepository {
   }
 
   async findByZone(tenantId: string, zoneId: string): Promise<any[]> {
-    return await this.drizzle.db
+    return await this.drizzle.getDb()
       .select()
       .from(binLocations)
       .where(
@@ -290,7 +304,7 @@ export class BinLocationRepository {
   }
 
   async findByWarehouse(tenantId: string, warehouseId: string): Promise<any[]> {
-    return await this.drizzle.db
+    return await this.drizzle.getDb()
       .select()
       .from(binLocations)
       .where(
@@ -315,7 +329,7 @@ export class BinLocationRepository {
       conditions.push(eq(binLocations.zoneId, zoneId));
     }
 
-    return await this.drizzle.db
+    return await this.drizzle.getDb()
       .select()
       .from(binLocations)
       .where(and(...conditions))
@@ -333,7 +347,7 @@ export class BinLocationRepository {
       conditions.push(eq(binLocations.assignedVariantId, variantId));
     }
 
-    return await this.drizzle.db
+    return await this.drizzle.getDb()
       .select()
       .from(binLocations)
       .where(and(...conditions))
@@ -348,15 +362,16 @@ export class BinLocationRepository {
       updatedAt: new Date(),
     };
 
-    // Only update provided fields
+    // Only update provided fields with proper type handling
+    const numericFields = ['xCoordinate', 'yCoordinate', 'zCoordinate', 'length', 'width', 'height', 'maxWeight', 'currentWeight', 'occupancyPercentage'];
+    
     Object.keys(data).forEach(key => {
-      if (data[key] !== undefined) {
-        if (['xCoordinate', 'yCoordinate', 'zCoordinate', 'length', 'width', 'height', 'maxWeight', 'currentWeight'].includes(key)) {
-          updateData[key] = data[key]?.toString();
-        } else if (key === 'occupancyPercentage') {
-          updateData[key] = data[key]?.toString();
+      const value = (data as any)[key];
+      if (value !== undefined) {
+        if (numericFields.includes(key)) {
+          updateData[key] = value?.toString();
         } else {
-          updateData[key] = data[key];
+          updateData[key] = value;
         }
       }
     });
@@ -372,7 +387,7 @@ export class BinLocationRepository {
       }
     }
 
-    const [updatedBinLocation] = await this.drizzle.db
+    const [updatedBinLocation] = await this.drizzle.getDb()
       .update(binLocations)
       .set(updateData)
       .where(
@@ -399,23 +414,28 @@ export class BinLocationRepository {
     dedicated: boolean,
     userId: string
   ): Promise<any> {
-    return await this.update(tenantId, id, {
+    const updateData: UpdateBinLocationDto = {
       assignedProductId: productId,
-      assignedVariantId: variantId,
       dedicatedProduct: dedicated,
       status: BinLocationStatus.OCCUPIED,
-    }, userId);
+    };
+    
+    if (variantId) {
+      updateData.assignedVariantId = variantId;
+    }
+    
+    return await this.update(tenantId, id, updateData, userId);
   }
 
   async unassignProduct(tenantId: string, id: string, userId: string): Promise<any> {
-    return await this.update(tenantId, id, {
-      assignedProductId: undefined,
-      assignedVariantId: undefined,
+    const updateData: UpdateBinLocationDto = {
       dedicatedProduct: false,
       status: BinLocationStatus.AVAILABLE,
       occupancyPercentage: 0,
       currentWeight: 0,
-    }, userId);
+    };
+    
+    return await this.update(tenantId, id, updateData, userId);
   }
 
   async updateOccupancy(
@@ -431,7 +451,6 @@ export class BinLocationRepository {
       occupancyPercentage,
       currentWeight,
       status,
-      lastActivityAt: new Date(),
     }, userId);
   }
 
@@ -443,7 +462,7 @@ export class BinLocationRepository {
       throw new ConflictException('Cannot delete occupied bin location');
     }
 
-    await this.drizzle.db
+    await this.drizzle.getDb()
       .update(binLocations)
       .set({
         deletedAt: new Date(),
@@ -491,7 +510,7 @@ export class BinLocationRepository {
       conditions.push(sql`CAST(${binLocations.maxWeight} AS DECIMAL) >= ${requiredWeight}`);
     }
 
-    const [optimalBin] = await this.drizzle.db
+    const [optimalBin] = await this.drizzle.getDb()
       .select()
       .from(binLocations)
       .where(and(...conditions))
@@ -506,7 +525,7 @@ export class BinLocationRepository {
       return [];
     }
 
-    return await this.drizzle.db
+    return await this.drizzle.getDb()
       .select()
       .from(binLocations)
       .where(
@@ -532,7 +551,7 @@ export class BinLocationRepository {
     }
 
     // Get bin location statistics by status
-    const statusStats = await this.drizzle.db
+    const statusStats = await this.drizzle.getDb()
       .select({
         status: binLocations.status,
         count: count(),
@@ -543,7 +562,7 @@ export class BinLocationRepository {
       .groupBy(binLocations.status);
 
     // Get overall statistics
-    const [overallStats] = await this.drizzle.db
+    const [overallStats] = await this.drizzle.getDb()
       .select({
         totalBins: count(),
         totalVolume: sql<number>`SUM(CAST(${binLocations.volume} AS DECIMAL))`,
@@ -556,10 +575,12 @@ export class BinLocationRepository {
     return {
       overall: overallStats,
       byStatus: statusStats.reduce((acc, stat) => {
-        acc[stat.status] = {
-          count: stat.count,
-          avgOccupancy: Math.round((stat.avgOccupancy || 0) * 100) / 100,
-        };
+        if (stat.status) {
+          acc[stat.status] = {
+            count: stat.count,
+            avgOccupancy: Math.round((stat.avgOccupancy || 0) * 100) / 100,
+          };
+        }
         return acc;
       }, {} as Record<string, any>),
     };

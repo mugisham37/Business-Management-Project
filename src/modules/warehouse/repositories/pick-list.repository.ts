@@ -62,7 +62,7 @@ export class PickListRepository {
       .returning();
 
     // Create pick list items if provided
-    if (data.items && data.items.length > 0) {
+    if (data.items && data.items.length > 0 && pickList) {
       await this.createItems(tenantId, pickList.id, data.items, userId);
     }
 
@@ -193,10 +193,12 @@ export class PickListRepository {
     const whereClause = and(...conditions);
 
     // Get total count
-    const [{ count: totalCount }] = await this.drizzle.getDb()
+    const [countResult] = await this.drizzle.getDb()
       .select({ count: count() })
       .from(pickLists)
       .where(whereClause);
+
+    const totalCount = countResult?.count || 0;
 
     // Get pick lists with sorting - use a safe column mapping
     const columnMap: Record<string, any> = {
@@ -583,7 +585,7 @@ export class PickListRepository {
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     
     // Get the count of pick lists created today for this warehouse
-    const [{ count: todayCount }] = await this.drizzle.getDb()
+    const [countResult] = await this.drizzle.getDb()
       .select({ count: count() })
       .from(pickLists)
       .where(
@@ -595,6 +597,7 @@ export class PickListRepository {
         )
       );
 
+    const todayCount = countResult?.count || 0;
     const sequence = (todayCount + 1).toString().padStart(4, '0');
     return `PL${today}${sequence}`;
   }

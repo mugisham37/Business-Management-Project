@@ -6,7 +6,6 @@ import {
   IsBoolean, 
   IsEnum, 
   IsUUID, 
-  IsObject, 
   IsArray, 
   Min, 
   Max,
@@ -67,7 +66,7 @@ export class CreateLotDto {
   @IsString()
   @IsNotEmpty()
   @Length(1, 100)
-  lotNumber: string;
+  lotNumber!: string;
 
   @ApiPropertyOptional({ description: 'Batch number' })
   @IsOptional()
@@ -78,12 +77,12 @@ export class CreateLotDto {
   @ApiProperty({ description: 'Product ID' })
   @IsUUID()
   @IsNotEmpty()
-  productId: string;
+  productId!: string;
 
   @ApiProperty({ description: 'Warehouse ID' })
   @IsUUID()
   @IsNotEmpty()
-  warehouseId: string;
+  warehouseId!: string;
 
   @ApiPropertyOptional({ description: 'Bin location ID' })
   @IsOptional()
@@ -93,13 +92,13 @@ export class CreateLotDto {
   @ApiProperty({ description: 'Quantity' })
   @IsNumber()
   @IsPositive()
-  quantity: number;
+  quantity!: number;
 
   @ApiProperty({ description: 'Unit of measure' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 20)
-  unitOfMeasure: string;
+  unitOfMeasure!: string;
 
   @ApiPropertyOptional({ description: 'Manufacture date' })
   @IsOptional()
@@ -113,7 +112,7 @@ export class CreateLotDto {
 
   @ApiProperty({ description: 'Received date' })
   @IsDateString()
-  receivedDate: Date;
+  receivedDate!: Date;
 
   @ApiPropertyOptional({ description: 'Supplier ID' })
   @IsOptional()
@@ -139,7 +138,6 @@ export class CreateLotDto {
 
   @ApiPropertyOptional({ description: 'Test results' })
   @IsOptional()
-  @IsObject()
   testResults?: Record<string, any>;
 
   @ApiPropertyOptional({ description: 'Notes' })
@@ -169,7 +167,6 @@ export class UpdateLotDto {
 
   @ApiPropertyOptional({ description: 'Test results' })
   @IsOptional()
-  @IsObject()
   testResults?: Record<string, any>;
 
   @ApiPropertyOptional({ description: 'Notes' })
@@ -182,25 +179,25 @@ export class UpdateLotDto {
 // Lot info response DTO
 export class LotInfoDto {
   @ApiProperty({ description: 'Lot number' })
-  lotNumber: string;
+  lotNumber!: string;
 
   @ApiPropertyOptional({ description: 'Batch number' })
   batchNumber?: string;
 
   @ApiProperty({ description: 'Product ID' })
-  productId: string;
+  productId!: string;
 
   @ApiProperty({ description: 'Warehouse ID' })
-  warehouseId: string;
+  warehouseId!: string;
 
   @ApiPropertyOptional({ description: 'Bin location ID' })
   binLocationId?: string;
 
   @ApiProperty({ description: 'Quantity' })
-  quantity: number;
+  quantity!: number;
 
   @ApiProperty({ description: 'Unit of measure' })
-  unitOfMeasure: string;
+  unitOfMeasure!: string;
 
   @ApiPropertyOptional({ description: 'Manufacture date' })
   manufactureDate?: Date;
@@ -209,7 +206,7 @@ export class LotInfoDto {
   expiryDate?: Date;
 
   @ApiProperty({ description: 'Received date' })
-  receivedDate: Date;
+  receivedDate!: Date;
 
   @ApiPropertyOptional({ description: 'Supplier ID' })
   supplierId?: string;
@@ -218,7 +215,7 @@ export class LotInfoDto {
   supplierLotNumber?: string;
 
   @ApiProperty({ description: 'Quality status', enum: QualityStatus })
-  qualityStatus: QualityStatus;
+  qualityStatus!: QualityStatus;
 
   @ApiPropertyOptional({ description: 'Certification number' })
   certificationNumber?: string;
@@ -233,16 +230,16 @@ export class LotInfoDto {
 // Lot movement DTO
 export class LotMovementDto {
   @ApiProperty({ description: 'Movement ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Lot number' })
-  lotNumber: string;
+  lotNumber!: string;
 
   @ApiProperty({ description: 'Product ID' })
-  productId: string;
+  productId!: string;
 
   @ApiProperty({ description: 'Movement type', enum: MovementType })
-  movementType: MovementType;
+  movementType!: MovementType;
 
   @ApiPropertyOptional({ description: 'From location' })
   fromLocation?: string;
@@ -251,16 +248,16 @@ export class LotMovementDto {
   toLocation?: string;
 
   @ApiProperty({ description: 'Quantity' })
-  quantity: number;
+  quantity!: number;
 
   @ApiProperty({ description: 'Unit of measure' })
-  unitOfMeasure: string;
+  unitOfMeasure!: string;
 
   @ApiProperty({ description: 'Movement date' })
-  movementDate: Date;
+  movementDate!: Date;
 
   @ApiProperty({ description: 'User ID' })
-  userId: string;
+  userId!: string;
 
   @ApiPropertyOptional({ description: 'Order ID' })
   orderId?: string;
@@ -280,7 +277,7 @@ export class FIFORuleDto {
   @ApiProperty({ description: 'Product ID' })
   @IsUUID()
   @IsNotEmpty()
-  productId: string;
+  productId!: string;
 
   @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
@@ -294,29 +291,29 @@ export class FIFORuleDto {
 
   @ApiProperty({ description: 'Rotation type', enum: RotationType })
   @IsEnum(RotationType)
-  rotationType: RotationType;
+  rotationType!: RotationType;
 
   @ApiProperty({ description: 'Enforce strict rotation' })
   @IsBoolean()
-  enforceStrict: boolean;
+  enforceStrict!: boolean;
 
   @ApiProperty({ description: 'Allow mixed lots in same pick' })
   @IsBoolean()
-  allowMixedLots: boolean;
+  allowMixedLots!: boolean;
 
   @ApiProperty({ description: 'Expiry warning days' })
   @IsNumber()
   @Min(1)
   @Max(365)
-  expiryWarningDays: number;
+  expiryWarningDays!: number;
 
   @ApiProperty({ description: 'Auto quarantine expired lots' })
   @IsBoolean()
-  autoQuarantineExpired: boolean;
+  autoQuarantineExpired!: boolean;
 
   @ApiProperty({ description: 'Require lot tracking' })
   @IsBoolean()
-  requireLotTracking: boolean;
+  requireLotTracking!: boolean;
 }
 
 // Create recall DTO
@@ -325,110 +322,110 @@ export class CreateRecallDto {
   @IsString()
   @IsNotEmpty()
   @Length(1, 100)
-  recallNumber: string;
+  recallNumber!: string;
 
   @ApiProperty({ description: 'Product ID' })
   @IsUUID()
   @IsNotEmpty()
-  productId: string;
+  productId!: string;
 
   @ApiProperty({ description: 'Lot numbers to recall' })
   @IsArray()
   @IsString({ each: true })
   @IsNotEmpty({ each: true })
-  lotNumbers: string[];
+  lotNumbers!: string[];
 
   @ApiProperty({ description: 'Recall type', enum: RecallType })
   @IsEnum(RecallType)
-  recallType: RecallType;
+  recallType!: RecallType;
 
   @ApiProperty({ description: 'Recall severity', enum: RecallSeverity })
   @IsEnum(RecallSeverity)
-  severity: RecallSeverity;
+  severity!: RecallSeverity;
 
   @ApiProperty({ description: 'Recall reason' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 255)
-  reason: string;
+  reason!: string;
 
   @ApiProperty({ description: 'Recall description' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 1000)
-  description: string;
+  description!: string;
 
   @ApiProperty({ description: 'Effective date' })
   @IsDateString()
-  effectiveDate: Date;
+  effectiveDate!: Date;
 
   @ApiProperty({ description: 'Customer notification required' })
   @IsBoolean()
-  customerNotificationRequired: boolean;
+  customerNotificationRequired!: boolean;
 
   @ApiProperty({ description: 'Regulatory reporting required' })
   @IsBoolean()
-  regulatoryReportingRequired: boolean;
+  regulatoryReportingRequired!: boolean;
 
   @ApiProperty({ description: 'Recall instructions' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 2000)
-  instructions: string;
+  instructions!: string;
 }
 
 // Recall info response DTO
 export class RecallInfoDto {
   @ApiProperty({ description: 'Recall ID' })
-  recallId: string;
+  recallId!: string;
 
   @ApiProperty({ description: 'Recall number' })
-  recallNumber: string;
+  recallNumber!: string;
 
   @ApiProperty({ description: 'Product ID' })
-  productId: string;
+  productId!: string;
 
   @ApiProperty({ description: 'Lot numbers' })
-  lotNumbers: string[];
+  lotNumbers!: string[];
 
   @ApiProperty({ description: 'Recall type', enum: RecallType })
-  recallType: RecallType;
+  recallType!: RecallType;
 
   @ApiProperty({ description: 'Severity', enum: RecallSeverity })
-  severity: RecallSeverity;
+  severity!: RecallSeverity;
 
   @ApiProperty({ description: 'Reason' })
-  reason: string;
+  reason!: string;
 
   @ApiProperty({ description: 'Description' })
-  description: string;
+  description!: string;
 
   @ApiProperty({ description: 'Initiated by' })
-  initiatedBy: string;
+  initiatedBy!: string;
 
   @ApiProperty({ description: 'Initiated date' })
-  initiatedDate: Date;
+  initiatedDate!: Date;
 
   @ApiProperty({ description: 'Effective date' })
-  effectiveDate: Date;
+  effectiveDate!: Date;
 
   @ApiProperty({ description: 'Status', enum: RecallStatus })
-  status: RecallStatus;
+  status!: RecallStatus;
 
   @ApiProperty({ description: 'Affected quantity' })
-  affectedQuantity: number;
+  affectedQuantity!: number;
 
   @ApiProperty({ description: 'Recovered quantity' })
-  recoveredQuantity: number;
+  recoveredQuantity!: number;
 
   @ApiProperty({ description: 'Customer notification required' })
-  customerNotificationRequired: boolean;
+  customerNotificationRequired!: boolean;
 
   @ApiProperty({ description: 'Regulatory reporting required' })
-  regulatoryReportingRequired: boolean;
+  regulatoryReportingRequired!: boolean;
 
   @ApiProperty({ description: 'Instructions' })
-  instructions: string;
+  instructions!: string;
 }
 
 // Lot picking request DTO
@@ -436,12 +433,12 @@ export class LotPickingRequestDto {
   @ApiProperty({ description: 'Warehouse ID' })
   @IsUUID()
   @IsNotEmpty()
-  warehouseId: string;
+  warehouseId!: string;
 
   @ApiProperty({ description: 'Requested quantity' })
   @IsNumber()
   @IsPositive()
-  quantity: number;
+  quantity!: number;
 
   @ApiPropertyOptional({ description: 'Order ID' })
   @IsOptional()
@@ -463,7 +460,7 @@ export class LotPickingRequestDto {
 // Optimal picking response DTO
 export class OptimalPickingResponseDto {
   @ApiProperty({ description: 'Lots to pick from' })
-  lots: Array<{
+  lots!: Array<{
     lotNumber: string;
     quantity: number;
     expiryDate?: Date;
@@ -471,65 +468,65 @@ export class OptimalPickingResponseDto {
   }>;
 
   @ApiProperty({ description: 'Total available quantity' })
-  totalAvailable: number;
+  totalAvailable!: number;
 
   @ApiProperty({ description: 'Can fulfill request' })
-  canFulfill: boolean;
+  canFulfill!: boolean;
 }
 
 // Lot picking result DTO
 export class LotPickingResultDto {
   @ApiProperty({ description: 'Picked lots' })
-  pickedLots: Array<{
+  pickedLots!: Array<{
     lotNumber: string;
     quantity: number;
     binLocationId?: string;
   }>;
 
   @ApiProperty({ description: 'Total picked quantity' })
-  totalPicked: number;
+  totalPicked!: number;
 
   @ApiProperty({ description: 'Shortfall quantity' })
-  shortfall: number;
+  shortfall!: number;
 }
 
 // Expiring lot DTO
 export class ExpiringLotDto {
   @ApiProperty({ description: 'Lot information' })
-  lot: LotInfoDto;
+  lot!: LotInfoDto;
 
   @ApiProperty({ description: 'Days until expiry' })
-  daysUntilExpiry: number;
+  daysUntilExpiry!: number;
 
   @ApiProperty({ description: 'Recommended action' })
-  recommendedAction: 'sell_first' | 'discount' | 'quarantine' | 'dispose';
+  recommendedAction!: 'sell_first' | 'discount' | 'quarantine' | 'dispose';
 }
 
 // Lot traceability DTO
 export class LotTraceabilityDto {
   @ApiProperty({ description: 'Lot information' })
-  lot: LotInfoDto;
+  lot!: LotInfoDto;
 
   @ApiProperty({ description: 'Movement history' })
-  movements: LotMovementDto[];
+  movements!: LotMovementDto[];
 
   @ApiProperty({ description: 'Current location' })
-  currentLocation: string;
+  currentLocation!: string;
 
   @ApiProperty({ description: 'Total received quantity' })
-  totalReceived: number;
+  totalReceived!: number;
 
   @ApiProperty({ description: 'Total picked quantity' })
-  totalPicked: number;
+  totalPicked!: number;
 
   @ApiProperty({ description: 'Current quantity' })
-  currentQuantity: number;
+  currentQuantity!: number;
 
   @ApiProperty({ description: 'Associated recalls' })
-  recalls: RecallInfoDto[];
+  recalls!: RecallInfoDto[];
 
   @ApiProperty({ description: 'Quality history' })
-  qualityHistory: Array<{
+  qualityHistory!: Array<{
     date: Date;
     status: string;
     testResults?: Record<string, any>;
@@ -543,30 +540,29 @@ export class QualityTestDto {
   @ApiProperty({ description: 'Product ID' })
   @IsUUID()
   @IsNotEmpty()
-  productId: string;
+  productId!: string;
 
   @ApiProperty({ description: 'Lot number' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 100)
-  lotNumber: string;
+  lotNumber!: string;
 
   @ApiProperty({ description: 'Test results' })
-  @IsObject()
-  testResults: Record<string, any>;
+  testResults!: Record<string, any>;
 
   @ApiProperty({ description: 'Quality status', enum: QualityStatus })
   @IsEnum(QualityStatus)
-  qualityStatus: QualityStatus;
+  qualityStatus!: QualityStatus;
 
   @ApiProperty({ description: 'Test date' })
   @IsDateString()
-  testDate: Date;
+  testDate!: Date;
 
   @ApiProperty({ description: 'Tester ID' })
   @IsUUID()
   @IsNotEmpty()
-  testerId: string;
+  testerId!: string;
 
   @ApiPropertyOptional({ description: 'Certification number' })
   @IsOptional()
@@ -587,7 +583,7 @@ export class BulkLotUpdateDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => Object)
-  updates: Array<{
+  updates!: Array<{
     productId: string;
     lotNumber: string;
     quantity?: number;
@@ -722,38 +718,38 @@ export class RecallQueryDto {
 // Lot analytics DTO
 export class LotAnalyticsDto {
   @ApiProperty({ description: 'Total lots' })
-  totalLots: number;
+  totalLots!: number;
 
   @ApiProperty({ description: 'Active lots' })
-  activeLots: number;
+  activeLots!: number;
 
   @ApiProperty({ description: 'Expired lots' })
-  expiredLots: number;
+  expiredLots!: number;
 
   @ApiProperty({ description: 'Quarantined lots' })
-  quarantinedLots: number;
+  quarantinedLots!: number;
 
   @ApiProperty({ description: 'Lots expiring in 30 days' })
-  expiringSoon: number;
+  expiringSoon!: number;
 
   @ApiProperty({ description: 'Average lot age in days' })
-  averageLotAge: number;
+  averageLotAge!: number;
 
   @ApiProperty({ description: 'Lot turnover rate' })
-  turnoverRate: number;
+  turnoverRate!: number;
 
   @ApiProperty({ description: 'Quality status breakdown' })
-  qualityStatusBreakdown: Record<string, number>;
+  qualityStatusBreakdown!: Record<string, number>;
 
   @ApiProperty({ description: 'Expiry trend by month' })
-  expiryTrend: Array<{
+  expiryTrend!: Array<{
     month: string;
     expiredLots: number;
     expiredQuantity: number;
   }>;
 
   @ApiProperty({ description: 'Top products by lot count' })
-  topProductsByLotCount: Array<{
+  topProductsByLotCount!: Array<{
     productId: string;
     productName: string;
     lotCount: number;

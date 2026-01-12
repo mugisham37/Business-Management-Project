@@ -153,10 +153,12 @@ export class PickingWaveRepository {
     const whereClause = and(...conditions);
 
     // Get total count
-    const [{ count: totalCount }] = await this.drizzle.getDb()
+    const [countResult] = await this.drizzle.getDb()
       .select({ count: count() })
       .from(pickingWaves)
       .where(whereClause);
+
+    const totalCount = countResult?.count || 0;
 
     // Get waves with sorting - use a safe column mapping
     const columnMap: Record<string, any> = {
@@ -522,7 +524,7 @@ export class PickingWaveRepository {
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     
     // Get the count of waves created today for this warehouse
-    const [{ count: todayCount }] = await this.drizzle.getDb()
+    const [countResult] = await this.drizzle.getDb()
       .select({ count: count() })
       .from(pickingWaves)
       .where(
@@ -534,6 +536,7 @@ export class PickingWaveRepository {
         )
       );
 
+    const todayCount = countResult?.count || 0;
     const sequence = (todayCount + 1).toString().padStart(3, '0');
     return `W${today}${sequence}`;
   }

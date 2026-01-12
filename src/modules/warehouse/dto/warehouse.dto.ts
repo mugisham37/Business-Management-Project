@@ -6,17 +6,14 @@ import {
   IsBoolean, 
   IsEnum, 
   IsUUID, 
-  IsObject, 
   IsArray, 
   Min, 
   Max,
   ValidateNested,
   IsNotEmpty,
-  Length,
-  IsPositive,
-  IsDateString
+  Length
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
 
 // Enums
 export enum WarehouseStatus {
@@ -67,19 +64,19 @@ export class CreateWarehouseDto {
   @ApiProperty({ description: 'Location ID reference' })
   @IsUUID()
   @IsNotEmpty()
-  locationId: string;
+  locationId!: string;
 
   @ApiProperty({ description: 'Warehouse code' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 50)
-  warehouseCode: string;
+  warehouseCode!: string;
 
   @ApiProperty({ description: 'Warehouse name' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 255)
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Warehouse description' })
   @IsOptional()

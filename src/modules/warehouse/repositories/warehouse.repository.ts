@@ -1,19 +1,19 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { eq, and, like, desc, asc, count, sql, isNull, inArray } from 'drizzle-orm';
+import { eq, and, desc, asc, count, sql, isNull } from 'drizzle-orm';
 import { DrizzleService } from '../../database/drizzle.service';
 import { 
   warehouses, 
   warehouseZones, 
-  binLocations,
-  WarehouseStatus,
-  LayoutType,
-  SecurityLevel 
+  binLocations
 } from '../../database/schema/warehouse.schema';
 import { 
   CreateWarehouseDto, 
   UpdateWarehouseDto, 
   WarehouseQueryDto,
-  WarehouseCapacityDto 
+  WarehouseCapacityDto,
+  WarehouseStatus,
+  LayoutType,
+  SecurityLevel 
 } from '../dto/warehouse.dto';
 
 @Injectable()
@@ -22,7 +22,7 @@ export class WarehouseRepository {
 
   async create(tenantId: string, data: CreateWarehouseDto, userId: string): Promise<any> {
     // Check if warehouse code already exists for tenant
-    const existing = await this.drizzle.db
+    const existing = await this.drizzle.getDb()
       .select()
       .from(warehouses)
       .where(
@@ -39,7 +39,7 @@ export class WarehouseRepository {
     }
 
     // Check if location is already assigned to another warehouse
-    const locationExists = await this.drizzle.db
+    const locationExists = await this.drizzle.getDb()
       .select()
       .from(warehouses)
       .where(
@@ -55,7 +55,7 @@ export class WarehouseRepository {
       throw new ConflictException('Location is already assigned to another warehouse');
     }
 
-    const [warehouse] = await this.drizzle.db
+    const [warehouse] = await this.drizzle.getDb()
       .insert(warehouses)
       .values({
         tenantId,
@@ -89,7 +89,7 @@ export class WarehouseRepository {
   }
 
   async findById(tenantId: string, id: string): Promise<any> {
-    const [warehouse] = await this.drizzle.db
+    const [warehouse] = await this.drizzle.getDb()
       .select()
       .from(warehouses)
       .where(
@@ -109,7 +109,7 @@ export class WarehouseRepository {
   }
 
   async findByCode(tenantId: string, warehouseCode: string): Promise<any> {
-    const [warehouse] = await this.drizzle.db
+    const [warehouse] = await this.drizzle.getDb()
       .select()
       .from(warehouses)
       .where(
@@ -165,15 +165,26 @@ export class WarehouseRepository {
     const whereClause = and(...conditions);
 
     // Get total count
-    const [{ count: totalCount }] = await this.drizzle.db
+    const [countResult] = await this.drizzle.getDb()
       .select({ count: count() })
       .from(warehouses)
       .where(whereClause);
 
-    // Get warehouses with sorting
-    const orderBy = sortOrder === 'desc' ? desc(warehouses[sortBy]) : asc(warehouses[sortBy]);
+    const totalCount = countResult?.count || 0;
+
+    // Get warehouses with sorting - use a safe column mapping
+    const columnMap: Record<string, any> = {
+      name: warehouses.name,
+      warehouseCode: warehouses.warehouseCode,
+      status: warehouses.status,
+      createdAt: warehouses.createdAt,
+      updatedAt: warehouses.updatedAt,
+    };
+
+    const sortColumn = columnMap[sortBy] || warehouses.name;
+    const orderBy = sortOrder === 'desc' ? desc(sortColumn) : asc(sortColumn);
     
-    const warehouseList = await this.drizzle.db
+    const warehouseList = await this.drizzle.getDb()
       .select()
       .from(warehouses)
       .where(whereClause)
@@ -203,18 +214,21 @@ export class WarehouseRepository {
       updatedAt: new Date(),
     };
 
-    // Only update provided fields
+    // Only update provided fields with proper type handling
+    const numericFields = ['totalSquareFootage', 'storageSquareFootage', 'ceilingHeight'];
+    
     Object.keys(data).forEach(key => {
-      if (data[key] !== undefined) {
-        if (['totalSquareFootage', 'storageSquareFootage', 'ceilingHeight'].includes(key)) {
-          updateData[key] = data[key]?.toString();
+      const value = (data as any)[key];
+      if (value !== undefined) {
+        if (numericFields.includes(key)) {
+          updateData[key] = value?.toString();
         } else {
-          updateData[key] = data[key];
+          updateData[key] = value;
         }
       }
     });
 
-    const [updatedWarehouse] = await this.drizzle.db
+    const [updatedWarehouse] = await this.drizzle.getDb()
       .update(warehouses)
       .set(updateData)
       .where(
@@ -232,7 +246,7 @@ export class WarehouseRepository {
   async delete(tenantId: string, id: string, userId: string): Promise<void> {
     await this.findById(tenantId, id);
 
-    await this.drizzle.db
+    await this.drizzle.getDb()
       .update(warehouses)
       .set({
         deletedAt: new Date(),
@@ -251,7 +265,7 @@ export class WarehouseRepository {
     const warehouse = await this.findById(tenantId, warehouseId);
 
     // Get bin location statistics
-    const [binStats] = await this.drizzle.db
+    const [binStats] = await this.drizzle.getDb()
       .select({
         totalBins: count(),
         occupiedBins: sql<number>`COUNT(CASE WHEN ${binLocations.status} = 'occupied' THEN 1 END)`,
@@ -302,7 +316,7 @@ export class WarehouseRepository {
       throw new ConflictException('Capacity exceeds maximum warehouse capacity');
     }
 
-    await this.drizzle.db
+    await this.drizzle.getDb()
       .update(warehouses)
       .set({
         currentCapacityUnits: newCapacity.toString(),
@@ -320,7 +334,7 @@ export class WarehouseRepository {
 
   async updateBinLocationCounts(tenantId: string, warehouseId: string, userId: string): Promise<void> {
     // Get current bin location counts
-    const [binStats] = await this.drizzle.db
+    const [binStats] = await this.drizzle.getDb()
       .select({
         totalBins: count(),
         occupiedBins: sql<number>`COUNT(CASE WHEN ${binLocations.status} = 'occupied' THEN 1 END)`,
@@ -334,7 +348,7 @@ export class WarehouseRepository {
         )
       );
 
-    await this.drizzle.db
+    await this.drizzle.getDb()
       .update(warehouses)
       .set({
         totalBinLocations: binStats?.totalBins || 0,
@@ -352,7 +366,7 @@ export class WarehouseRepository {
   }
 
   async findByLocationId(tenantId: string, locationId: string): Promise<any> {
-    const [warehouse] = await this.drizzle.db
+    const [warehouse] = await this.drizzle.getDb()
       .select()
       .from(warehouses)
       .where(
@@ -368,7 +382,7 @@ export class WarehouseRepository {
   }
 
   async findActiveWarehouses(tenantId: string): Promise<any[]> {
-    return await this.drizzle.db
+    return await this.drizzle.getDb()
       .select()
       .from(warehouses)
       .where(
@@ -385,7 +399,7 @@ export class WarehouseRepository {
     const warehouse = await this.findById(tenantId, warehouseId);
     
     // Get zone statistics
-    const [zoneStats] = await this.drizzle.db
+    const [zoneStats] = await this.drizzle.getDb()
       .select({
         totalZones: count(),
         activeZones: sql<number>`COUNT(CASE WHEN ${warehouseZones.status} = 'active' THEN 1 END)`,
@@ -400,7 +414,7 @@ export class WarehouseRepository {
       );
 
     // Get bin location statistics by status
-    const binStatusStats = await this.drizzle.db
+    const binStatusStats = await this.drizzle.getDb()
       .select({
         status: binLocations.status,
         count: count(),
@@ -422,7 +436,9 @@ export class WarehouseRepository {
         active: zoneStats?.activeZones || 0,
       },
       binLocations: binStatusStats.reduce((acc, stat) => {
-        acc[stat.status] = stat.count;
+        if (stat.status) {
+          acc[stat.status] = stat.count;
+        }
         return acc;
       }, {} as Record<string, number>),
       capacity: await this.getCapacity(tenantId, warehouseId),

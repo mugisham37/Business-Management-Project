@@ -6,7 +6,6 @@ import {
   IsBoolean, 
   IsEnum, 
   IsUUID, 
-  IsObject, 
   IsArray, 
   Min, 
   Max,
@@ -16,7 +15,7 @@ import {
   IsPositive,
   IsDateString
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
 
 // Enums
 export enum WaveType {
@@ -55,13 +54,13 @@ export class CreatePickingWaveDto {
   @IsString()
   @IsNotEmpty()
   @Length(1, 50)
-  waveNumber: string;
+  waveNumber!: string;
 
   @ApiProperty({ description: 'Wave name' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 255)
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Wave description' })
   @IsOptional()
@@ -72,7 +71,7 @@ export class CreatePickingWaveDto {
   @ApiProperty({ description: 'Warehouse ID' })
   @IsUUID()
   @IsNotEmpty()
-  warehouseId: string;
+  warehouseId!: string;
 
   @ApiPropertyOptional({ description: 'Zone IDs included in wave' })
   @IsOptional()
@@ -115,7 +114,6 @@ export class CreatePickingWaveDto {
 
   @ApiPropertyOptional({ description: 'Configuration settings' })
   @IsOptional()
-  @IsObject()
   configuration?: Record<string, any>;
 
   @ApiPropertyOptional({ description: 'Notes' })
@@ -173,7 +171,6 @@ export class UpdatePickingWaveDto {
 
   @ApiPropertyOptional({ description: 'Configuration settings' })
   @IsOptional()
-  @IsObject()
   configuration?: Record<string, any>;
 
   @ApiPropertyOptional({ description: 'Notes' })
@@ -189,12 +186,12 @@ export class CreatePickListDto {
   @IsString()
   @IsNotEmpty()
   @Length(1, 50)
-  pickListNumber: string;
+  pickListNumber!: string;
 
   @ApiProperty({ description: 'Warehouse ID' })
   @IsUUID()
   @IsNotEmpty()
-  warehouseId: string;
+  warehouseId!: string;
 
   @ApiPropertyOptional({ description: 'Wave ID' })
   @IsOptional()
@@ -209,7 +206,7 @@ export class CreatePickListDto {
   @ApiProperty({ description: 'Order IDs in this pick list' })
   @IsArray()
   @IsUUID(4, { each: true })
-  orderIds: string[];
+  orderIds!: string[];
 
   @ApiPropertyOptional({ description: 'Pick list items' })
   @IsOptional()
@@ -270,7 +267,6 @@ export class UpdatePickListDto {
   @ApiPropertyOptional({ description: 'Issues encountered' })
   @IsOptional()
   @IsArray()
-  @IsObject({ each: true })
   issues?: Record<string, any>[];
 
   @ApiPropertyOptional({ description: 'Notes' })
@@ -285,7 +281,7 @@ export class CreatePickListItemDto {
   @ApiProperty({ description: 'Product ID' })
   @IsUUID()
   @IsNotEmpty()
-  productId: string;
+  productId!: string;
 
   @ApiPropertyOptional({ description: 'Product variant ID' })
   @IsOptional()
@@ -295,17 +291,17 @@ export class CreatePickListItemDto {
   @ApiProperty({ description: 'Bin location ID' })
   @IsUUID()
   @IsNotEmpty()
-  binLocationId: string;
+  binLocationId!: string;
 
   @ApiProperty({ description: 'Requested quantity' })
   @IsNumber()
   @IsPositive()
-  requestedQuantity: number;
+  requestedQuantity!: number;
 
   @ApiProperty({ description: 'Picking sequence' })
   @IsNumber()
   @Min(1)
-  pickingSequence: number;
+  pickingSequence!: number;
 
   @ApiPropertyOptional({ description: 'Batch number' })
   @IsOptional()
@@ -368,7 +364,6 @@ export class UpdatePickListItemDto {
   @ApiPropertyOptional({ description: 'Issues encountered' })
   @IsOptional()
   @IsArray()
-  @IsObject({ each: true })
   issues?: Record<string, any>[];
 
   @ApiPropertyOptional({ description: 'Notes' })
@@ -488,7 +483,7 @@ export class OptimizePickingRouteDto {
   @ApiProperty({ description: 'Bin location IDs to visit' })
   @IsArray()
   @IsUUID(4, { each: true })
-  binLocationIds: string[];
+  binLocationIds!: string[];
 
   @ApiPropertyOptional({ description: 'Starting location coordinates' })
   @IsOptional()
@@ -527,12 +522,12 @@ export class WavePlanningDto {
   @ApiProperty({ description: 'Warehouse ID' })
   @IsUUID()
   @IsNotEmpty()
-  warehouseId: string;
+  warehouseId!: string;
 
   @ApiProperty({ description: 'Order IDs to include in planning' })
   @IsArray()
   @IsUUID(4, { each: true })
-  orderIds: string[];
+  orderIds!: string[];
 
   @ApiPropertyOptional({ description: 'Maximum orders per wave' })
   @IsOptional()
@@ -565,7 +560,6 @@ export class WavePlanningDto {
 
   @ApiPropertyOptional({ description: 'Planning constraints' })
   @IsOptional()
-  @IsObject()
   constraints?: {
     maxWaveTime?: number; // minutes
     maxPickListDistance?: number; // meters
@@ -578,38 +572,38 @@ export class WavePlanningDto {
 export class PickingPerformanceDto {
   @ApiProperty({ description: 'Picker ID' })
   @IsUUID()
-  pickerId: string;
+  pickerId!: string;
 
   @ApiProperty({ description: 'Total picks completed' })
   @IsNumber()
   @Min(0)
-  totalPicks: number;
+  totalPicks!: number;
 
   @ApiProperty({ description: 'Total items picked' })
   @IsNumber()
   @Min(0)
-  totalItems: number;
+  totalItems!: number;
 
   @ApiProperty({ description: 'Average pick time (seconds)' })
   @IsNumber()
   @Min(0)
-  averagePickTime: number;
+  averagePickTime!: number;
 
   @ApiProperty({ description: 'Picking accuracy percentage' })
   @IsNumber()
   @Min(0)
   @Max(100)
-  accuracy: number;
+  accuracy!: number;
 
   @ApiProperty({ description: 'Total distance traveled (meters)' })
   @IsNumber()
   @Min(0)
-  totalDistance: number;
+  totalDistance!: number;
 
   @ApiProperty({ description: 'Items per hour' })
   @IsNumber()
   @Min(0)
-  itemsPerHour: number;
+  itemsPerHour!: number;
 
   @ApiPropertyOptional({ description: 'Performance period start' })
   @IsOptional()
@@ -627,12 +621,12 @@ export class BatchPickingDto {
   @ApiProperty({ description: 'Pick list IDs to batch' })
   @IsArray()
   @IsUUID(4, { each: true })
-  pickListIds: string[];
+  pickListIds!: string[];
 
   @ApiProperty({ description: 'Batch picker ID' })
   @IsUUID()
   @IsNotEmpty()
-  batchPickerId: string;
+  batchPickerId!: string;
 
   @ApiPropertyOptional({ description: 'Batch strategy' })
   @IsOptional()

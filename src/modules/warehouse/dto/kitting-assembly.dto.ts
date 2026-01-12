@@ -6,7 +6,6 @@ import {
   IsBoolean, 
   IsEnum, 
   IsUUID, 
-  IsObject, 
   IsArray, 
   Min, 
   Max,
@@ -77,18 +76,18 @@ export class KitComponentDto {
   @ApiProperty({ description: 'Product ID' })
   @IsUUID()
   @IsNotEmpty()
-  productId: string;
+  productId!: string;
 
   @ApiProperty({ description: 'Quantity required' })
   @IsNumber()
   @IsPositive()
-  quantity: number;
+  quantity!: number;
 
   @ApiProperty({ description: 'Unit of measure' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 20)
-  unitOfMeasure: string;
+  unitOfMeasure!: string;
 
   @ApiPropertyOptional({ description: 'Is component optional' })
   @IsOptional()
@@ -125,27 +124,27 @@ export class QualityCheckDto {
   @IsString()
   @IsNotEmpty()
   @Length(1, 100)
-  checkName: string;
+  checkName!: string;
 
   @ApiProperty({ description: 'Check type', enum: QualityCheckType })
   @IsEnum(QualityCheckType)
-  checkType: QualityCheckType;
+  checkType!: QualityCheckType;
 
   @ApiProperty({ description: 'Check description' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 500)
-  description: string;
+  description!: string;
 
   @ApiProperty({ description: 'Is check required' })
   @IsBoolean()
-  isRequired: boolean;
+  isRequired!: boolean;
 
   @ApiProperty({ description: 'Acceptance criteria' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 500)
-  acceptanceCriteria: string;
+  acceptanceCriteria!: string;
 
   @ApiPropertyOptional({ description: 'Required tools' })
   @IsOptional()
@@ -160,7 +159,7 @@ export class PackagingInfoDto {
   @IsString()
   @IsNotEmpty()
   @Length(1, 50)
-  packageType: string;
+  packageType!: string;
 
   @ApiPropertyOptional({ description: 'Package dimensions' })
   @IsOptional()
@@ -197,13 +196,13 @@ export class CreateKitDto {
   @IsString()
   @IsNotEmpty()
   @Length(1, 100)
-  kitSku: string;
+  kitSku!: string;
 
   @ApiProperty({ description: 'Kit name' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 255)
-  kitName: string;
+  kitName!: string;
 
   @ApiPropertyOptional({ description: 'Kit description' })
   @IsOptional()
@@ -213,13 +212,13 @@ export class CreateKitDto {
 
   @ApiProperty({ description: 'Kit type', enum: KitType })
   @IsEnum(KitType)
-  kitType: KitType;
+  kitType!: KitType;
 
   @ApiProperty({ description: 'Kit components' })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => KitComponentDto)
-  components: KitComponentDto[];
+  components!: KitComponentDto[];
 
   @ApiPropertyOptional({ description: 'Assembly instructions' })
   @IsOptional()
@@ -254,7 +253,7 @@ export class CreateKitDto {
 
   @ApiProperty({ description: 'Cost calculation method', enum: CostCalculation })
   @IsEnum(CostCalculation)
-  costCalculation: CostCalculation;
+  costCalculation!: CostCalculation;
 
   @ApiPropertyOptional({ description: 'Markup percentage (for markup calculation)' })
   @IsOptional()
@@ -354,25 +353,25 @@ export class UpdateKitDto {
 // Kit definition response DTO
 export class KitDefinitionDto {
   @ApiProperty({ description: 'Kit ID' })
-  kitId: string;
+  kitId!: string;
 
   @ApiProperty({ description: 'Kit SKU' })
-  kitSku: string;
+  kitSku!: string;
 
   @ApiProperty({ description: 'Kit name' })
-  kitName: string;
+  kitName!: string;
 
   @ApiPropertyOptional({ description: 'Kit description' })
   description?: string;
 
   @ApiProperty({ description: 'Kit type', enum: KitType })
-  kitType: KitType;
+  kitType!: KitType;
 
   @ApiProperty({ description: 'Is kit active' })
-  isActive: boolean;
+  isActive!: boolean;
 
   @ApiProperty({ description: 'Kit components' })
-  components: Array<{
+  components!: Array<{
     componentId: string;
     productId: string;
     sku: string;
@@ -393,7 +392,7 @@ export class KitDefinitionDto {
   assemblyTime?: number;
 
   @ApiProperty({ description: 'Required skill level', enum: SkillLevel })
-  skillLevel: SkillLevel;
+  skillLevel!: SkillLevel;
 
   @ApiPropertyOptional({ description: 'Quality checks' })
   qualityChecks?: Array<{
@@ -410,7 +409,7 @@ export class KitDefinitionDto {
   packaging?: PackagingInfoDto;
 
   @ApiProperty({ description: 'Cost calculation method', enum: CostCalculation })
-  costCalculation: CostCalculation;
+  costCalculation!: CostCalculation;
 
   @ApiPropertyOptional({ description: 'Markup percentage' })
   markup?: number;
@@ -424,12 +423,12 @@ export class CreateAssemblyWorkOrderDto {
   @ApiProperty({ description: 'Kit ID' })
   @IsUUID()
   @IsNotEmpty()
-  kitId: string;
+  kitId!: string;
 
   @ApiProperty({ description: 'Quantity to assemble' })
   @IsNumber()
   @IsPositive()
-  quantityToAssemble: number;
+  quantityToAssemble!: number;
 
   @ApiPropertyOptional({ description: 'Work order priority', enum: WorkOrderPriority })
   @IsOptional()
@@ -449,7 +448,7 @@ export class CreateAssemblyWorkOrderDto {
   @ApiProperty({ description: 'Warehouse ID' })
   @IsUUID()
   @IsNotEmpty()
-  warehouseId: string;
+  warehouseId!: string;
 
   @ApiPropertyOptional({ description: 'Work station ID' })
   @IsOptional()
@@ -502,25 +501,25 @@ export class UpdateAssemblyWorkOrderDto {
 // Assembly work order response DTO
 export class AssemblyWorkOrderDto {
   @ApiProperty({ description: 'Work order ID' })
-  workOrderId: string;
+  workOrderId!: string;
 
   @ApiProperty({ description: 'Work order number' })
-  workOrderNumber: string;
+  workOrderNumber!: string;
 
   @ApiProperty({ description: 'Kit ID' })
-  kitId: string;
+  kitId!: string;
 
   @ApiProperty({ description: 'Kit SKU' })
-  kitSku: string;
+  kitSku!: string;
 
   @ApiProperty({ description: 'Quantity to assemble' })
-  quantityToAssemble: number;
+  quantityToAssemble!: number;
 
   @ApiProperty({ description: 'Work order status', enum: WorkOrderStatus })
-  status: WorkOrderStatus;
+  status!: WorkOrderStatus;
 
   @ApiProperty({ description: 'Work order priority', enum: WorkOrderPriority })
-  priority: WorkOrderPriority;
+  priority!: WorkOrderPriority;
 
   @ApiPropertyOptional({ description: 'Scheduled date' })
   scheduledDate?: Date;
@@ -535,13 +534,13 @@ export class AssemblyWorkOrderDto {
   assignedTo?: string;
 
   @ApiProperty({ description: 'Warehouse ID' })
-  warehouseId: string;
+  warehouseId!: string;
 
   @ApiPropertyOptional({ description: 'Work station ID' })
   workStationId?: string;
 
   @ApiProperty({ description: 'Assembly components' })
-  components: Array<{
+  components!: Array<{
     componentId: string;
     productId: string;
     sku: string;
@@ -573,10 +572,10 @@ export class AssemblyWorkOrderDto {
   notes?: string;
 
   @ApiProperty({ description: 'Created by user ID' })
-  createdBy: string;
+  createdBy!: string;
 
   @ApiProperty({ description: 'Created timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 }
 
 // Component consumption DTO
@@ -584,12 +583,12 @@ export class ComponentConsumptionDto {
   @ApiProperty({ description: 'Component ID' })
   @IsString()
   @IsNotEmpty()
-  componentId: string;
+  componentId!: string;
 
   @ApiProperty({ description: 'Quantity consumed' })
   @IsNumber()
   @IsPositive()
-  quantityConsumed: number;
+  quantityConsumed!: number;
 
   @ApiPropertyOptional({ description: 'Lot numbers used' })
   @IsOptional()
@@ -609,16 +608,16 @@ export class QualityResultDto {
   @ApiProperty({ description: 'Quality check ID' })
   @IsString()
   @IsNotEmpty()
-  checkId: string;
+  checkId!: string;
 
   @ApiProperty({ description: 'Quality check name' })
   @IsString()
   @IsNotEmpty()
-  checkName: string;
+  checkName!: string;
 
   @ApiProperty({ description: 'Quality result', enum: QualityResult })
   @IsEnum(QualityResult)
-  result: QualityResult;
+  result!: QualityResult;
 
   @ApiPropertyOptional({ description: 'Result notes' })
   @IsOptional()
@@ -634,20 +633,20 @@ export class QualityResultDto {
   @ApiProperty({ description: 'Checked by user ID' })
   @IsUUID()
   @IsNotEmpty()
-  checkedBy: string;
+  checkedBy!: string;
 
   @ApiProperty({ description: 'Checked timestamp' })
   @IsDateString()
-  checkedAt: Date;
+  checkedAt!: Date;
 }
 
 // Kit cost analysis DTO
 export class KitCostAnalysisDto {
   @ApiProperty({ description: 'Kit definition' })
-  kit: KitDefinitionDto;
+  kit!: KitDefinitionDto;
 
   @ApiProperty({ description: 'Component costs' })
-  componentCosts: Array<{
+  componentCosts!: Array<{
     componentId: string;
     productId: string;
     sku: string;
@@ -657,46 +656,46 @@ export class KitCostAnalysisDto {
   }>;
 
   @ApiProperty({ description: 'Total component cost' })
-  totalComponentCost: number;
+  totalComponentCost!: number;
 
   @ApiProperty({ description: 'Labor cost' })
-  laborCost: number;
+  laborCost!: number;
 
   @ApiProperty({ description: 'Overhead cost' })
-  overheadCost: number;
+  overheadCost!: number;
 
   @ApiProperty({ description: 'Total kit cost' })
-  totalKitCost: number;
+  totalKitCost!: number;
 
   @ApiProperty({ description: 'Suggested selling price' })
-  suggestedSellingPrice: number;
+  suggestedSellingPrice!: number;
 
   @ApiProperty({ description: 'Profit margin percentage' })
-  profitMargin: number;
+  profitMargin!: number;
 }
 
 // Assembly metrics DTO
 export class AssemblyMetricsDto {
   @ApiProperty({ description: 'Total work orders' })
-  totalWorkOrders: number;
+  totalWorkOrders!: number;
 
   @ApiProperty({ description: 'Completed work orders' })
-  completedWorkOrders: number;
+  completedWorkOrders!: number;
 
   @ApiProperty({ description: 'Average assembly time in minutes' })
-  averageAssemblyTime: number;
+  averageAssemblyTime!: number;
 
   @ApiProperty({ description: 'On-time completion rate percentage' })
-  onTimeCompletionRate: number;
+  onTimeCompletionRate!: number;
 
   @ApiProperty({ description: 'Quality pass rate percentage' })
-  qualityPassRate: number;
+  qualityPassRate!: number;
 
   @ApiProperty({ description: 'Component shortage rate percentage' })
-  componentShortageRate: number;
+  componentShortageRate!: number;
 
   @ApiProperty({ description: 'Top kits by volume' })
-  topKitsByVolume: Array<{
+  topKitsByVolume!: Array<{
     kitId: string;
     kitSku: string;
     kitName: string;
@@ -705,7 +704,7 @@ export class AssemblyMetricsDto {
   }>;
 
   @ApiProperty({ description: 'Productivity by worker' })
-  productivityByWorker: Array<{
+  productivityByWorker!: Array<{
     workerId: string;
     workerName: string;
     workOrdersCompleted: number;
@@ -837,7 +836,7 @@ export class BulkCreateKitsDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateKitDto)
-  kits: CreateKitDto[];
+  kits!: CreateKitDto[];
 }
 
 export class BulkCreateWorkOrdersDto {
@@ -845,7 +844,7 @@ export class BulkCreateWorkOrdersDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateAssemblyWorkOrderDto)
-  workOrders: CreateAssemblyWorkOrderDto[];
+  workOrders!: CreateAssemblyWorkOrderDto[];
 }
 
 // Component substitution DTO
@@ -853,18 +852,18 @@ export class ComponentSubstitutionDto {
   @ApiProperty({ description: 'Component ID to substitute' })
   @IsString()
   @IsNotEmpty()
-  componentId: string;
+  componentId!: string;
 
   @ApiProperty({ description: 'Substitute product ID' })
   @IsUUID()
   @IsNotEmpty()
-  substituteProductId: string;
+  substituteProductId!: string;
 
   @ApiProperty({ description: 'Substitution reason' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 255)
-  reason: string;
+  reason!: string;
 
   @ApiPropertyOptional({ description: 'Substitution notes' })
   @IsOptional()
@@ -879,13 +878,13 @@ export class CloneKitDto {
   @IsString()
   @IsNotEmpty()
   @Length(1, 100)
-  newKitSku: string;
+  newKitSku!: string;
 
   @ApiProperty({ description: 'New kit name' })
   @IsString()
   @IsNotEmpty()
   @Length(1, 255)
-  newKitName: string;
+  newKitName!: string;
 
   @ApiPropertyOptional({ description: 'New kit description' })
   @IsOptional()
@@ -897,19 +896,19 @@ export class CloneKitDto {
 // Work station DTO
 export class WorkStationDto {
   @ApiProperty({ description: 'Work station ID' })
-  workStationId: string;
+  workStationId!: string;
 
   @ApiProperty({ description: 'Work station name' })
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Warehouse ID' })
-  warehouseId: string;
+  warehouseId!: string;
 
   @ApiProperty({ description: 'Station capabilities' })
-  capabilities: string[];
+  capabilities!: string[];
 
   @ApiProperty({ description: 'Is station active' })
-  isActive: boolean;
+  isActive!: boolean;
 
   @ApiPropertyOptional({ description: 'Current work order ID' })
   currentWorkOrder?: string;
