@@ -21,8 +21,8 @@ import { RequireFeature } from '../../tenant/decorators/tenant.decorators';
 import { RequirePermission } from '../../auth/decorators/auth.decorators';
 import { CurrentUser } from '../../auth/decorators/auth.decorators';
 import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
-import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
-import { CacheInterceptor } from '../../common/interceptors/cache.interceptor';
+import { LoggingInterceptor } from '../../common/interceptors';
+import { CacheInterceptor } from '../../common/interceptors';
 import { 
   KittingAssemblyService, 
   CreateKitDto, 
@@ -118,20 +118,21 @@ export class KittingAssemblyController {
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page' })
   @ApiResponse({ status: 200, description: 'Kits retrieved successfully' })
   async getKits(
+    @CurrentTenant() tenantId: string,
     @Query('kitType') kitType?: string,
     @Query('isActive') isActive?: string,
     @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-    @CurrentTenant() tenantId: string,
   ) {
-    const options = {
-      kitType,
-      isActive: isActive ? isActive === 'true' : undefined,
-      search,
+    const options: any = {
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,
     };
+
+    if (kitType !== undefined) options.kitType = kitType;
+    if (isActive !== undefined) options.isActive = isActive === 'true';
+    if (search !== undefined) options.search = search;
 
     const result = await this.kittingAssemblyService.getKits(tenantId, options);
     

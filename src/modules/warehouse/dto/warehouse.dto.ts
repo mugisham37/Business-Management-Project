@@ -7,6 +7,7 @@ import {
   IsEnum, 
   IsUUID, 
   IsArray, 
+  IsObject,
   Min, 
   Max,
   ValidateNested,

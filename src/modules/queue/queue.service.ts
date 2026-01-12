@@ -237,6 +237,54 @@ export class QueueService {
       throw error;
     }
   }
+
+  // Generic add method for backward compatibility and custom jobs
+  async add(jobName: string, data: any, options: JobOptions = {}): Promise<Job<any>> {
+    try {
+      // Route to appropriate queue based on job name
+      let queue: Queue;
+      let processName: string;
+
+      if (jobName.includes('email') || jobName.includes('notification')) {
+        queue = this.notificationsQueue;
+        processName = 'send-notification';
+      } else if (jobName.includes('report') || jobName.includes('analytics')) {
+        queue = this.analyticsQueue;
+        processName = 'process-analytics-event';
+      } else if (jobName.includes('sync') || jobName.includes('warehouse') || jobName.includes('inventory')) {
+        queue = this.syncQueue;
+        processName = 'sync-data';
+      } else {
+        // Default to sync queue for warehouse operations
+        queue = this.syncQueue;
+        processName = jobName;
+      }
+
+      const job = await queue.add(processName, data, {
+        priority: options.priority || 1,
+        delay: options.delay || 0,
+        attempts: options.attempts || 3,
+        timeout: 300000, // 5 minutes default timeout
+        ...options,
+      });
+
+      this.customLogger.log('Generic job added to queue', {
+        jobId: job.id,
+        jobName,
+        queueName: queue.name,
+        processName,
+      });
+
+      return job;
+    } catch (error) {
+      this.customLogger.error('Failed to add generic job', error instanceof Error ? error.stack : undefined, {
+        jobName,
+        data,
+        options,
+      });
+      throw error;
+    }
+  }
   async getQueueStats(): Promise<{
     email: any;
     reports: any;

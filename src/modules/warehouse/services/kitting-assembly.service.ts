@@ -342,7 +342,7 @@ export class KittingAssemblyService {
     kit = null;
 
     if (kit) {
-      await this.cacheService.set(cacheKey, kit, 3600); // 1 hour
+      await this.cacheService.set(cacheKey, kit, { ttl: 3600, tenantId }); // 1 hour
     }
 
     return kit;
@@ -361,7 +361,7 @@ export class KittingAssemblyService {
     kit = null;
 
     if (kit) {
-      await this.cacheService.set(cacheKey, kit, 3600); // 1 hour
+      await this.cacheService.set(cacheKey, kit, { ttl: 3600, tenantId }); // 1 hour
     }
 
     return kit;
@@ -397,7 +397,7 @@ export class KittingAssemblyService {
       totalPages: 0,
     };
 
-    await this.cacheService.set(cacheKey, result, 1800); // 30 minutes
+    await this.cacheService.set(cacheKey, result, { ttl: 1800, tenantId }); // 30 minutes
 
     return result;
   }
@@ -569,7 +569,7 @@ export class KittingAssemblyService {
     workOrder = null;
 
     if (workOrder) {
-      await this.cacheService.set(cacheKey, workOrder, 3600); // 1 hour
+      await this.cacheService.set(cacheKey, workOrder, { ttl: 3600, tenantId }); // 1 hour
     }
 
     return workOrder;

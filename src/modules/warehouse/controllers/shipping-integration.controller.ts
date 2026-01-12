@@ -21,8 +21,8 @@ import { RequireFeature } from '../../tenant/decorators/tenant.decorators';
 import { RequirePermission } from '../../auth/decorators/auth.decorators';
 import { CurrentUser } from '../../auth/decorators/auth.decorators';
 import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
-import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
-import { CacheInterceptor } from '../../common/interceptors/cache.interceptor';
+import { LoggingInterceptor } from '../../common/interceptors';
+import { CacheInterceptor } from '../../common/interceptors';
 import { ShippingIntegrationService, CreateShipmentDto } from '../services/shipping-integration.service';
 
 @Controller('api/v1/warehouse/shipping')

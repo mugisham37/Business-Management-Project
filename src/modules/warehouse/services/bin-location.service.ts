@@ -110,7 +110,7 @@ export class BinLocationService {
 
     if (!binLocation) {
       binLocation = await this.binLocationRepository.findById(tenantId, id);
-      await this.cacheService.set(cacheKey, binLocation, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, binLocation, { ttl: 300, tenantId }); // 5 minutes
     }
 
     return binLocation;
@@ -122,7 +122,7 @@ export class BinLocationService {
 
     if (!binLocation) {
       binLocation = await this.binLocationRepository.findByCode(tenantId, warehouseId, binCode);
-      await this.cacheService.set(cacheKey, binLocation, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, binLocation, { ttl: 300, tenantId }); // 5 minutes
     }
 
     return binLocation;
@@ -140,7 +140,7 @@ export class BinLocationService {
 
     if (!result) {
       result = await this.binLocationRepository.findMany(tenantId, query);
-      await this.cacheService.set(cacheKey, result, 180); // 3 minutes
+      await this.cacheService.set(cacheKey, result, { ttl: 180, tenantId }); // 3 minutes
     }
 
     return result;
@@ -152,7 +152,7 @@ export class BinLocationService {
 
     if (!binLocations) {
       binLocations = await this.binLocationRepository.findByZone(tenantId, zoneId);
-      await this.cacheService.set(cacheKey, binLocations, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, binLocations, { ttl: 300, tenantId }); // 5 minutes
     }
 
     return binLocations;
@@ -164,7 +164,7 @@ export class BinLocationService {
 
     if (!binLocations) {
       binLocations = await this.binLocationRepository.findByWarehouse(tenantId, warehouseId);
-      await this.cacheService.set(cacheKey, binLocations, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, binLocations, { ttl: 300, tenantId }); // 5 minutes
     }
 
     return binLocations;
@@ -176,7 +176,7 @@ export class BinLocationService {
 
     if (!binLocations) {
       binLocations = await this.binLocationRepository.findAvailable(tenantId, warehouseId, zoneId);
-      await this.cacheService.set(cacheKey, binLocations, 180); // 3 minutes
+      await this.cacheService.set(cacheKey, binLocations, { ttl: 180, tenantId }); // 3 minutes
     }
 
     return binLocations;
@@ -188,7 +188,7 @@ export class BinLocationService {
 
     if (!binLocations) {
       binLocations = await this.binLocationRepository.findByProduct(tenantId, productId, variantId);
-      await this.cacheService.set(cacheKey, binLocations, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, binLocations, { ttl: 300, tenantId }); // 5 minutes
     }
 
     return binLocations;
@@ -384,7 +384,7 @@ export class BinLocationService {
       );
       
       if (optimalBin) {
-        await this.cacheService.set(cacheKey, optimalBin, 60); // 1 minute (short cache for availability)
+        await this.cacheService.set(cacheKey, optimalBin, { ttl: 60, tenantId }); // 1 minute (short cache for availability)
       }
     }
 
@@ -401,7 +401,7 @@ export class BinLocationService {
 
     if (!route) {
       route = await this.binLocationRepository.getPickingRoute(tenantId, warehouseId, binLocationIds);
-      await this.cacheService.set(cacheKey, route, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, route, { ttl: 300, tenantId }); // 5 minutes
     }
 
     return route;
@@ -413,7 +413,7 @@ export class BinLocationService {
 
     if (!metrics) {
       metrics = await this.binLocationRepository.getBinLocationMetrics(tenantId, warehouseId, zoneId);
-      await this.cacheService.set(cacheKey, metrics, 180); // 3 minutes
+      await this.cacheService.set(cacheKey, metrics, { ttl: 180, tenantId }); // 3 minutes
     }
 
     return metrics;
