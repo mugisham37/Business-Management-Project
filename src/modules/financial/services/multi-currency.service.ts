@@ -49,6 +49,21 @@ export interface ConversionResult {
   rateSource: string;
 }
 
+export interface CurrencyRevaluation {
+  id: string;
+  tenantId: string;
+  currencyId: string;
+  newExchangeRate: number;
+  revaluationDate: Date;
+  fiscalYear: number;
+  fiscalPeriod: number;
+  totalGainLoss: number;
+  status: string;
+  createdBy?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 @Injectable()
 export class MultiCurrencyService {
   constructor(
@@ -473,11 +488,12 @@ export class MultiCurrencyService {
     newExchangeRate: number,
     revaluationDate: Date,
     fiscalYear: number,
-    fiscalPeriod: number
-  ): Promise<any> {
+    fiscalPeriod: number,
+    createdBy: string
+  ): Promise<CurrencyRevaluation> {
     // Simplified implementation - would need full transaction logic
     return {
-      id: 'placeholder',
+      id: `revaluation_${Date.now()}`,
       tenantId,
       currencyId,
       newExchangeRate,
@@ -486,6 +502,9 @@ export class MultiCurrencyService {
       fiscalPeriod,
       totalGainLoss: 0,
       status: 'draft',
+      createdBy,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
   }
 }

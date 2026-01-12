@@ -17,16 +17,18 @@ export interface TaxJurisdiction {
   jurisdictionName: string;
   jurisdictionType: string;
   country: string;
-  stateProvince?: string;
-  county?: string;
-  city?: string;
-  postalCode?: string;
-  taxAuthorityName?: string;
-  taxAuthorityId?: string;
+  stateProvince: string | null;
+  county: string | null;
+  city: string | null;
+  postalCode: string | null;
+  taxAuthorityName: string | null;
+  taxAuthorityId: string | null;
   isActive: boolean;
   effectiveDate: Date;
-  expirationDate?: Date;
+  expirationDate: Date | null;
   settings: Record<string, any>;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface TaxRate {
@@ -37,20 +39,22 @@ export interface TaxRate {
   taxName: string;
   taxCode: string;
   rate: number;
-  flatAmount: number;
+  flatAmount: number | null;
   calculationMethod: string;
-  compoundingOrder: number;
+  compoundingOrder: number | null;
   applicableToProducts: boolean;
   applicableToServices: boolean;
   applicableToShipping: boolean;
-  minimumTaxableAmount: number;
-  maximumTaxableAmount?: number;
+  minimumTaxableAmount: number | null;
+  maximumTaxableAmount: number | null;
   effectiveDate: Date;
-  expirationDate?: Date;
+  expirationDate: Date | null;
   isActive: boolean;
-  reportingCategory?: string;
-  glAccountId?: string;
+  reportingCategory: string | null;
+  glAccountId: string | null;
   settings: Record<string, any>;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface TaxCalculationInput {
@@ -88,19 +92,21 @@ export interface TaxReturn {
   periodStartDate: Date;
   periodEndDate: Date;
   filingStatus: string;
-  filingDate?: Date;
+  filingDate: Date | null;
   dueDate: Date;
   totalTaxableAmount: number;
   totalTaxAmount: number;
   totalPayments: number;
   amountDue: number;
-  preparedBy?: string;
-  reviewedBy?: string;
-  approvedBy?: string;
-  externalFilingId?: string;
-  confirmationNumber?: string;
+  preparedBy: string | null;
+  reviewedBy: string | null;
+  approvedBy: string | null;
+  externalFilingId: string | null;
+  confirmationNumber: string | null;
   attachments: any[];
-  notes?: string;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 @Injectable()
@@ -146,25 +152,27 @@ export class TaxService {
         conditions.push(eq(taxJurisdictions.isActive, true));
       }
 
-      jurisdictions = await this.drizzle.getDb()
+      const results = await this.drizzle.getDb()
         .select()
         .from(taxJurisdictions)
         .where(and(...conditions))
         .orderBy(asc(taxJurisdictions.jurisdictionName));
 
+      jurisdictions = results.map(jurisdiction => ({
+        ...jurisdiction,
+        stateProvince: jurisdiction.stateProvince || null,
+        county: jurisdiction.county || null,
+        city: jurisdiction.city || null,
+        postalCode: jurisdiction.postalCode || null,
+        taxAuthorityName: jurisdiction.taxAuthorityName || null,
+        taxAuthorityId: jurisdiction.taxAuthorityId || null,
+        expirationDate: jurisdiction.expirationDate || null,
+      })) as TaxJurisdiction[];
+
       await this.cacheService.set(cacheKey, jurisdictions, { ttl: 300 }); // 5 minutes
     }
 
-    return (jurisdictions || []).map(jurisdiction => ({
-      ...jurisdiction,
-      stateProvince: jurisdiction.stateProvince || '',
-      county: jurisdiction.county || '',
-      city: jurisdiction.city || '',
-      postalCode: jurisdiction.postalCode || '',
-      taxAuthorityName: jurisdiction.taxAuthorityName || '',
-      taxAuthorityId: jurisdiction.taxAuthorityId || '',
-    })) as TaxJurisdiction[];
-    })) as TaxJurisdiction[];
+    return jurisdictions;
   }
 
   async getJurisdictionByCode(tenantId: string, jurisdictionCode: string): Promise<TaxJurisdiction | null> {
@@ -199,21 +207,22 @@ export class TaxService {
       .insert(taxRates)
       .values({
         tenantId,
-        effectiveDate: data.effectiveDate || new Date(),
         jurisdictionId: data.jurisdictionId || '',
         taxType: data.taxType || '',
         taxName: data.taxName || '',
         taxCode: data.taxCode || '',
-        rate: data.rate || 0,
-        flatAmount: data.flatAmount || null,
+        rate: (data.rate || 0).toString(),
+        flatAmount: data.flatAmount?.toString() || '0.00',
         calculationMethod: data.calculationMethod || 'percentage',
-        compoundingOrder: data.compoundingOrder || null,
-        applicableToProducts: data.applicableToProducts || false,
-        applicableToServices: data.applicableToServices || false,
-        applicableToShipping: data.applicableToShipping || false,
-        minimumTaxableAmount: data.minimumTaxableAmount || null,
-        maximumTaxableAmount: data.maximumTaxableAmount || null,
+        compoundingOrder: data.compoundingOrder || 1,
+        applicableToProducts: data.applicableToProducts ?? true,
+        applicableToServices: data.applicableToServices ?? true,
+        applicableToShipping: data.applicableToShipping ?? false,
+        minimumTaxableAmount: data.minimumTaxableAmount?.toString() || '0.00',
+        maximumTaxableAmount: data.maximumTaxableAmount?.toString() || null,
+        effectiveDate: data.effectiveDate || new Date(),
         expirationDate: data.expirationDate || null,
+        reportingCategory: data.reportingCategory || null,
         glAccountId: data.glAccountId || null,
         settings: data.settings || {},
       })
@@ -258,20 +267,22 @@ export class TaxService {
         }
       }
 
-      rates = await this.drizzle.getDb()
+      const results = await this.drizzle.getDb()
         .select()
         .from(taxRates)
         .where(and(...conditions))
         .orderBy(asc(taxRates.compoundingOrder), asc(taxRates.taxName));
 
+      rates = results.map(rate => ({
+        ...rate,
+        rate: typeof rate.rate === 'string' ? parseFloat(rate.rate || '0') : rate.rate,
+        flatAmount: typeof rate.flatAmount === 'string' ? parseFloat(rate.flatAmount || '0') : rate.flatAmount,
+      })) as TaxRate[];
+
       await this.cacheService.set(cacheKey, rates, { ttl: 300 });
     }
 
-    return (rates || []).map(rate => ({
-      ...rate,
-      rate: typeof rate.rate === 'string' ? parseFloat(rate.rate || '0') : rate.rate,
-      flatAmount: typeof rate.flatAmount === 'string' ? parseFloat(rate.flatAmount || '0') : rate.flatAmount,
-    })) as TaxRate[];
+    return rates || [];
   }
 
   // Tax Calculation Engine
@@ -320,8 +331,6 @@ export class TaxService {
             roundingAdjustment: roundingAdjustment.toFixed(2),
             calculationDate,
             calculationMethod: rate.calculationMethod,
-            createdAt: new Date(),
-            updatedAt: new Date(),
           });
 
         calculations.push({
@@ -365,17 +374,19 @@ export class TaxService {
         periodStartDate: data.periodStartDate || new Date(),
         periodEndDate: data.periodEndDate || new Date(),
         filingDate: data.filingDate || null,
-        dueDate: data.dueDate || null,
-        totalTaxableAmount: data.totalTaxableAmount || '0.00',
-        totalTaxAmount: data.totalTaxAmount || '0.00',
-        totalPaymentsCredits: data.totalPaymentsCredits || '0.00',
-        balanceDue: data.balanceDue || '0.00',
-        refundAmount: data.refundAmount || '0.00',
-        status: data.status || 'draft',
-        filedBy: data.filedBy || null,
+        dueDate: data.dueDate || new Date(),
+        totalTaxableAmount: data.totalTaxableAmount?.toString() || '0.00',
+        totalTaxAmount: data.totalTaxAmount?.toString() || '0.00',
+        totalPayments: data.totalPayments?.toString() || '0.00',
+        amountDue: data.amountDue?.toString() || '0.00',
+        filingStatus: data.filingStatus || 'draft',
+        preparedBy: data.preparedBy || null,
         reviewedBy: data.reviewedBy || null,
+        approvedBy: data.approvedBy || null,
+        externalFilingId: data.externalFilingId || null,
+        confirmationNumber: data.confirmationNumber || null,
         notes: data.notes || null,
-        attachments: data.attachments || null,
+        attachments: data.attachments || [],
         updatedAt: new Date(),
       })
       .returning();
@@ -487,11 +498,9 @@ export class TaxService {
             lineNumber,
             lineDescription: rate[0].taxName || '',
             taxableAmount: group.taxableAmount.toFixed(2),
-            taxRate: (typeof rate[0].rate === 'string' ? rate[0].rate : rate[0].rate?.toString()) || '0',
+            taxRate: (typeof rate[0].rate === 'string' ? rate[0].rate : String(rate[0].rate || '0')),
             taxAmount: group.taxAmount.toFixed(2),
             calculationMethod: 'aggregated',
-            sourceType: null,
-            sourceId: null,
             sourceAccountId: null,
           });
         lineNumber++;
@@ -514,7 +523,7 @@ export class TaxService {
     if (productType === 'shipping' && !rate.applicableToShipping) return false;
 
     // Check amount thresholds
-    if (taxableAmount < rate.minimumTaxableAmount) return false;
+    if (rate.minimumTaxableAmount && taxableAmount < rate.minimumTaxableAmount) return false;
     if (rate.maximumTaxableAmount && taxableAmount > rate.maximumTaxableAmount) return false;
 
     // Check effective dates
@@ -529,7 +538,7 @@ export class TaxService {
       case 'percentage':
         return taxableAmount * rate.rate;
       case 'flat':
-        return rate.flatAmount;
+        return rate.flatAmount || 0;
       case 'tiered':
         // Implement tiered calculation based on settings
         return this.calculateTieredTax(rate, taxableAmount);
@@ -611,10 +620,10 @@ export class TaxService {
       ...taxReturn,
       totalTaxableAmount: typeof taxReturn.totalTaxableAmount === 'string' ? parseFloat(taxReturn.totalTaxableAmount || '0') : taxReturn.totalTaxableAmount,
       totalTaxAmount: typeof taxReturn.totalTaxAmount === 'string' ? parseFloat(taxReturn.totalTaxAmount || '0') : taxReturn.totalTaxAmount,
-      totalPaymentsCredits: typeof taxReturn.totalPaymentsCredits === 'string' ? parseFloat(taxReturn.totalPaymentsCredits || '0') : taxReturn.totalPaymentsCredits,
-      balanceDue: typeof taxReturn.balanceDue === 'string' ? parseFloat(taxReturn.balanceDue || '0') : taxReturn.balanceDue,
-      refundAmount: typeof taxReturn.refundAmount === 'string' ? parseFloat(taxReturn.refundAmount || '0') : taxReturn.refundAmount,
-      filingDate: taxReturn.filingDate || new Date(),
+      totalPayments: typeof taxReturn.totalPayments === 'string' ? parseFloat(taxReturn.totalPayments || '0') : taxReturn.totalPayments,
+      amountDue: typeof taxReturn.amountDue === 'string' ? parseFloat(taxReturn.amountDue || '0') : taxReturn.amountDue,
+      filingDate: taxReturn.filingDate || null,
+      attachments: taxReturn.attachments || [],
     } as TaxReturn;
   }
 }

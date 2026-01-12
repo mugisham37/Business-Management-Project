@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.module';
-import { CacheModule } from '../cache/cache.module';
+import { CacheConfigModule } from '../cache/cache.module';
 import { QueueModule } from '../queue/queue.module';
 
 // Services
@@ -45,7 +45,7 @@ import { TransactionPostedHandler } from './handlers/transaction-posted.handler'
 @Module({
   imports: [
     DatabaseModule,
-    CacheModule,
+    CacheConfigModule,
     QueueModule,
   ],
   providers: [

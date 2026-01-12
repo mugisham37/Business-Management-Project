@@ -2,7 +2,6 @@ import {
   Controller,
   Get,
   Post,
-  Put,
   Body,
   Param,
   Query,
@@ -11,7 +10,6 @@ import {
   HttpStatus,
   ParseUUIDPipe,
   ParseBoolPipe,
-  ParseIntPipe,
   ParseFloatPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
@@ -26,7 +24,8 @@ import {
   MultiCurrencyService, 
   Currency, 
   ExchangeRate, 
-  ConversionResult
+  ConversionResult,
+  CurrencyRevaluation
 } from '../services/multi-currency.service';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
