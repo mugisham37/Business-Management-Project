@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException, ForbiddenException 
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JournalEntryRepository } from '../repositories/journal-entry.repository';
 import { ChartOfAccountsService } from './chart-of-accounts.service';
-import { CreateJournalEntryDto, UpdateJournalEntryDto, JournalEntryStatus, JournalEntryQueryDto } from '../dto/journal-entry.dto';
+import { CreateJournalEntryDto, UpdateJournalEntryDto, JournalEntryStatus, JournalEntryQueryDto, JournalEntryResponseDto } from '../dto/journal-entry.dto';
 import { AccountingService } from './accounting.service';
 
 @Injectable()
@@ -40,8 +40,9 @@ export class JournalEntryService {
     return journalEntry;
   }
 
-  async findAllJournalEntries(tenantId: string, query: JournalEntryQueryDto = {}) {
-    return await this.journalEntryRepository.findAll(tenantId, query);
+  async findAllJournalEntries(tenantId: string, query: JournalEntryQueryDto = {}): Promise<JournalEntryResponseDto[]> {
+    const results = await this.journalEntryRepository.findAll(tenantId, query);
+    return results as JournalEntryResponseDto[];
   }
 
   async findJournalEntriesByAccount(tenantId: string, accountId: string, options?: {

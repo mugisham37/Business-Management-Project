@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { ChartOfAccountsRepository } from '../repositories/chart-of-accounts.repository';
-import { CreateChartOfAccountDto, UpdateChartOfAccountDto, AccountType, AccountSubType, NormalBalance } from '../dto/chart-of-accounts.dto';
+import { CreateChartOfAccountDto, UpdateChartOfAccountDto, AccountType, AccountSubType, NormalBalance, ChartOfAccountResponseDto, AccountHierarchyDto } from '../dto/chart-of-accounts.dto';
 import { IntelligentCacheService } from '../../cache/intelligent-cache.service';
 
 @Injectable()
@@ -87,7 +87,7 @@ export class ChartOfAccountsService {
     isActive?: boolean;
     parentAccountId?: string;
     includeInactive?: boolean;
-  }) {
+  }): Promise<ChartOfAccountResponseDto[]> {
     const cacheKey = `accounts:${tenantId}:${JSON.stringify(options || {})}`;
     let accounts = await this.cacheService.get(cacheKey);
 
@@ -96,10 +96,10 @@ export class ChartOfAccountsService {
       await this.cacheService.set(cacheKey, accounts, { ttl: 180 }); // 3 minutes
     }
 
-    return accounts;
+    return accounts as ChartOfAccountResponseDto[];
   }
 
-  async getAccountHierarchy(tenantId: string, rootAccountId?: string) {
+  async getAccountHierarchy(tenantId: string, rootAccountId?: string): Promise<AccountHierarchyDto[]> {
     const cacheKey = `account-hierarchy:${tenantId}:${rootAccountId || 'root'}`;
     let hierarchy = await this.cacheService.get(cacheKey);
 
@@ -108,7 +108,7 @@ export class ChartOfAccountsService {
       await this.cacheService.set(cacheKey, hierarchy, { ttl: 300 }); // 5 minutes
     }
 
-    return hierarchy;
+    return hierarchy as AccountHierarchyDto[];
   }
 
   async updateAccount(tenantId: string, id: string, dto: UpdateChartOfAccountDto, userId: string) {
@@ -148,7 +148,7 @@ export class ChartOfAccountsService {
     return deletedAccount;
   }
 
-  async getAccountsByType(tenantId: string, accountTypes: AccountType[]) {
+  async getAccountsByType(tenantId: string, accountTypes: AccountType[]): Promise<ChartOfAccountResponseDto[]> {
     const cacheKey = `accounts-by-type:${tenantId}:${accountTypes.join(',')}`;
     let accounts = await this.cacheService.get(cacheKey);
 
@@ -157,15 +157,16 @@ export class ChartOfAccountsService {
       await this.cacheService.set(cacheKey, accounts, { ttl: 300 }); // 5 minutes
     }
 
-    return accounts;
+    return accounts as ChartOfAccountResponseDto[];
   }
 
-  async searchAccounts(tenantId: string, searchTerm: string, limit = 20) {
+  async searchAccounts(tenantId: string, searchTerm: string, limit = 20): Promise<ChartOfAccountResponseDto[]> {
     if (!searchTerm || searchTerm.length < 2) {
       throw new BadRequestException('Search term must be at least 2 characters');
     }
 
-    return await this.chartOfAccountsRepository.searchAccounts(tenantId, searchTerm, limit);
+    const results = await this.chartOfAccountsRepository.searchAccounts(tenantId, searchTerm, limit);
+    return results as ChartOfAccountResponseDto[];
   }
 
   async updateAccountBalance(tenantId: string, accountId: string, newBalance: string) {
@@ -193,7 +194,7 @@ export class ChartOfAccountsService {
         let parentAccountId: string | undefined;
         if (accountData.parentAccountNumber) {
           const parentAccount = await this.findAccountByNumber(tenantId, accountData.parentAccountNumber);
-          parentAccountId = parentAccount?.id;
+          parentAccountId = parentAccount && typeof parentAccount === 'object' && 'id' in parentAccount ? parentAccount.id : undefined;
         }
 
         const account = await this.createAccount(tenantId, {

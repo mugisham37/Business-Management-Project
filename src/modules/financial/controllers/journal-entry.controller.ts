@@ -33,7 +33,7 @@ import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 @Controller('api/v1/financial/journal-entries')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('financial-management')
 @ApiTags('Financial')
 export class JournalEntryController {
@@ -88,12 +88,12 @@ export class JournalEntryController {
     @Query('status') status?: JournalEntryStatus,
     @Query('limit') limit?: number,
   ): Promise<JournalEntryResponseDto[]> {
-    const options = {
-      dateFrom: dateFrom ? new Date(dateFrom) : undefined,
-      dateTo: dateTo ? new Date(dateTo) : undefined,
-      status,
-      limit,
-    };
+    const options: { dateFrom?: Date; dateTo?: Date; status?: JournalEntryStatus; limit?: number } = {};
+    if (dateFrom) options.dateFrom = new Date(dateFrom);
+    if (dateTo) options.dateTo = new Date(dateTo);
+    if (status !== undefined) options.status = status;
+    if (limit !== undefined) options.limit = limit;
+    
     return await this.journalEntryService.findJournalEntriesByAccount(tenantId, accountId, options);
   }
 
@@ -126,11 +126,11 @@ export class JournalEntryController {
     @Query('dateTo') dateTo?: string,
     @Query('includeUnposted') includeUnposted?: boolean,
   ) {
-    const options = {
-      dateFrom: dateFrom ? new Date(dateFrom) : undefined,
-      dateTo: dateTo ? new Date(dateTo) : undefined,
-      includeUnposted,
-    };
+    const options: { dateFrom?: Date; dateTo?: Date; includeUnposted?: boolean } = {};
+    if (dateFrom) options.dateFrom = new Date(dateFrom);
+    if (dateTo) options.dateTo = new Date(dateTo);
+    if (includeUnposted !== undefined) options.includeUnposted = includeUnposted;
+    
     return await this.journalEntryService.getAccountLedger(tenantId, accountId, options);
   }
 

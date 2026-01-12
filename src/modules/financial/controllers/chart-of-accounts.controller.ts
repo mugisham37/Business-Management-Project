@@ -31,7 +31,7 @@ import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 @Controller('api/v1/financial/chart-of-accounts')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('financial-management')
 @ApiTags('Financial')
 export class ChartOfAccountsController {
@@ -66,12 +66,13 @@ export class ChartOfAccountsController {
     @Query('parentAccountId') parentAccountId?: string,
     @Query('includeInactive') includeInactive?: boolean,
   ): Promise<ChartOfAccountResponseDto[]> {
-    return await this.chartOfAccountsService.getAllAccounts(tenantId, {
-      accountType,
-      isActive,
-      parentAccountId,
-      includeInactive,
-    });
+    const filters: { accountType?: AccountType; isActive?: boolean; parentAccountId?: string; includeInactive?: boolean } = {};
+    if (accountType !== undefined) filters.accountType = accountType;
+    if (isActive !== undefined) filters.isActive = isActive;
+    if (parentAccountId !== undefined) filters.parentAccountId = parentAccountId;
+    if (includeInactive !== undefined) filters.includeInactive = includeInactive;
+    
+    return await this.chartOfAccountsService.getAllAccounts(tenantId, filters);
   }
 
   @Get('hierarchy')

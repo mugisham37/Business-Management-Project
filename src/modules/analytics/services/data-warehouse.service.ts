@@ -80,7 +80,8 @@ export class DataWarehouseService {
       const schemaName = `analytics_${tenantId.replace(/-/g, '_')}`;
 
       // Create schema
-      await this.drizzle.execute(sql`CREATE SCHEMA IF NOT EXISTS ${sql.identifier(schemaName)}`);
+      const db = this.drizzle.getDb();
+      await db.execute(sql`CREATE SCHEMA IF NOT EXISTS ${sql.identifier(schemaName)}`);
 
       // Create fact tables
       await this.createFactTables(schemaName);
@@ -109,7 +110,8 @@ export class DataWarehouseService {
       const schemaName = `analytics_${tenantId.replace(/-/g, '_')}`;
       
       // Test basic query
-      const result = await this.drizzle.execute(
+      const db = this.drizzle.getDb();
+      const result = await db.execute(
         sql`SELECT 1 as test FROM information_schema.schemata WHERE schema_name = ${schemaName} LIMIT 1`
       );
 
@@ -165,7 +167,8 @@ export class DataWarehouseService {
 
       // Execute query with timeout
       const timeoutMs = options.timeout || 30000; // 30 second default
-      const queryPromise = this.drizzle.execute(sql.raw(query, ...parameters));
+      const db = this.drizzle.getDb();
+      const queryPromise = db.execute(sql.raw(query, ...parameters));
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Query timeout')), timeoutMs)
       );

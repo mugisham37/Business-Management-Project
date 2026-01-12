@@ -36,6 +36,13 @@ export interface NotificationJobData {
   tenantId?: string;
 }
 
+export interface AnalyticsJobData {
+  eventType: string;
+  event: Record<string, any>;
+  tenantId?: string;
+  userId?: string;
+}
+
 @Injectable()
 export class QueueService {
   private readonly logger = new Logger(QueueService.name);
@@ -45,6 +52,7 @@ export class QueueService {
     @InjectQueue('reports') private readonly reportsQueue: Queue<ReportJobData>,
     @InjectQueue('sync') private readonly syncQueue: Queue<SyncJobData>,
     @InjectQueue('notifications') private readonly notificationsQueue: Queue<NotificationJobData>,
+    @InjectQueue('analytics') private readonly analyticsQueue: Queue<AnalyticsJobData>,
     private readonly customLogger: CustomLoggerService,
   ) {
     this.customLogger.setContext('QueueService');
@@ -199,7 +207,36 @@ export class QueueService {
     }
   }
 
-  // Queue management operations
+  // Analytics queue operations
+  async addAnalyticsJob(
+    data: AnalyticsJobData,
+    options: JobOptions = {}
+  ): Promise<Job<AnalyticsJobData>> {
+    try {
+      const job = await this.analyticsQueue.add('process-analytics-event', data, {
+        priority: options.priority || 2,
+        delay: options.delay || 0,
+        attempts: options.attempts || 3,
+        timeout: 300000, // 5 minutes timeout for analytics
+        ...options,
+      });
+
+      this.customLogger.log('Analytics job added to queue', {
+        jobId: job.id,
+        eventType: data.eventType,
+        tenantId: data.tenantId,
+        userId: data.userId,
+      });
+
+      return job;
+    } catch (error) {
+      this.customLogger.error('Failed to add analytics job', error instanceof Error ? error.stack : undefined, {
+        data,
+        options,
+      });
+      throw error;
+    }
+  }
   async getQueueStats(): Promise<{
     email: any;
     reports: any;

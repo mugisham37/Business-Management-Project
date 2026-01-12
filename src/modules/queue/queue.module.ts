@@ -6,6 +6,7 @@ import { EmailProcessor } from './processors/email.processor';
 import { ReportProcessor } from './processors/report.processor';
 import { SyncProcessor } from './processors/sync.processor';
 import { NotificationProcessor } from './processors/notification.processor';
+import { AnalyticsProcessor } from './processors/analytics.processor';
 import { CommunicationModule } from '../communication/communication.module';
 
 @Global()
@@ -45,6 +46,7 @@ import { CommunicationModule } from '../communication/communication.module';
       { name: 'reports' },
       { name: 'sync' },
       { name: 'notifications' },
+      { name: 'analytics' },
     ),
   ],
   providers: [
@@ -53,6 +55,7 @@ import { CommunicationModule } from '../communication/communication.module';
     ReportProcessor,
     SyncProcessor,
     NotificationProcessor,
+    AnalyticsProcessor,
   ],
   exports: [QueueService],
 })

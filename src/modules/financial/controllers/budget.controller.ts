@@ -24,7 +24,7 @@ import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 @Controller('api/v1/financial/budgets')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('financial-management')
 @ApiTags('Financial')
 export class BudgetController {
@@ -69,11 +69,12 @@ export class BudgetController {
     @Query('status') status?: string,
     @Query('budgetType') budgetType?: string,
   ) {
-    return await this.budgetService.findAllBudgets(tenantId, {
-      fiscalYear,
-      status,
-      budgetType,
-    });
+    const filters: { fiscalYear?: number; status?: string; budgetType?: string } = {};
+    if (fiscalYear !== undefined) filters.fiscalYear = fiscalYear;
+    if (status !== undefined) filters.status = status;
+    if (budgetType !== undefined) filters.budgetType = budgetType;
+    
+    return await this.budgetService.findAllBudgets(tenantId, filters);
   }
 
   @Get(':id')

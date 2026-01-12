@@ -24,7 +24,7 @@ import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 @Controller('api/v1/financial/reconciliations')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('financial-management')
 @ApiTags('Financial')
 export class ReconciliationController {
@@ -70,12 +70,10 @@ export class ReconciliationController {
     @Query('dateTo') dateTo?: string,
     @Query('status') status?: string,
   ) {
-    const options = {
-      accountId,
-      dateFrom: dateFrom ? new Date(dateFrom) : undefined,
-      dateTo: dateTo ? new Date(dateTo) : undefined,
-      status,
-    };
+    const options: { dateFrom?: Date; dateTo?: Date; status?: string; limit?: number } = {};
+    if (dateFrom) options.dateFrom = new Date(dateFrom);
+    if (dateTo) options.dateTo = new Date(dateTo);
+    if (status !== undefined) options.status = status;
     
     if (accountId) {
       return await this.reconciliationService.findReconciliationsByAccount(tenantId, accountId, options);
@@ -102,12 +100,12 @@ export class ReconciliationController {
     @Query('status') status?: string,
     @Query('limit') limit?: number,
   ) {
-    const options = {
-      dateFrom: dateFrom ? new Date(dateFrom) : undefined,
-      dateTo: dateTo ? new Date(dateTo) : undefined,
-      status,
-      limit,
-    };
+    const options: { dateFrom?: Date; dateTo?: Date; status?: string; limit?: number } = {};
+    if (dateFrom) options.dateFrom = new Date(dateFrom);
+    if (dateTo) options.dateTo = new Date(dateTo);
+    if (status !== undefined) options.status = status;
+    if (limit !== undefined) options.limit = limit;
+    
     return await this.reconciliationService.findReconciliationsByAccount(tenantId, accountId, options);
   }
 
@@ -173,11 +171,10 @@ export class ReconciliationController {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const updateData = {
-      ...dto,
-      reconciliationDate: dto.reconciliationDate ? new Date(dto.reconciliationDate) : undefined,
-      statementDate: dto.statementDate ? new Date(dto.statementDate) : undefined,
-    };
+    const updateData: any = { ...dto };
+    if (dto.reconciliationDate) updateData.reconciliationDate = new Date(dto.reconciliationDate);
+    if (dto.statementDate) updateData.statementDate = new Date(dto.statementDate);
+    
     return await this.reconciliationService.updateReconciliation(tenantId, id, updateData, user.id);
   }
 

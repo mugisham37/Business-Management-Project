@@ -320,7 +320,7 @@ export class BudgetService {
 
     // Copy budget lines
     for (const line of sourceBudget.lines) {
-      await this.budgetRepository.createBudgetLine(tenantId, {
+      const budgetLineData: any = {
         budgetId: newBudget.id,
         accountId: line.accountId,
         annualAmount: line.annualAmount,
@@ -329,11 +329,15 @@ export class BudgetService {
         q3Amount: line.q3Amount,
         q4Amount: line.q4Amount,
         monthlyAmounts: line.monthlyAmounts as Record<string, any>,
-        departmentId: line.departmentId || undefined,
-        projectId: line.projectId || undefined,
-        locationId: line.locationId || undefined,
-        notes: line.notes || undefined,
-      }, userId);
+      };
+
+      // Only add optional properties if they have values
+      if (line.departmentId) budgetLineData.departmentId = line.departmentId;
+      if (line.projectId) budgetLineData.projectId = line.projectId;
+      if (line.locationId) budgetLineData.locationId = line.locationId;
+      if (line.notes) budgetLineData.notes = line.notes;
+
+      await this.budgetRepository.createBudgetLine(tenantId, budgetLineData, userId);
     }
 
     return await this.getBudgetWithLines(tenantId, newBudget.id);

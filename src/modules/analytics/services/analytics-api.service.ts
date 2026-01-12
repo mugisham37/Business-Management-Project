@@ -137,8 +137,8 @@ export class AnalyticsAPIService {
         paginatedSQL,
         sqlParameters,
         {
-          useCache: options.useCache,
-          cacheTTL: options.cacheTTL,
+          useCache: options.useCache ?? false,
+          cacheTTL: options.cacheTTL ?? 300,
         }
       );
 
@@ -150,7 +150,7 @@ export class AnalyticsAPIService {
           tenantId,
           countSQL,
           sqlParameters,
-          { useCache: options.useCache }
+          { useCache: options.useCache ?? false }
         );
         totalRows = countResult.data[0]?.total_count || 0;
       }
@@ -200,7 +200,7 @@ export class AnalyticsAPIService {
         queries = await this.loadPredefinedQueries(tenantId);
         
         // Cache for 1 hour
-        await this.cacheService.set(cacheKey, queries, 3600);
+        await this.cacheService.set(cacheKey, queries, { ttl: 3600 });
       }
 
       return queries;
@@ -296,9 +296,10 @@ export class AnalyticsAPIService {
   async saveDashboard(tenantId: string, dashboard: Omit<Dashboard, 'id' | 'createdAt' | 'updatedAt'>, userId: string): Promise<Dashboard> {
     try {
       const now = new Date();
+      const dashboardId = `dashboard_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const fullDashboard: Dashboard = {
         ...dashboard,
-        id: dashboard.id || `dashboard_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: dashboardId,
         tenantId,
         createdAt: now,
         updatedAt: now,
@@ -348,7 +349,7 @@ export class AnalyticsAPIService {
         fields = await this.loadAvailableFields(tenantId);
         
         // Cache for 30 minutes
-        await this.cacheService.set(cacheKey, fields, 1800);
+        await this.cacheService.set(cacheKey, fields, { ttl: 1800 });
       }
 
       return fields;
@@ -565,7 +566,7 @@ export class AnalyticsAPIService {
     }
 
     const firstRow = data[0];
-    return Object.keys(firstRow).map(key => ({
+    return Object.keys(firstRow).map((key: string) => ({
       name: key,
       type: typeof firstRow[key],
       description: undefined,

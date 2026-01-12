@@ -83,8 +83,8 @@ export class AnalyticsQueryService {
         finalSQL,
         parameters,
         {
-          useCache: options.useCache,
-          cacheTTL: options.cacheTTL,
+          useCache: options.useCache ?? false,
+          cacheTTL: options.cacheTTL ?? 300,
         }
       );
 
@@ -214,7 +214,7 @@ export class AnalyticsQueryService {
 
     try {
       // Check for SQL injection patterns
-      const dangerousPatterns = [
+      const dangerousPatterns: Array<{ pattern: RegExp; message: string }> = [
         { pattern: /;\s*(drop|delete|truncate|alter|create|insert|update)\s+/i, message: 'Potentially dangerous SQL operation detected' },
         { pattern: /union\s+select/i, message: 'UNION SELECT detected - potential SQL injection' },
         { pattern: /--/, message: 'SQL comments detected' },
@@ -231,7 +231,7 @@ export class AnalyticsQueryService {
       }
 
       // Check for basic syntax issues
-      const syntaxChecks = [
+      const syntaxChecks: Array<{ pattern: RegExp; required: boolean; message: string }> = [
         { pattern: /select\s+.*\s+from\s+/i, required: true, message: 'Query must have SELECT and FROM clauses' },
         { pattern: /\bselect\s+\*/i, required: false, message: 'Consider specifying columns instead of SELECT *' },
         { pattern: /\bwhere\s+1\s*=\s*1/i, required: false, message: 'Avoid WHERE 1=1 conditions' },
@@ -248,7 +248,7 @@ export class AnalyticsQueryService {
       }
 
       // Check for performance issues
-      const performanceChecks = [
+      const performanceChecks: Array<{ pattern: RegExp; message: string }> = [
         { pattern: /\bselect\s+.*\s+from\s+.*\s+where\s+.*\s+like\s+'%.*%'/i, message: 'Leading wildcard in LIKE may cause performance issues' },
         { pattern: /\bselect\s+.*\s+from\s+.*(?!\s+where)/i, message: 'Query without WHERE clause may return too many rows' },
         { pattern: /\border\s+by\s+.*(?!\s+limit)/i, message: 'ORDER BY without LIMIT may cause performance issues' },
@@ -261,7 +261,7 @@ export class AnalyticsQueryService {
       }
 
     } catch (error) {
-      result.errors.push(`Query validation error: ${error.message}`);
+      result.errors.push(`Query validation error: ${error instanceof Error ? error.message : String(error)}`);
       result.isValid = false;
     }
 
@@ -334,7 +334,7 @@ export class AnalyticsQueryService {
     }
 
     const firstRow = data[0];
-    return Object.keys(firstRow).map(key => ({
+    return Object.keys(firstRow).map((key: string) => ({
       name: key,
       type: typeof firstRow[key],
       description: undefined,
@@ -607,7 +607,7 @@ class SQLPerformanceAnalyzer implements QueryPerformanceAnalyzer {
         ],
       };
     } catch (error) {
-      throw new Error(`Failed to analyze query: ${error.message}`);
+      throw new Error(`Failed to analyze query: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

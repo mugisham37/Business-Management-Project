@@ -55,7 +55,8 @@ export class AnalyticsRepository {
    */
   async storeEvent(event: AnalyticsEvent): Promise<void> {
     try {
-      await this.drizzle.execute(sql`
+      const db = this.drizzle.getDb();
+      await db.execute(sql`
         INSERT INTO analytics_events (
           id, tenant_id, event_type, entity_type, entity_id, 
           timestamp, data, metadata, created_at
@@ -85,6 +86,7 @@ export class AnalyticsRepository {
     limit: number = 1000
   ): Promise<AnalyticsEvent[]> {
     try {
+      const db = this.drizzle.getDb();
       let query = sql`
         SELECT id, tenant_id, event_type, entity_type, entity_id,
                timestamp, data, metadata
@@ -100,9 +102,20 @@ export class AnalyticsRepository {
 
       query = sql`${query} ORDER BY timestamp DESC LIMIT ${limit}`;
 
-      const results = await this.drizzle.execute(query);
+      const results = await db.execute(query);
 
-      return results.map(row => ({
+      return (results as any[]).map((row: any) => ({
         id: row.id,
         tenantId: row.tenant_id,
-        even
+        eventType: row.event_type,
+        entityType: row.entity_type,
+        entityId: row.entity_id,
+        timestamp: row.timestamp,
+        data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data,
+        metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata,
+      }));
+    } catch (error) {
+      this.logger.error(`Failed to get analytics events for tenant: ${tenantId}`, error);
+      throw error;
+    }
+  }

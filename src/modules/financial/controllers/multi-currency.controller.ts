@@ -32,7 +32,7 @@ import {
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 @Controller('api/v1/financial/multi-currency')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('multi-currency')
 @ApiTags('Multi-Currency')
 export class MultiCurrencyController {

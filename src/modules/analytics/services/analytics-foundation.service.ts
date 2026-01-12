@@ -104,12 +104,17 @@ export class AnalyticsFoundationService {
       };
 
       // Queue event for processing
-      await this.queueService.add('process-analytics-event', {
-        event: fullEvent,
-      }, {
-        priority: this.getEventPriority(event.eventType),
-        delay: 0,
-      });
+      await this.queueService.addAnalyticsJob(
+        {
+          eventType: event.eventType,
+          event: fullEvent,
+          tenantId: event.tenantId,
+        },
+        {
+          priority: this.getEventPriority(event.eventType),
+          delay: 0,
+        }
+      );
 
       // Update real-time metrics cache
       await this.updateRealTimeMetrics(event.tenantId, fullEvent);
@@ -137,7 +142,7 @@ export class AnalyticsFoundationService {
         
         if (config) {
           // Cache for 1 hour
-          await this.cacheService.set(cacheKey, config, 3600);
+          await this.cacheService.set(cacheKey, config, { ttl: 3600 });
         }
       }
 
@@ -196,7 +201,7 @@ export class AnalyticsFoundationService {
         definitions = await this.loadMetricDefinitions(tenantId);
         
         // Cache for 30 minutes
-        await this.cacheService.set(cacheKey, definitions, 1800);
+        await this.cacheService.set(cacheKey, definitions, { ttl: 1800 });
       }
 
       return definitions;
@@ -264,7 +269,7 @@ export class AnalyticsFoundationService {
         checks.push({
           name: 'Data Warehouse Connection',
           status: 'fail' as const,
-          message: `Connection failed: ${error.message}`,
+          message: `Connection failed: ${error instanceof Error ? error.message : String(error)}`,
           timestamp: new Date(),
         });
         overallStatus = 'unhealthy';
@@ -449,9 +454,12 @@ export class AnalyticsFoundationService {
 
   private async setupAggregationJobs(tenantId: string, config: AnalyticsConfiguration): Promise<void> {
     for (const interval of config.aggregationIntervals) {
-      await this.queueService.add(
-        'aggregate-metrics',
-        { tenantId, interval },
+      await this.queueService.addAnalyticsJob(
+        {
+          eventType: `aggregate-metrics`,
+          event: { tenantId, interval },
+          tenantId,
+        },
         {
           repeat: this.getRepeatOptions(interval),
           jobId: `aggregate-${tenantId}-${interval}`,
@@ -476,7 +484,7 @@ export class AnalyticsFoundationService {
   }
 
   private getEventPriority(eventType: string): number {
-    const priorities = {
+    const priorities: Record<string, number> = {
       'transaction_completed': 1, // Highest priority
       'inventory_changed': 2,
       'customer_created': 3,
@@ -512,7 +520,7 @@ export class AnalyticsFoundationService {
       tomorrow.setHours(0, 0, 0, 0);
       const ttl = Math.floor((tomorrow.getTime() - Date.now()) / 1000);
 
-      await this.cacheService.set(cacheKey, metrics, ttl);
+      await this.cacheService.set(cacheKey, metrics, { ttl });
     } catch (error) {
       this.logger.warn(`Failed to update real-time metrics: ${error.message}`);
     }
@@ -574,9 +582,12 @@ export class AnalyticsFoundationService {
 
   private async setupCustomMetricCalculation(tenantId: string, metric: MetricDefinition): Promise<void> {
     // Set up background job for custom metric calculation
-    await this.queueService.add(
-      'calculate-custom-metric',
-      { tenantId, metricName: metric.name },
+    await this.queueService.addAnalyticsJob(
+      {
+        eventType: 'calculate-custom-metric',
+        event: { tenantId, metricName: metric.name },
+        tenantId,
+      },
       {
         repeat: { cron: '*/15 * * * *' }, // Every 15 minutes
         jobId: `custom-metric-${tenantId}-${metric.name}`,

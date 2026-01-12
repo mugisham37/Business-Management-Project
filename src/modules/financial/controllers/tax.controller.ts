@@ -26,7 +26,7 @@ import { TaxService, TaxJurisdiction, TaxRate, TaxCalculationInput, TaxReturn } 
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 @Controller('api/v1/financial/tax')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('tax-management')
 @ApiTags('Tax Management')
 export class TaxController {
