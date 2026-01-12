@@ -84,13 +84,15 @@ export class LoyaltyRepository {
         conditions.push(lte(loyaltyTransactions.createdAt, new Date(query.endDate)));
       }
 
-      const whereClause = and(...conditions);
+      const whereClause = conditions.filter(Boolean).length > 0 
+        ? and(...(conditions.filter(Boolean) as any[])) 
+        : undefined;
 
       // Get total count
       const countResult = await this.drizzle.getDb()
         .select({ count: sql<number>`count(*)` })
         .from(loyaltyTransactions)
-        .where(whereClause);
+        .where(whereClause ?? sql`true`);
 
       const countData = (countResult as any) || [];
       const [{ count }] = countData.length > 0 ? countData : [{ count: 0 }];
@@ -107,7 +109,7 @@ export class LoyaltyRepository {
       const results = await this.drizzle.getDb()
         .select()
         .from(loyaltyTransactions)
-        .where(whereClause)
+        .where(whereClause ?? sql`true`)
         .orderBy(orderBy)
         .limit(limit)
         .offset(offset);
@@ -244,12 +246,12 @@ export class LoyaltyRepository {
             or(
               isNull(loyaltyRewards.startDate),
               lte(loyaltyRewards.startDate, now)
-            ),
+            ) as any,
             or(
               isNull(loyaltyRewards.endDate),
               gte(loyaltyRewards.endDate, now)
-            )
-          )
+            ) as any
+          ) as any
         );
       }
 
@@ -257,13 +259,15 @@ export class LoyaltyRepository {
         conditions.push(lte(loyaltyRewards.pointsRequired, query.maxPointsRequired));
       }
 
-      const whereClause = and(...conditions);
+      const whereClause = conditions.filter(Boolean).length > 0 
+        ? and(...(conditions.filter(Boolean) as any[])) 
+        : undefined;
 
       // Get total count
       const countResult = await this.drizzle.getDb()
         .select({ count: sql<number>`count(*)` })
         .from(loyaltyRewards)
-        .where(whereClause);
+        .where(whereClause ?? sql`true`);
 
       const countData = (countResult as any) || [];
       const [{ count }] = countData.length > 0 ? countData : [{ count: 0 }];
@@ -280,7 +284,7 @@ export class LoyaltyRepository {
       const results = await this.drizzle.getDb()
         .select()
         .from(loyaltyRewards)
-        .where(whereClause)
+        .where(whereClause ?? sql`true`)
         .orderBy(orderBy)
         .limit(limit)
         .offset(offset);
@@ -382,7 +386,7 @@ export class LoyaltyRepository {
   // Loyalty Campaigns
   async createCampaign(tenantId: string, data: CreateCampaignDto, userId: string): Promise<any> {
     try {
-      const [campaign] = await this.drizzle.getDb()
+      const campaign = (await this.drizzle.getDb()
         .insert(loyaltyCampaigns)
         .values({
           tenantId,
@@ -403,10 +407,15 @@ export class LoyaltyRepository {
           createdBy: userId,
           updatedBy: userId,
         })
-        .returning();
+        .returning()) as any;
 
-      this.logger.log(`Created loyalty campaign ${campaign.id} for tenant ${tenantId}`);
-      return this.mapCampaignToEntity(campaign);
+      const createdCampaign = campaign instanceof Array ? campaign[0] : campaign;
+      if (!createdCampaign) {
+        throw new Error('Failed to create loyalty campaign');
+      }
+
+      this.logger.log(`Created loyalty campaign ${createdCampaign.id} for tenant ${tenantId}`);
+      return this.mapCampaignToEntity(createdCampaign);
     } catch (error) {
       this.logger.error(`Failed to create loyalty campaign:`, error);
       throw error;

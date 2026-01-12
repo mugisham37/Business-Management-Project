@@ -212,7 +212,7 @@ export class LoyaltyService {
         balance = await this.loyaltyRepository.getCustomerPointsBalance(tenantId, customerId);
         
         // Cache for 5 minutes
-        await this.cacheService.set(cacheKey, balance, 300);
+        await this.cacheService.set(cacheKey, balance, { ttl: 300, tenantId });
       }
 
       return balance;
@@ -269,7 +269,7 @@ export class LoyaltyService {
         result = await this.loyaltyRepository.findRewards(tenantId, query);
         
         // Cache for 5 minutes
-        await this.cacheService.set(cacheKey, result, 300);
+        await this.cacheService.set(cacheKey, result, { ttl: 300, tenantId });
       }
 
       return result;
@@ -294,7 +294,7 @@ export class LoyaltyService {
         }
 
         // Cache for 10 minutes
-        await this.cacheService.set(cacheKey, reward, 600);
+        await this.cacheService.set(cacheKey, reward, { ttl: 600, tenantId });
       }
 
       return reward;
@@ -406,7 +406,7 @@ export class LoyaltyService {
         campaigns = await this.loyaltyRepository.findActiveCampaigns(tenantId);
         
         // Cache for 10 minutes
-        await this.cacheService.set(cacheKey, campaigns, 600);
+        await this.cacheService.set(cacheKey, campaigns, { ttl: 600, tenantId });
       }
 
       return campaigns;

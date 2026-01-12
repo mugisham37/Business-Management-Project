@@ -29,19 +29,19 @@ import {
   RewardQueryDto 
 } from '../dto/loyalty.dto';
 import { LoyaltyTransaction } from '../entities/customer.entity';
-import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
 import { RequireFeature } from '../../tenant/decorators/tenant.decorators';
 import { RequirePermission } from '../../auth/decorators/auth.decorators';
 import { CurrentUser } from '../../auth/decorators/auth.decorators';
 import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
-import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
-import { CacheInterceptor } from '../../common/interceptors/cache.interceptor';
+import { LoggingInterceptor } from '../../../common/interceptors/logging.interceptor';
+import { CacheInterceptor } from '../../../common/interceptors/cache.interceptor';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 @Controller('api/v1/loyalty')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('loyalty-program')
 @UseInterceptors(LoggingInterceptor)
 @ApiTags('Loyalty Program')
@@ -194,12 +194,14 @@ export class LoyaltyController {
     @CurrentTenant() tenantId: string,
   ) {
     const result = await this.loyaltyService.getLoyaltyTransactions(tenantId, query);
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
     
     return {
       ...result,
-      page: query.page,
-      limit: query.limit,
-      totalPages: Math.ceil(result.total / query.limit),
+      page,
+      limit,
+      totalPages: Math.ceil(result.total / limit),
     };
   }
 
@@ -266,12 +268,14 @@ export class LoyaltyController {
     @CurrentTenant() tenantId: string,
   ) {
     const result = await this.loyaltyService.getRewards(tenantId, query);
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
     
     return {
       ...result,
-      page: query.page,
-      limit: query.limit,
-      totalPages: Math.ceil(result.total / query.limit),
+      page,
+      limit,
+      totalPages: Math.ceil(result.total / limit),
     };
   }
 

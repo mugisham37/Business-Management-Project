@@ -56,8 +56,7 @@ export class CustomerService {
           throw new NotFoundException(`Customer ${id} not found`);
         }
 
-        // Cache for 5 minutes
-        await this.cacheService.set(cacheKey, customer, 300);
+        await this.cacheService.set(cacheKey, customer, { ttl: 300, tenantId });
       }
 
       return customer;
@@ -81,7 +80,7 @@ export class CustomerService {
         customer = await this.customerRepository.findByEmail(tenantId, email);
         
         // Cache for 5 minutes (including null results)
-        await this.cacheService.set(cacheKey, customer, 300);
+        await this.cacheService.set(cacheKey, customer, { ttl: 300, tenantId });
       }
 
       return customer;
@@ -102,7 +101,7 @@ export class CustomerService {
         customer = await this.customerRepository.findByPhone(tenantId, phone);
         
         // Cache for 5 minutes (including null results)
-        await this.cacheService.set(cacheKey, customer, 300);
+        await this.cacheService.set(cacheKey, customer, { ttl: 300, tenantId });
       }
 
       return customer;
@@ -123,7 +122,7 @@ export class CustomerService {
         result = await this.customerRepository.findMany(tenantId, query);
         
         // Cache for 2 minutes
-        await this.cacheService.set(cacheKey, result, 120);
+        await this.cacheService.set(cacheKey, result, { ttl: 120, tenantId });
       }
 
       return result;
@@ -292,7 +291,7 @@ export class CustomerService {
         };
 
         // Cache for 10 minutes
-        await this.cacheService.set(cacheKey, stats, 600);
+        await this.cacheService.set(cacheKey, stats, { ttl: 600, tenantId });
       }
 
       return stats;

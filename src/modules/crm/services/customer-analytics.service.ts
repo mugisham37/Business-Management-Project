@@ -120,7 +120,7 @@ export class CustomerAnalyticsService {
         };
 
         // Cache for 1 hour
-        await this.cacheService.set(cacheKey, ltvData, 3600);
+        await this.cacheService.set(cacheKey, ltvData, { ttl: 3600, tenantId });
       }
 
       return ltvData;
@@ -177,7 +177,7 @@ export class CustomerAnalyticsService {
         };
 
         // Cache for 6 hours
-        await this.cacheService.set(cacheKey, patterns, 21600);
+        await this.cacheService.set(cacheKey, patterns, { ttl: 21600, tenantId });
       }
 
       return patterns;
@@ -237,7 +237,7 @@ export class CustomerAnalyticsService {
         };
 
         // Cache for 2 hours
-        await this.cacheService.set(cacheKey, churnData, 7200);
+        await this.cacheService.set(cacheKey, churnData, { ttl: 7200, tenantId });
       }
 
       return churnData;
@@ -295,7 +295,7 @@ export class CustomerAnalyticsService {
         });
 
         // Cache for 1 hour
-        await this.cacheService.set(cacheKey, analytics, 3600);
+        await this.cacheService.set(cacheKey, analytics, { ttl: 3600, tenantId });
       }
 
       return analytics;
@@ -332,7 +332,7 @@ export class CustomerAnalyticsService {
         }));
 
         // Cache for 30 minutes
-        await this.cacheService.set(cacheKey, topCustomers, 1800);
+        await this.cacheService.set(cacheKey, topCustomers, { ttl: 1800, tenantId });
       }
 
       return topCustomers;
@@ -371,7 +371,7 @@ export class CustomerAnalyticsService {
         }));
 
         // Cache for 1 hour
-        await this.cacheService.set(cacheKey, atRiskCustomers, 3600);
+        await this.cacheService.set(cacheKey, atRiskCustomers, { ttl: 3600, tenantId });
       }
 
       return atRiskCustomers;
@@ -457,7 +457,7 @@ export class CustomerAnalyticsService {
         };
 
         // Cache for 2 hours
-        await this.cacheService.set(cacheKey, metrics, 7200);
+        await this.cacheService.set(cacheKey, metrics, { ttl: 7200, tenantId });
       }
 
       return metrics;

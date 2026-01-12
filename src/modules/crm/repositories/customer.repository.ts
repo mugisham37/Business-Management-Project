@@ -49,7 +49,7 @@ export class CustomerRepository {
           preferences: data.preferences || {},
           socialProfiles: data.socialProfiles || {},
         })
-        .returning() as any;
+        .returning()) as any;
 
       const [createdCustomer] = customer;
       if (!createdCustomer) {
@@ -139,7 +139,7 @@ export class CustomerRepository {
             ilike(customers.email, `%${query.search}%`),
             ilike(customers.phone, `%${query.search}%`),
             ilike(customers.customerNumber, `%${query.search}%`)
-          )
+          ) as any
         );
       }
 
@@ -490,6 +490,6 @@ export class CustomerRepository {
       createdAt: customer.createdAt,
       updatedAt: customer.updatedAt,
       deletedAt: customer.deletedAt,
-    };
+    } as Customer;
   }
 }

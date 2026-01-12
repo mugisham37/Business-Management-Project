@@ -183,7 +183,11 @@ export class AccountingService {
       `Sales transaction ${transactionData.transactionId}`,
       'pos_transaction',
       transactionData.transactionId,
-      journalLines,
+      journalLines.map(line => ({
+        ...line,
+        locationId: line.locationId || undefined,
+        customerId: line.customerId || undefined,
+      })),
       userId,
       true // Auto-post
     );
@@ -196,10 +200,11 @@ export class AccountingService {
     
     // Group accounts by type
     const accountsByType = (accounts || []).reduce((acc, account) => {
-      if (!acc[account.accountType]) {
-        acc[account.accountType] = [];
+      const accountType = account.accountType;
+      if (!acc[accountType]) {
+        acc[accountType] = [];
       }
-      acc[account.accountType].push(account);
+      acc[accountType].push(account);
       return acc;
     }, {} as Record<string, ChartOfAccount[]>);
 
