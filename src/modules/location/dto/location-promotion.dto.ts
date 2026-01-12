@@ -29,14 +29,14 @@ export enum PromotionTargetType {
 export class PromotionConditionDto {
   @ApiProperty({ description: 'Condition type (e.g., min_purchase, customer_type, day_of_week)' })
   @IsString()
-  type: string;
+  type!: string;
 
   @ApiProperty({ description: 'Condition operator (e.g., >=, <=, ==, in)' })
   @IsString()
-  operator: string;
+  operator!: string;
 
   @ApiProperty({ description: 'Condition value' })
-  value: any;
+  value!: any;
 
   @ApiPropertyOptional({ description: 'Additional condition parameters' })
   @IsOptional()
@@ -46,7 +46,7 @@ export class PromotionConditionDto {
 export class PromotionActionDto {
   @ApiProperty({ description: 'Action type (e.g., discount, free_item, points_multiplier)' })
   @IsString()
-  type: string;
+  type!: string;
 
   @ApiProperty({ description: 'Action value' })
   value: any;
@@ -59,7 +59,7 @@ export class PromotionActionDto {
 export class CreateLocationPromotionDto {
   @ApiProperty({ description: 'Promotion name' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Promotion description' })
   @IsOptional()
@@ -68,11 +68,11 @@ export class CreateLocationPromotionDto {
 
   @ApiProperty({ enum: PromotionType, description: 'Type of promotion' })
   @IsEnum(PromotionType)
-  promotionType: PromotionType;
+  promotionType!: PromotionType;
 
   @ApiProperty({ enum: PromotionTargetType, description: 'What the promotion targets' })
   @IsEnum(PromotionTargetType)
-  targetType: PromotionTargetType;
+  targetType!: PromotionTargetType;
 
   @ApiPropertyOptional({ description: 'Target product IDs (if targeting specific products)' })
   @IsOptional()
@@ -94,11 +94,11 @@ export class CreateLocationPromotionDto {
 
   @ApiProperty({ description: 'Promotion start date' })
   @IsDateString()
-  startDate: string;
+  startDate!: string;
 
   @ApiProperty({ description: 'Promotion end date' })
   @IsDateString()
-  endDate: string;
+  endDate!: string;
 
   @ApiPropertyOptional({ description: 'Discount percentage (for percentage discounts)' })
   @IsOptional()
@@ -349,7 +349,7 @@ export class ApplyPromotionDto {
 
   @ApiProperty({ description: 'Cart items' })
   @IsArray()
-  cartItems: Array<{
+  cartItems!: Array<{
     productId: string;
     quantity: number;
     unitPrice: number;
@@ -370,7 +370,7 @@ export class PromotionApplicationResultDto {
   applied!: boolean;
 
   @ApiProperty({ description: 'Promotion details' })
-  promotion: {
+  promotion!: {
     id: string;
     name: string;
     type: PromotionType;
@@ -389,11 +389,11 @@ export class PromotionApplicationResultDto {
   discountPercentage!: number;
 
   @ApiProperty({ description: 'Application details' })
-  details: Array<{
+  details!: Array<{
     itemId: string;
     originalPrice: number;
     discountedPrice: number;
-    discountAmount!: number;
+    discountAmount: number;
   }>;
 
   @ApiPropertyOptional({ description: 'Error message if promotion could not be applied' })

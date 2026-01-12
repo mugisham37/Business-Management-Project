@@ -445,9 +445,9 @@ export class ComparisonInsightsDto {
       }
     }
   })
-  recommendedActions: {
-    locationId!: string;
-    recommendations!: string[];
+  recommendedActions!: {
+    locationId: string;
+    recommendations: string[];
   }[];
 }
 
@@ -520,9 +520,9 @@ export class LocationBenchmarkReportDto {
 // Export query interfaces for service layer
 export interface ConsolidatedReportQuery {
   locationIds?: string[];
-  startDate!: Date;
-  endDate!: Date;
-  reportType!: 'financial' | 'inventory' | 'sales' | 'customer' | 'procurement' | 'comprehensive';
+  startDate: Date;
+  endDate: Date;
+  reportType: 'financial' | 'inventory' | 'sales' | 'customer' | 'procurement' | 'comprehensive';
   groupBy?: 'location' | 'region' | 'type' | 'manager';
   includeComparisons?: boolean;
   includeBenchmarks?: boolean;

@@ -29,10 +29,10 @@ export enum ABCClassification {
 }
 
 export interface InventoryPolicyRule {
-  type!: string;
-  condition!: string;
-  action!: string;
-  parameters!: Record<string, any>;
+  type: string;
+  condition: string;
+  action: string;
+  parameters: Record<string, any>;
   priority?: number;
 }
 
@@ -184,9 +184,9 @@ export class LocationInventoryPolicy {
    * Get stock status based on current levels
    */
   getStockStatus(currentStock: number, averageDailyDemand: number = 0): {
-    status!: 'critical' | 'low' | 'normal' | 'high' | 'overstocked';
-    recommendation!: string;
-    urgency!: 'low' | 'medium' | 'high' | 'critical';
+    status: 'critical' | 'low' | 'normal' | 'high' | 'overstocked';
+    recommendation: string;
+    urgency: 'low' | 'medium' | 'high' | 'critical';
   } {
     const safetyStockLevel = this.safetyStock || 0;
     const minLevel = this.minStockLevel || safetyStockLevel;

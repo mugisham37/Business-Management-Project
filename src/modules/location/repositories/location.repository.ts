@@ -1,14 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { eq, and, or, like, desc, asc, sql, inArray, isNull } from 'drizzle-orm';
+import { eq, and, or, like, desc, asc, sql } from 'drizzle-orm';
 import { DrizzleService } from '../../database/drizzle.service';
 import { 
   locations, 
-  locationPermissions, 
-  locationHierarchy, 
-  locationMetrics 
+  locationHierarchy
 } from '../../database/schema/location.schema';
 import { CreateLocationDto, UpdateLocationDto, LocationQueryDto } from '../dto/location.dto';
-import { Location, LocationPermission, LocationMetric, LocationHierarchy } from '../entities/location.entity';
+import { Location, LocationHierarchy } from '../entities/location.entity';
 
 @Injectable()
 export class LocationRepository {
@@ -18,6 +16,8 @@ export class LocationRepository {
 
   async create(tenantId: string, data: CreateLocationDto, userId: string): Promise<Location> {
     try {
+      const db = this.drizzle.getDb();
+      
       const locationData = {
         tenantId,
         name: data.name,
@@ -48,10 +48,15 @@ export class LocationRepository {
         updatedBy: userId,
       };
 
-      const [location] = await this.drizzle.db
+      const result = await db
         .insert(locations)
         .values(locationData)
         .returning();
+
+      const location = result[0];
+      if (!location) {
+        throw new Error('Failed to create location - no result returned');
+      }
 
       // If this location has a parent, update the hierarchy table
       if (data.parentLocationId) {
@@ -60,14 +65,18 @@ export class LocationRepository {
 
       return this.mapToEntity(location);
     } catch (error) {
-      this.logger.error(`Failed to create location: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to create location: ${errorMessage}`, errorStack);
       throw error;
     }
   }
 
   async findById(tenantId: string, id: string): Promise<Location | null> {
     try {
-      const [location] = await this.drizzle.db
+      const db = this.drizzle.getDb();
+      
+      const [location] = await db
         .select()
         .from(locations)
         .where(and(
@@ -78,14 +87,18 @@ export class LocationRepository {
 
       return location ? this.mapToEntity(location) : null;
     } catch (error) {
-      this.logger.error(`Failed to find location by ID: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find location by ID: ${errorMessage}`, errorStack);
       throw error;
     }
   }
 
   async findByCode(tenantId: string, code: string): Promise<Location | null> {
     try {
-      const [location] = await this.drizzle.db
+      const db = this.drizzle.getDb();
+      
+      const [location] = await db
         .select()
         .from(locations)
         .where(and(
@@ -96,13 +109,17 @@ export class LocationRepository {
 
       return location ? this.mapToEntity(location) : null;
     } catch (error) {
-      this.logger.error(`Failed to find location by code: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find location by code: ${errorMessage}`, errorStack);
       throw error;
     }
   }
 
   async findAll(tenantId: string, query: LocationQueryDto): Promise<{ locations: Location[]; total: number }> {
     try {
+      const db = this.drizzle.getDb();
+      
       const conditions = [
         eq(locations.tenantId, tenantId),
         eq(locations.isActive, true)
@@ -110,13 +127,14 @@ export class LocationRepository {
 
       // Add search conditions
       if (query.search) {
-        conditions.push(
-          or(
-            like(locations.name, `%${query.search}%`),
-            like(locations.code, `%${query.search}%`),
-            like(locations.description, `%${query.search}%`)
-          )
+        const searchCondition = or(
+          like(locations.name, `%${query.search}%`),
+          like(locations.code, `%${query.search}%`),
+          like(locations.description, `%${query.search}%`)
         );
+        if (searchCondition) {
+          conditions.push(searchCondition);
+        }
       }
 
       if (query.type) {
@@ -136,16 +154,18 @@ export class LocationRepository {
       }
 
       // Build the base query
-      const baseQuery = this.drizzle.db
+      const baseQuery = db
         .select()
         .from(locations)
         .where(and(...conditions));
 
       // Get total count
-      const [{ count }] = await this.drizzle.db
+      const countResult = await db
         .select({ count: sql<number>`count(*)` })
         .from(locations)
         .where(and(...conditions));
+
+      const total = countResult[0]?.count ?? 0;
 
       // Apply sorting
       const sortField = query.sortBy || 'name';
@@ -181,16 +201,20 @@ export class LocationRepository {
 
       return {
         locations: results.map(location => this.mapToEntity(location)),
-        total: count
+        total
       };
     } catch (error) {
-      this.logger.error(`Failed to find locations: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find locations: ${errorMessage}`, errorStack);
       throw error;
     }
   }
 
   async update(tenantId: string, id: string, data: UpdateLocationDto, userId: string): Promise<Location> {
     try {
+      const db = this.drizzle.getDb();
+      
       const updateData: any = {
         updatedBy: userId,
         updatedAt: new Date(),
@@ -220,7 +244,7 @@ export class LocationRepository {
       if (data.capacity !== undefined) updateData.capacity = data.capacity;
       if (data.featureFlags !== undefined) updateData.featureFlags = data.featureFlags;
 
-      const [location] = await this.drizzle.db
+      const [location] = await db
         .update(locations)
         .set(updateData)
         .where(and(
@@ -241,14 +265,18 @@ export class LocationRepository {
 
       return this.mapToEntity(location);
     } catch (error) {
-      this.logger.error(`Failed to update location: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to update location: ${errorMessage}`, errorStack);
       throw error;
     }
   }
 
   async delete(tenantId: string, id: string, userId: string): Promise<void> {
     try {
-      await this.drizzle.db
+      const db = this.drizzle.getDb();
+      
+      await db
         .update(locations)
         .set({
           isActive: false,
@@ -262,7 +290,7 @@ export class LocationRepository {
         ));
 
       // Clean up hierarchy entries
-      await this.drizzle.db
+      await db
         .update(locationHierarchy)
         .set({ isActive: false })
         .where(and(
@@ -273,14 +301,18 @@ export class LocationRepository {
           )
         ));
     } catch (error) {
-      this.logger.error(`Failed to delete location: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to delete location: ${errorMessage}`, errorStack);
       throw error;
     }
   }
 
   async findChildren(tenantId: string, parentId: string): Promise<Location[]> {
     try {
-      const results = await this.drizzle.db
+      const db = this.drizzle.getDb();
+      
+      const results = await db
         .select()
         .from(locations)
         .where(and(
@@ -292,14 +324,18 @@ export class LocationRepository {
 
       return results.map(location => this.mapToEntity(location));
     } catch (error) {
-      this.logger.error(`Failed to find child locations: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find child locations: ${errorMessage}`, errorStack);
       throw error;
     }
   }
 
   async findHierarchy(tenantId: string, locationId: string): Promise<LocationHierarchy[]> {
     try {
-      const results = await this.drizzle.db
+      const db = this.drizzle.getDb();
+      
+      const results = await db
         .select()
         .from(locationHierarchy)
         .where(and(
@@ -320,15 +356,19 @@ export class LocationRepository {
         isActive: hierarchy.isActive,
       }));
     } catch (error) {
-      this.logger.error(`Failed to find location hierarchy: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find location hierarchy: ${errorMessage}`, errorStack);
       throw error;
     }
   }
 
   private async updateHierarchy(locationId: string, parentLocationId: string | null, tenantId: string): Promise<void> {
     try {
+      const db = this.drizzle.getDb();
+      
       // Remove existing hierarchy entries for this location
-      await this.drizzle.db
+      await db
         .update(locationHierarchy)
         .set({ isActive: false })
         .where(and(
@@ -338,7 +378,7 @@ export class LocationRepository {
 
       if (parentLocationId) {
         // Add self-reference
-        await this.drizzle.db
+        await db
           .insert(locationHierarchy)
           .values({
             tenantId,
@@ -348,7 +388,7 @@ export class LocationRepository {
           });
 
         // Add parent relationships
-        const parentHierarchy = await this.drizzle.db
+        const parentHierarchy = await db
           .select()
           .from(locationHierarchy)
           .where(and(
@@ -358,7 +398,7 @@ export class LocationRepository {
           ));
 
         for (const parent of parentHierarchy) {
-          await this.drizzle.db
+          await db
             .insert(locationHierarchy)
             .values({
               tenantId,
@@ -369,7 +409,7 @@ export class LocationRepository {
         }
       } else {
         // Just add self-reference for root location
-        await this.drizzle.db
+        await db
           .insert(locationHierarchy)
           .values({
             tenantId,
@@ -379,13 +419,15 @@ export class LocationRepository {
           });
       }
     } catch (error) {
-      this.logger.error(`Failed to update location hierarchy: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to update location hierarchy: ${errorMessage}`, errorStack);
       throw error;
     }
   }
 
   private mapToEntity(location: any): Location {
-    return {
+    const entity: Location = {
       id: location.id,
       tenantId: location.tenantId,
       name: location.name,
@@ -402,9 +444,6 @@ export class LocationRepository {
       currency: location.currency,
       operatingHours: location.operatingHours,
       managerId: location.managerId,
-      latitude: location.latitude ? Number(location.latitude) : undefined,
-      longitude: location.longitude ? Number(location.longitude) : undefined,
-      squareFootage: location.squareFootage ? Number(location.squareFootage) : undefined,
       settings: location.settings,
       metrics: location.metrics,
       taxSettings: location.taxSettings,
@@ -420,5 +459,20 @@ export class LocationRepository {
       version: location.version,
       isActive: location.isActive,
     };
+
+    // Only add optional numeric properties if they exist and are valid
+    if (location.latitude !== null && location.latitude !== undefined) {
+      entity.latitude = Number(location.latitude);
+    }
+    
+    if (location.longitude !== null && location.longitude !== undefined) {
+      entity.longitude = Number(location.longitude);
+    }
+    
+    if (location.squareFootage !== null && location.squareFootage !== undefined) {
+      entity.squareFootage = Number(location.squareFootage);
+    }
+
+    return entity;
   }
 }

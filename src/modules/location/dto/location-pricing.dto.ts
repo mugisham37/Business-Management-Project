@@ -247,16 +247,16 @@ export class PriceCalculationResultDto {
   discountPercentage!: number;
 
   @ApiProperty({ description: 'Applied pricing rules' })
-  appliedRules: Array<{
+  appliedRules!: Array<{
     ruleId: string;
     ruleName: string;
     ruleType: PricingRuleType;
     value: number;
-    discountAmount!: number;
+    discountAmount: number;
   }>;
 
   @ApiProperty({ description: 'Calculation breakdown' })
-  breakdown: Array<{
+  breakdown!: Array<{
     step: string;
     description: string;
     amount: number;

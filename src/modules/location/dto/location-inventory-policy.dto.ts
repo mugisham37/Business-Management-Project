@@ -338,10 +338,10 @@ export class InventoryRecommendationDto {
   expectedStockOutDate?: Date;
 
   @ApiProperty({ description: 'Applied policies' })
-  appliedPolicies: Array<{
-    policyId!: string;
-    policyName!: string;
-    policyType!: InventoryPolicyType;
+  appliedPolicies!: Array<{
+    policyId: string;
+    policyName: string;
+    policyType: InventoryPolicyType;
   }>;
 }
 
@@ -353,6 +353,7 @@ export class BulkInventoryPolicyUpdateDto {
 
   @ApiProperty({ description: 'Policy updates to apply' })
   @ValidateNested()
+  
   @Type(() => UpdateLocationInventoryPolicyDto)
   updates!: UpdateLocationInventoryPolicyDto;
 

@@ -16,9 +16,9 @@ export enum PricingRuleStatus {
 }
 
 export interface PricingRuleCondition {
-  type!: string;
-  operator!: string;
-  value!: any;
+  type: string;
+  operator: string;
+  value: any;
   parameters?: Record<string, any>;
 }
 
@@ -141,7 +141,8 @@ export class LocationPricingRule {
         // For bulk discount, apply discount based on quantity tiers
         return basePrice * (1 - this.value / 100);
       
-      default!: return basePrice;
+      default:
+        return basePrice;
     }
   }
 

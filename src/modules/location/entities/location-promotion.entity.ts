@@ -25,15 +25,15 @@ export enum PromotionTargetType {
 }
 
 export interface PromotionCondition {
-  type!: string;
-  operator!: string;
-  value!: any;
+  type: string;
+  operator: string;
+  value: any;
   parameters?: Record<string, any>;
 }
 
 export interface PromotionAction {
-  type!: string;
-  value!: any;
+  type: string;
+  value: any;
   parameters?: Record<string, any>;
 }
 
@@ -176,7 +176,8 @@ export class LocationPromotion {
       case PromotionTargetType.PRODUCT_CATEGORIES:
         return categoryId ? (this.targetCategoryIds?.includes(categoryId) || false) : false;
       
-      default!: return false;
+      default:
+        return false;
     }
   }
 
