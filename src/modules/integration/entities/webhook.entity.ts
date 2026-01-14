@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { AuthType } from './integration.entity';
+
+export enum AuthType {
+  OAUTH2 = 'oauth2',
+  API_KEY = 'api_key',
+  BASIC_AUTH = 'basic_auth',
+  BEARER_TOKEN = 'bearer_token',
+  CUSTOM = 'custom',
+}
 
 export enum WebhookStatus {
   ACTIVE = 'active',

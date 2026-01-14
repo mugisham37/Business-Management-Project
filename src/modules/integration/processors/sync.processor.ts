@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
 
 import { SyncService } from '../services/sync.service';
+import { SyncType } from '../entities/sync-log.entity';
 
 @Processor('sync-queue')
 export class SyncProcessor {
@@ -30,7 +31,7 @@ export class SyncProcessor {
     
     try {
       await this.syncService.triggerSync(integrationId, {
-        type: 'incremental',
+        type: SyncType.INCREMENTAL,
         triggeredBy: 'scheduled',
         tenantId: '', // Will be fetched from integration
       });

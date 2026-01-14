@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DrizzleService } from '../../database/drizzle.service';
 import { IntelligentCacheService } from '../../cache/intelligent-cache.service';
-import { SyncLog, SyncStatus, SyncType, SyncStatistics } from '../entities/sync-log.entity';
+import { SyncLog, SyncStatus, SyncStatistics } from '../entities/sync-log.entity';
 import { syncLogs } from '../../database/schema/integration.schema';
 import { eq, and, desc, gte, lte, count, avg, sum, max } from 'drizzle-orm';
 
@@ -15,32 +15,67 @@ export class SyncLogRepository {
   ) {}
 
   /**
+   * Map database result to entity
+   */
+  private mapToEntity(dbResult: any): SyncLog {
+    return {
+      id: dbResult.id,
+      integrationId: dbResult.integrationId,
+      tenantId: dbResult.tenantId,
+      type: dbResult.syncType,
+      status: dbResult.status,
+      triggeredBy: dbResult.triggeredBy,
+      startedAt: dbResult.startedAt,
+      completedAt: dbResult.completedAt,
+      duration: dbResult.duration,
+      recordsProcessed: dbResult.recordsProcessed || 0,
+      recordsCreated: dbResult.recordsSucceeded || 0,
+      recordsUpdated: 0, // Not tracked separately in DB
+      recordsDeleted: dbResult.recordsFailed || 0,
+      recordsSkipped: dbResult.recordsSkipped || 0,
+      options: dbResult.summary || {},
+      conflicts: dbResult.summary?.conflicts || [],
+      errors: dbResult.errors || [],
+      metadata: dbResult.triggerData || {},
+      createdAt: dbResult.createdAt,
+      updatedAt: dbResult.updatedAt,
+    };
+  }
+
+  /**
    * Create a new sync log entry
    */
   async create(data: Partial<SyncLog>): Promise<SyncLog> {
     this.logger.debug(`Creating sync log for integration: ${data.integrationId}`);
 
-    const syncLog = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const [syncLog] = await db
       .insert(syncLogs)
       .values({
-        id: crypto.randomUUID(),
         integrationId: data.integrationId!,
         tenantId: data.tenantId!,
-        type: data.type!,
+        syncType: data.type!,
+        direction: 'bidirectional', // Default direction
         status: data.status!,
         triggeredBy: data.triggeredBy!,
         startedAt: data.startedAt!,
-        options: data.options || {},
-        metadata: data.metadata || {},
+        summary: data.options || {},
+        errors: data.errors || [],
+        warnings: [],
         createdAt: new Date(),
         updatedAt: new Date(),
-      })
+      } as any)
       .returning();
 
     // Invalidate cache
     await this.invalidateCache(data.integrationId!, data.tenantId!);
 
-    return syncLog[0] as SyncLog;
+    // Map database result to entity
+    return this.mapToEntity(syncLog);
   }
 
   /**
@@ -49,20 +84,37 @@ export class SyncLogRepository {
   async update(syncId: string, data: Partial<SyncLog>): Promise<SyncLog> {
     this.logger.debug(`Updating sync log: ${syncId}`);
 
-    const updated = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+
+    // Map entity fields to database columns
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.completedAt !== undefined) updateData.completedAt = data.completedAt;
+    if (data.duration !== undefined) updateData.duration = data.duration;
+    if (data.recordsProcessed !== undefined) updateData.recordsProcessed = data.recordsProcessed;
+    if (data.recordsCreated !== undefined) updateData.recordsSucceeded = data.recordsCreated;
+    if (data.recordsUpdated !== undefined) updateData.recordsSucceeded = (updateData.recordsSucceeded || 0) + data.recordsUpdated;
+    if (data.recordsSkipped !== undefined) updateData.recordsSkipped = data.recordsSkipped;
+    if (data.errors !== undefined) updateData.errors = data.errors;
+    if (data.conflicts !== undefined) updateData.summary = { ...updateData.summary, conflicts: data.conflicts };
+
+    const [updated] = await db
       .update(syncLogs)
-      .set({
-        ...data,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(syncLogs.id, syncId))
       .returning();
 
-    if (updated.length === 0) {
+    if (!updated) {
       throw new Error(`Sync log not found: ${syncId}`);
     }
 
-    const syncLog = updated[0] as SyncLog;
+    const syncLog = this.mapToEntity(updated);
 
     // Invalidate cache
     await this.invalidateCache(syncLog.integrationId, syncLog.tenantId);
@@ -81,7 +133,12 @@ export class SyncLogRepository {
       return syncLog;
     }
 
-    const result = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const [result] = await db
       .select()
       .from(syncLogs)
       .where(and(
@@ -90,10 +147,14 @@ export class SyncLogRepository {
       ))
       .limit(1);
 
-    syncLog = result[0] as SyncLog || null;
+    if (!result) {
+      return null;
+    }
+
+    syncLog = this.mapToEntity(result);
 
     if (syncLog) {
-      await this.cacheService.set(cacheKey, syncLog, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, syncLog, { ttl: 300 }); // 5 minutes
     }
 
     return syncLog;
@@ -109,12 +170,17 @@ export class SyncLogRepository {
   ): Promise<SyncLog[]> {
     const cacheKey = `sync-logs:${integrationId}:${tenantId}:${limit}`;
     
-    let syncLogs = await this.cacheService.get<SyncLog[]>(cacheKey);
-    if (syncLogs) {
-      return syncLogs;
+    let cachedLogs = await this.cacheService.get<SyncLog[]>(cacheKey);
+    if (cachedLogs) {
+      return cachedLogs;
     }
 
-    const result = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const results = await db
       .select()
       .from(syncLogs)
       .where(and(
@@ -124,11 +190,11 @@ export class SyncLogRepository {
       .orderBy(desc(syncLogs.startedAt))
       .limit(limit);
 
-    syncLogs = result as SyncLog[];
+    const mappedLogs = results.map(r => this.mapToEntity(r));
 
-    await this.cacheService.set(cacheKey, syncLogs, 300); // 5 minutes
+    await this.cacheService.set(cacheKey, mappedLogs, { ttl: 300 }); // 5 minutes
 
-    return syncLogs;
+    return mappedLogs;
   }
 
   /**
@@ -145,7 +211,12 @@ export class SyncLogRepository {
       return syncLog;
     }
 
-    const result = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const [result] = await db
       .select()
       .from(syncLogs)
       .where(and(
@@ -156,10 +227,14 @@ export class SyncLogRepository {
       .orderBy(desc(syncLogs.completedAt))
       .limit(1);
 
-    syncLog = result[0] as SyncLog || null;
+    if (!result) {
+      return null;
+    }
+
+    syncLog = this.mapToEntity(result);
 
     if (syncLog) {
-      await this.cacheService.set(cacheKey, syncLog, 600); // 10 minutes
+      await this.cacheService.set(cacheKey, syncLog, { ttl: 600 }); // 10 minutes
     }
 
     return syncLog;
@@ -176,13 +251,18 @@ export class SyncLogRepository {
       return stats;
     }
 
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
     // Get basic counts
-    const totalSyncsResult = await this.drizzle.db
+    const [totalSyncsResult] = await db
       .select({ count: count() })
       .from(syncLogs)
       .where(eq(syncLogs.integrationId, integrationId));
 
-    const successfulSyncsResult = await this.drizzle.db
+    const [successfulSyncsResult] = await db
       .select({ count: count() })
       .from(syncLogs)
       .where(and(
@@ -190,7 +270,7 @@ export class SyncLogRepository {
         eq(syncLogs.status, SyncStatus.COMPLETED)
       ));
 
-    const failedSyncsResult = await this.drizzle.db
+    const [failedSyncsResult] = await db
       .select({ count: count() })
       .from(syncLogs)
       .where(and(
@@ -199,13 +279,13 @@ export class SyncLogRepository {
       ));
 
     // Get last sync timestamp
-    const lastSyncResult = await this.drizzle.db
+    const [lastSyncResult] = await db
       .select({ lastSyncAt: max(syncLogs.startedAt) })
       .from(syncLogs)
       .where(eq(syncLogs.integrationId, integrationId));
 
     // Get average duration
-    const avgDurationResult = await this.drizzle.db
+    const [avgDurationResult] = await db
       .select({ avgDuration: avg(syncLogs.duration) })
       .from(syncLogs)
       .where(and(
@@ -214,23 +294,23 @@ export class SyncLogRepository {
       ));
 
     // Get total records processed
-    const totalRecordsResult = await this.drizzle.db
+    const [totalRecordsResult] = await db
       .select({ totalRecords: sum(syncLogs.recordsProcessed) })
       .from(syncLogs)
       .where(eq(syncLogs.integrationId, integrationId));
 
     stats = {
-      totalSyncs: totalSyncsResult[0]?.count || 0,
-      successfulSyncs: successfulSyncsResult[0]?.count || 0,
-      failedSyncs: failedSyncsResult[0]?.count || 0,
-      lastSyncAt: lastSyncResult[0]?.lastSyncAt || undefined,
-      averageDuration: Number(avgDurationResult[0]?.avgDuration) || 0,
-      totalRecordsProcessed: Number(totalRecordsResult[0]?.totalRecords) || 0,
+      totalSyncs: totalSyncsResult?.count || 0,
+      successfulSyncs: successfulSyncsResult?.count || 0,
+      failedSyncs: failedSyncsResult?.count || 0,
+      lastSyncAt: lastSyncResult?.lastSyncAt || null,
+      averageDuration: Number(avgDurationResult?.avgDuration) || 0,
+      totalRecordsProcessed: Number(totalRecordsResult?.totalRecords) || 0,
       totalConflicts: 0, // Would need to calculate from conflicts array
       syncFrequency: 0, // Would need to calculate based on time intervals
     };
 
-    await this.cacheService.set(cacheKey, stats, 600); // 10 minutes
+    await this.cacheService.set(cacheKey, stats, { ttl: 600 }); // 10 minutes
 
     return stats;
   }
@@ -239,7 +319,12 @@ export class SyncLogRepository {
    * Find recent sync failures
    */
   async findRecentFailures(since: Date): Promise<SyncLog[]> {
-    const result = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const results = await db
       .select()
       .from(syncLogs)
       .where(and(
@@ -248,14 +333,19 @@ export class SyncLogRepository {
       ))
       .orderBy(desc(syncLogs.startedAt));
 
-    return result as SyncLog[];
+    return results.map(r => this.mapToEntity(r));
   }
 
   /**
    * Count recent failures for an integration
    */
   async countRecentFailures(integrationId: string, since: Date): Promise<number> {
-    const result = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const [result] = await db
       .select({ count: count() })
       .from(syncLogs)
       .where(and(
@@ -264,7 +354,7 @@ export class SyncLogRepository {
         gte(syncLogs.startedAt, since)
       ));
 
-    return result[0]?.count || 0;
+    return result?.count || 0;
   }
 
   /**
@@ -280,7 +370,12 @@ export class SyncLogRepository {
    * Delete old sync logs
    */
   async deleteOlderThan(cutoffDate: Date): Promise<number> {
-    const result = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const result = await db
       .delete(syncLogs)
       .where(lte(syncLogs.createdAt, cutoffDate));
 

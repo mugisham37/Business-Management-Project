@@ -23,7 +23,7 @@ import {
 
 import { WebhookService } from '../services/webhook.service';
 
-import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { AuthGuard as JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
 
@@ -32,7 +32,7 @@ import { RequirePermission } from '../../auth/decorators/permission.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../../tenant/decorators/current-tenant.decorator';
 
-import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
+import { LoggingInterceptor } from '../../../common/interceptors/logging.interceptor';
 
 import {
   CreateWebhookDto,
@@ -43,7 +43,7 @@ import {
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 @Controller('api/v1/integrations/:integrationId/webhooks')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @UseInterceptors(LoggingInterceptor)
 @RequireFeature('advanced-integrations')
 @ApiBearerAuth()

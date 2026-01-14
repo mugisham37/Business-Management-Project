@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { eq, and, desc, asc, count, sql } from 'drizzle-orm';
+import { eq, and, desc, count, sql } from 'drizzle-orm';
 
 import { DrizzleService } from '../../database/drizzle.service';
 import { integrations } from '../../database/schema/integration.schema';
@@ -19,7 +19,12 @@ export class IntegrationRepository {
   async create(data: Partial<Integration>): Promise<Integration> {
     this.logger.log(`Creating integration: ${data.name}`);
 
-    const [integration] = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const [integration] = await db
       .insert(integrations)
       .values({
         ...data,
@@ -35,7 +40,12 @@ export class IntegrationRepository {
    * Find integration by ID and tenant
    */
   async findById(tenantId: string, integrationId: string): Promise<Integration | null> {
-    const [integration] = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const [integration] = await db
       .select()
       .from(integrations)
       .where(
@@ -54,43 +64,48 @@ export class IntegrationRepository {
    * Find all integrations for a tenant with optional filters
    */
   async findAll(tenantId: string, filters?: IntegrationListDto): Promise<Integration[]> {
-    let query = this.drizzle.db
-      .select()
-      .from(integrations)
-      .where(
-        and(
-          eq(integrations.tenantId, tenantId),
-          sql`${integrations.deletedAt} IS NULL`
-        )
-      );
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    // Build where conditions
+    const conditions = [
+      eq(integrations.tenantId, tenantId),
+      sql`${integrations.deletedAt} IS NULL`
+    ];
 
     // Apply filters
     if (filters?.type) {
-      query = query.where(eq(integrations.type, filters.type));
+      conditions.push(eq(integrations.type, filters.type));
     }
 
     if (filters?.status) {
-      query = query.where(eq(integrations.status, filters.status));
+      conditions.push(eq(integrations.status, filters.status));
     }
 
     if (filters?.providerName) {
-      query = query.where(eq(integrations.providerName, filters.providerName));
+      conditions.push(eq(integrations.providerName, filters.providerName));
     }
 
     if (filters?.syncEnabled !== undefined) {
-      query = query.where(eq(integrations.syncEnabled, filters.syncEnabled));
+      conditions.push(eq(integrations.syncEnabled, filters.syncEnabled));
     }
 
-    // Apply ordering
-    query = query.orderBy(desc(integrations.createdAt));
+    // Build query
+    let query = db
+      .select()
+      .from(integrations)
+      .where(and(...conditions))
+      .orderBy(desc(integrations.createdAt));
 
     // Apply pagination
     if (filters?.limit) {
-      query = query.limit(filters.limit);
+      query = query.limit(filters.limit) as any;
     }
 
     if (filters?.offset) {
-      query = query.offset(filters.offset);
+      query = query.offset(filters.offset) as any;
     }
 
     const results = await query;
@@ -101,7 +116,12 @@ export class IntegrationRepository {
    * Find integrations by status (across all tenants)
    */
   async findByStatus(status: IntegrationStatus): Promise<Integration[]> {
-    const results = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const results = await db
       .select()
       .from(integrations)
       .where(
@@ -118,7 +138,12 @@ export class IntegrationRepository {
    * Find integrations by type for a tenant
    */
   async findByType(tenantId: string, type: IntegrationType): Promise<Integration[]> {
-    const results = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const results = await db
       .select()
       .from(integrations)
       .where(
@@ -138,7 +163,12 @@ export class IntegrationRepository {
   async update(integrationId: string, data: Partial<Integration>): Promise<Integration> {
     this.logger.log(`Updating integration: ${integrationId}`);
 
-    const [integration] = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const [integration] = await db
       .update(integrations)
       .set({
         ...data,
@@ -157,7 +187,12 @@ export class IntegrationRepository {
   async softDelete(integrationId: string, userId: string): Promise<void> {
     this.logger.log(`Soft deleting integration: ${integrationId}`);
 
-    await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    await db
       .update(integrations)
       .set({
         deletedAt: new Date(),
@@ -173,7 +208,12 @@ export class IntegrationRepository {
   async hardDelete(integrationId: string): Promise<void> {
     this.logger.log(`Hard deleting integration: ${integrationId}`);
 
-    await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    await db
       .delete(integrations)
       .where(eq(integrations.id, integrationId));
   }
@@ -182,40 +222,50 @@ export class IntegrationRepository {
    * Count integrations for a tenant
    */
   async count(tenantId: string, filters?: Partial<IntegrationListDto>): Promise<number> {
-    let query = this.drizzle.db
-      .select({ count: count() })
-      .from(integrations)
-      .where(
-        and(
-          eq(integrations.tenantId, tenantId),
-          sql`${integrations.deletedAt} IS NULL`
-        )
-      );
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    // Build where conditions
+    const conditions = [
+      eq(integrations.tenantId, tenantId),
+      sql`${integrations.deletedAt} IS NULL`
+    ];
 
     // Apply filters
     if (filters?.type) {
-      query = query.where(eq(integrations.type, filters.type));
+      conditions.push(eq(integrations.type, filters.type));
     }
 
     if (filters?.status) {
-      query = query.where(eq(integrations.status, filters.status));
+      conditions.push(eq(integrations.status, filters.status));
     }
 
     if (filters?.providerName) {
-      query = query.where(eq(integrations.providerName, filters.providerName));
+      conditions.push(eq(integrations.providerName, filters.providerName));
     }
 
-    const [result] = await query;
-    return result.count;
+    const [result] = await db
+      .select({ count: count() })
+      .from(integrations)
+      .where(and(...conditions));
+
+    return result?.count || 0;
   }
 
   /**
    * Find integrations that need health checks
    */
   async findForHealthCheck(maxAge: number = 300000): Promise<Integration[]> {
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
     const cutoffTime = new Date(Date.now() - maxAge); // 5 minutes ago by default
 
-    const results = await this.drizzle.db
+    const results = await db
       .select()
       .from(integrations)
       .where(
@@ -233,9 +283,14 @@ export class IntegrationRepository {
    * Find integrations that need synchronization
    */
   async findForSync(): Promise<Integration[]> {
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
     const now = new Date();
 
-    const results = await this.drizzle.db
+    const results = await db
       .select()
       .from(integrations)
       .where(
@@ -262,13 +317,18 @@ export class IntegrationRepository {
       error?: string;
     }
   ): Promise<void> {
-    await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    await db
       .update(integrations)
       .set({
         lastHealthCheck: healthData.lastChecked,
         healthStatus: healthData.isHealthy ? 'healthy' : 'unhealthy',
         lastError: healthData.error,
-        lastErrorAt: healthData.error ? new Date() : undefined,
+        lastErrorAt: healthData.error ? new Date() : null,
         updatedAt: new Date(),
       })
       .where(eq(integrations.id, integrationId));
@@ -281,6 +341,11 @@ export class IntegrationRepository {
     integrationId: string,
     success: boolean = true
   ): Promise<void> {
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
     const updates: any = {
       requestCount: sql`${integrations.requestCount} + 1`,
       lastRequestAt: new Date(),
@@ -291,7 +356,7 @@ export class IntegrationRepository {
       updates.errorCount = sql`${integrations.errorCount} + 1`;
     }
 
-    await this.drizzle.db
+    await db
       .update(integrations)
       .set(updates)
       .where(eq(integrations.id, integrationId));
@@ -305,7 +370,12 @@ export class IntegrationRepository {
     lastSyncAt: Date,
     nextSyncAt?: Date
   ): Promise<void> {
-    await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    await db
       .update(integrations)
       .set({
         lastSyncAt,
@@ -325,7 +395,12 @@ export class IntegrationRepository {
     error: number;
     byType: Record<string, number>;
   }> {
-    const results = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const results = await db
       .select({
         status: integrations.status,
         type: integrations.type,
@@ -369,7 +444,12 @@ export class IntegrationRepository {
    * Find integrations with errors
    */
   async findWithErrors(tenantId: string, limit: number = 10): Promise<Integration[]> {
-    const results = await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const results = await db
       .select()
       .from(integrations)
       .where(
@@ -389,7 +469,12 @@ export class IntegrationRepository {
    * Reset error count for integration
    */
   async resetErrorCount(integrationId: string): Promise<void> {
-    await this.drizzle.db
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    await db
       .update(integrations)
       .set({
         errorCount: 0,

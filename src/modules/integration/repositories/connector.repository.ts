@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 
 import { DrizzleService } from '../../database/drizzle.service';
 import { connectors } from '../../database/schema/integration.schema';
@@ -33,18 +33,25 @@ export class ConnectorRepository {
   }
 
   async findAll(filters?: ConnectorListDto): Promise<Connector[]> {
-    const db = this.drizzle.db!;
-    let query = db.select().from(connectors);
-
-    if (filters?.type) {
-      query = db.select().from(connectors).where(eq(connectors.type, filters.type));
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
     }
 
+    let query = db.select().from(connectors);
+
+    // Build where conditions
+    const conditions = [];
+    if (filters?.type) {
+      conditions.push(eq(connectors.type, filters.type));
+    }
     if (filters?.isActive !== undefined) {
-      const baseQuery = filters?.type 
-        ? db.select().from(connectors).where(eq(connectors.type, filters.type))
-        : db.select().from(connectors);
-      query = baseQuery.where(eq(connectors.isActive, filters.isActive)) as any;
+      conditions.push(eq(connectors.isActive, filters.isActive));
+    }
+
+    // Apply conditions if any
+    if (conditions.length > 0) {
+      query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions)) as any;
     }
 
     const results = await query.orderBy(desc(connectors.createdAt));

@@ -1,5 +1,24 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IntegrationType } from './integration.entity';
+
+export enum IntegrationType {
+  ACCOUNTING = 'accounting',
+  ECOMMERCE = 'ecommerce',
+  PAYMENT = 'payment',
+  CRM = 'crm',
+  INVENTORY = 'inventory',
+  SHIPPING = 'shipping',
+  MARKETING = 'marketing',
+  CUSTOM = 'custom',
+}
+
+export enum ConnectorCapability {
+  SYNC = 'sync',
+  WEBHOOK = 'webhook',
+  REALTIME = 'realtime',
+  BATCH = 'batch',
+  IMPORT = 'import',
+  EXPORT = 'export',
+}
 
 export class Connector {
   @ApiProperty({ description: 'Connector ID' })
@@ -33,7 +52,7 @@ export class Connector {
   authSchema!: any;
 
   @ApiProperty({ description: 'Connector capabilities' })
-  capabilities!: string[];
+  capabilities!: ConnectorCapability[];
 
   @ApiProperty({ description: 'Supported events' })
   supportedEvents!: string[];

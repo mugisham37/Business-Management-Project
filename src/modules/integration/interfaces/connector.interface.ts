@@ -207,7 +207,7 @@ export interface IConnector {
  * Abstract base class for connectors
  */
 export abstract class BaseConnector implements IConnector {
-  protected config?: ConnectorConfig;
+  protected config?: ConnectorConfig | undefined;
   protected initialized = false;
 
   abstract getMetadata(): ConnectorMetadata;
