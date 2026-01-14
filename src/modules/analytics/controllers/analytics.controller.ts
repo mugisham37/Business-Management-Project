@@ -15,15 +15,15 @@ import {
   ValidationPipe
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
-import { RequireFeature } from '../../tenant/decorators/require-feature.decorator';
+import { RequireFeature } from '../../tenant/decorators/feature.decorator';
 import { RequirePermission } from '../../auth/decorators/require-permission.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../../tenant/decorators/current-tenant.decorator';
-import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
-import { CacheInterceptor } from '../../common/interceptors/cache.interceptor';
+import { LoggingInterceptor } from '../../../common/interceptors/logging.interceptor';
+import { CacheInterceptor } from '../../../common/interceptors/cache.interceptor';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 import { AnalyticsFoundationService, AnalyticsConfiguration, AnalyticsEvent } from '../services/analytics-foundation.service';
@@ -32,12 +32,12 @@ import { AnalyticsAPIService } from '../services/analytics-api.service';
 import { MetricsCalculationService } from '../services/metrics-calculation.service';
 
 export class CreateAnalyticsConfigDto {
-  dataRetentionDays: number;
-  aggregationIntervals: ('hourly' | 'daily' | 'weekly' | 'monthly')[];
-  enabledMetrics: string[];
-  customDimensions: Record<string, any>;
-  alertThresholds: Record<string, number>;
-  reportingSchedule: {
+  dataRetentionDays!: number;
+  aggregationIntervals!: ('hourly' | 'daily' | 'weekly' | 'monthly')[];
+  enabledMetrics!: string[];
+  customDimensions!: Record<string, any>;
+  alertThresholds!: Record<string, number>;
+  reportingSchedule!: {
     daily: boolean;
     weekly: boolean;
     monthly: boolean;
@@ -60,11 +60,11 @@ export class UpdateAnalyticsConfigDto {
 }
 
 export class TrackEventDto {
-  eventType: string;
-  entityType: string;
-  entityId: string;
-  data: Record<string, any>;
-  metadata: {
+  eventType!: string;
+  entityType!: string;
+  entityId!: string;
+  data!: Record<string, any>;
+  metadata!: {
     userId?: string;
     locationId?: string;
     sessionId?: string;
@@ -73,7 +73,7 @@ export class TrackEventDto {
 }
 
 export class AnalyticsQueryDto {
-  query: string;
+  query!: string;
   parameters?: any[];
   useCache?: boolean;
   cacheTTL?: number;
@@ -81,7 +81,7 @@ export class AnalyticsQueryDto {
 }
 
 @Controller('api/v1/analytics')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('advanced-analytics')
 @UseInterceptors(LoggingInterceptor, CacheInterceptor)
 @ApiTags('Analytics')
@@ -135,7 +135,15 @@ export class AnalyticsController {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<AnalyticsConfiguration> {
-    return this.analyticsFoundationService.updateAnalyticsConfiguration(tenantId, updates);
+    const cleanUpdates: Partial<AnalyticsConfiguration> = {};
+    if (updates.dataRetentionDays !== undefined) cleanUpdates.dataRetentionDays = updates.dataRetentionDays;
+    if (updates.aggregationIntervals !== undefined) cleanUpdates.aggregationIntervals = updates.aggregationIntervals;
+    if (updates.enabledMetrics !== undefined) cleanUpdates.enabledMetrics = updates.enabledMetrics;
+    if (updates.customDimensions !== undefined) cleanUpdates.customDimensions = updates.customDimensions;
+    if (updates.alertThresholds !== undefined) cleanUpdates.alertThresholds = updates.alertThresholds;
+    if (updates.reportingSchedule !== undefined) cleanUpdates.reportingSchedule = updates.reportingSchedule as any;
+    
+    return this.analyticsFoundationService.updateAnalyticsConfiguration(tenantId, cleanUpdates);
   }
 
   @Post('events')
@@ -226,15 +234,16 @@ export class AnalyticsController {
       queryId: string;
     };
   }> {
+    const options: { useCache?: boolean; cacheTTL?: number; timeout?: number } = {};
+    if (queryData.useCache !== undefined) options.useCache = queryData.useCache;
+    if (queryData.cacheTTL !== undefined) options.cacheTTL = queryData.cacheTTL;
+    if (queryData.timeout !== undefined) options.timeout = queryData.timeout;
+    
     return this.dataWarehouseService.executeAnalyticsQuery(
       tenantId,
       queryData.query,
       queryData.parameters || [],
-      {
-        useCache: queryData.useCache,
-        cacheTTL: queryData.cacheTTL,
-        timeout: queryData.timeout,
-      }
+      options
     );
   }
 
@@ -335,7 +344,17 @@ export class AnalyticsController {
       lastUpdated: Date;
     }>;
   }> {
-    return this.analyticsAPIService.getDashboardData(tenantId, dashboardId, refresh);
+    const result = await this.analyticsAPIService.getDashboardData(tenantId, dashboardId, refresh);
+    // Ensure widgets array is returned if not provided
+    return {
+      dashboard: (result as any).dashboard,
+      widgets: (result as any).widgets || (result as any).widgetData ? Object.entries((result as any).widgetData || {}).map(([id, data]: [string, any]) => ({
+        id,
+        type: 'widget',
+        data,
+        lastUpdated: new Date(),
+      })) : [],
+    };
   }
 
   @Post('export')

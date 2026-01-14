@@ -13,15 +13,15 @@ import {
   ValidationPipe
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
-import { RequireFeature } from '../../tenant/decorators/require-feature.decorator';
+import { RequireFeature } from '../../tenant/decorators/feature.decorator';
 import { RequirePermission } from '../../auth/decorators/require-permission.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../../tenant/decorators/current-tenant.decorator';
-import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
-import { CacheInterceptor } from '../../common/interceptors/cache.interceptor';
+import { LoggingInterceptor } from '../../../common/interceptors/logging.interceptor';
+import { CacheInterceptor } from '../../../common/interceptors/cache.interceptor';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 import { 
@@ -34,25 +34,25 @@ import {
 } from '../services/predictive-analytics.service';
 
 export class DemandForecastRequestDto {
-  productId: string;
-  locationId: string;
-  forecastPeriod: 'daily' | 'weekly' | 'monthly';
-  forecastHorizon: number;
+  productId!: string;
+  locationId!: string;
+  forecastPeriod!: 'daily' | 'weekly' | 'monthly';
+  forecastHorizon!: number;
   includeSeasonality?: boolean;
   includePromotions?: boolean;
 }
 
 export class PriceOptimizationRequestDto {
-  productId: string;
-  locationId: string;
+  productId!: string;
+  locationId!: string;
   includeCompetitorPricing?: boolean;
   includeSeasonality?: boolean;
   maxPriceChange?: number;
 }
 
 export class InventoryOptimizationRequestDto {
-  productId: string;
-  locationId: string;
+  productId!: string;
+  locationId!: string;
   serviceLevel?: number;
   leadTime?: number;
   carryingCostRate?: number;
@@ -60,7 +60,7 @@ export class InventoryOptimizationRequestDto {
 }
 
 export class TrainModelRequestDto {
-  modelType: 'demand_forecast' | 'churn_prediction' | 'price_optimization' | 'inventory_optimization';
+  modelType!: 'demand_forecast' | 'churn_prediction' | 'price_optimization' | 'inventory_optimization';
   algorithm?: string;
   features?: string[];
   hyperparameters?: Record<string, any>;
@@ -71,7 +71,7 @@ export class TrainModelRequestDto {
 }
 
 @Controller('api/v1/analytics/predictive')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('advanced-analytics')
 @UseInterceptors(LoggingInterceptor, CacheInterceptor)
 @ApiTags('Predictive Analytics')
@@ -89,16 +89,18 @@ export class PredictiveAnalyticsController {
     @Body(ValidationPipe) request: DemandForecastRequestDto,
     @CurrentTenant() tenantId: string,
   ): Promise<DemandForecast> {
+    const options: { forecastPeriod: 'daily' | 'weekly' | 'monthly'; forecastHorizon: number; includeSeasonality?: boolean; includePromotions?: boolean } = {
+      forecastPeriod: request.forecastPeriod,
+      forecastHorizon: request.forecastHorizon,
+    };
+    if (request.includeSeasonality !== undefined) options.includeSeasonality = request.includeSeasonality;
+    if (request.includePromotions !== undefined) options.includePromotions = request.includePromotions;
+    
     return this.predictiveAnalyticsService.generateDemandForecast(
       tenantId,
       request.productId,
       request.locationId,
-      {
-        forecastPeriod: request.forecastPeriod,
-        forecastHorizon: request.forecastHorizon,
-        includeSeasonality: request.includeSeasonality,
-        includePromotions: request.includePromotions,
-      }
+      options
     );
   }
 
@@ -123,15 +125,16 @@ export class PredictiveAnalyticsController {
     @Body(ValidationPipe) request: PriceOptimizationRequestDto,
     @CurrentTenant() tenantId: string,
   ): Promise<PriceOptimization> {
+    const options: { includeCompetitorPricing?: boolean; includeSeasonality?: boolean; maxPriceChange?: number } = {};
+    if (request.includeCompetitorPricing !== undefined) options.includeCompetitorPricing = request.includeCompetitorPricing;
+    if (request.includeSeasonality !== undefined) options.includeSeasonality = request.includeSeasonality;
+    if (request.maxPriceChange !== undefined) options.maxPriceChange = request.maxPriceChange;
+    
     return this.predictiveAnalyticsService.optimizeProductPricing(
       tenantId,
       request.productId,
       request.locationId,
-      {
-        includeCompetitorPricing: request.includeCompetitorPricing,
-        includeSeasonality: request.includeSeasonality,
-        maxPriceChange: request.maxPriceChange,
-      }
+      options
     );
   }
 
@@ -144,16 +147,17 @@ export class PredictiveAnalyticsController {
     @Body(ValidationPipe) request: InventoryOptimizationRequestDto,
     @CurrentTenant() tenantId: string,
   ): Promise<InventoryOptimization> {
+    const options: { serviceLevel?: number; leadTime?: number; carryingCostRate?: number; stockoutCostPerUnit?: number } = {};
+    if (request.serviceLevel !== undefined) options.serviceLevel = request.serviceLevel;
+    if (request.leadTime !== undefined) options.leadTime = request.leadTime;
+    if (request.carryingCostRate !== undefined) options.carryingCostRate = request.carryingCostRate;
+    if (request.stockoutCostPerUnit !== undefined) options.stockoutCostPerUnit = request.stockoutCostPerUnit;
+    
     return this.predictiveAnalyticsService.optimizeInventoryLevels(
       tenantId,
       request.productId,
       request.locationId,
-      {
-        serviceLevel: request.serviceLevel,
-        leadTime: request.leadTime,
-        carryingCostRate: request.carryingCostRate,
-        stockoutCostPerUnit: request.stockoutCostPerUnit,
-      }
+      options
     );
   }
 
@@ -182,15 +186,16 @@ export class PredictiveAnalyticsController {
       endDate: new Date(request.trainingPeriod.endDate),
     } : undefined;
 
+    const options: { algorithm?: string; features?: string[]; hyperparameters?: Record<string, any>; trainingPeriod?: { startDate: Date; endDate: Date } } = {};
+    if (request.algorithm !== undefined) options.algorithm = request.algorithm;
+    if (request.features !== undefined) options.features = request.features;
+    if (request.hyperparameters !== undefined) options.hyperparameters = request.hyperparameters;
+    if (trainingPeriod !== undefined) options.trainingPeriod = trainingPeriod;
+
     return this.predictiveAnalyticsService.trainPredictiveModel(
       tenantId,
       request.modelType,
-      {
-        algorithm: request.algorithm,
-        features: request.features,
-        hyperparameters: request.hyperparameters,
-        trainingPeriod,
-      }
+      options
     );
   }
 

@@ -15,23 +15,23 @@ import {
   ValidationPipe
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
-import { RequireFeature } from '../../tenant/decorators/require-feature.decorator';
+import { RequireFeature } from '../../tenant/decorators/feature.decorator';
 import { RequirePermission } from '../../auth/decorators/require-permission.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../../tenant/decorators/current-tenant.decorator';
-import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
-import { CacheInterceptor } from '../../common/interceptors/cache.interceptor';
+import { LoggingInterceptor } from '../../../common/interceptors/logging.interceptor';
+import { CacheInterceptor } from '../../../common/interceptors/cache.interceptor';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 import { AnalyticsAPIService } from '../services/analytics-api.service';
 
 export class CreateReportDto {
-  name: string;
+  name!: string;
   description?: string;
-  query: {
+  query!: {
     sql: string;
     parameters: Array<{
       name: string;
@@ -40,7 +40,7 @@ export class CreateReportDto {
       defaultValue?: any;
     }>;
   };
-  visualization: {
+  visualization!: {
     type: 'table' | 'chart' | 'metric';
     chartType?: 'line' | 'bar' | 'pie' | 'area';
     xAxis?: string;
@@ -52,7 +52,7 @@ export class CreateReportDto {
     time: string; // HH:MM format
     recipients: string[];
   };
-  isPublic: boolean;
+  isPublic!: boolean;
 }
 
 export class UpdateReportDto {
@@ -93,7 +93,7 @@ export class ExecuteReportDto {
 }
 
 @Controller('api/v1/analytics/reports')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('advanced-analytics')
 @UseInterceptors(LoggingInterceptor, CacheInterceptor)
 @ApiTags('Analytics Reports')
@@ -405,7 +405,9 @@ export class ReportingController {
         break;
     }
 
-    const [hours, minutes] = scheduleConfig.time.split(':');
+    const timeParts = scheduleConfig.time.split(':');
+    const hours = timeParts[0] || '00';
+    const minutes = timeParts[1] || '00';
     nextRun.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
     return {
@@ -438,15 +440,20 @@ export class ReportingController {
   }> {
     // This would query the execution history from database
     // For now, return mock data
-    const executions = Array.from({ length: Math.min(limit, 10) }, (_, i) => ({
-      id: `execution_${i + 1}`,
-      executedAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
-      executedBy: 'user-1',
-      status: Math.random() > 0.1 ? 'success' : 'failed' as 'success' | 'failed',
-      executionTime: Math.random() * 5000 + 500,
-      rowCount: Math.floor(Math.random() * 1000),
-      downloadUrl: Math.random() > 0.5 ? `/downloads/report_${reportId}_${i + 1}.pdf` : undefined,
-    }));
+    const executions = Array.from({ length: Math.min(limit, 10) }, (_, i) => {
+      const success = Math.random() > 0.1;
+      const hasDownload = Math.random() > 0.5;
+      
+      return {
+        id: `execution_${i + 1}`,
+        executedAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
+        executedBy: 'user-1',
+        status: success ? ('success' as const) : ('failed' as const),
+        executionTime: Math.random() * 5000 + 500,
+        ...(success && { rowCount: Math.floor(Math.random() * 1000) }),
+        ...(hasDownload && { downloadUrl: `/downloads/report_${reportId}_${i + 1}.pdf` }),
+      };
+    });
 
     return { executions };
   }

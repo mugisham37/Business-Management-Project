@@ -15,16 +15,16 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { AuthGuard } from '../../auth/guards/auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
-import { RequireFeature } from '../../common/decorators/require-feature.decorator';
-import { RequirePermission } from '../../common/decorators/require-permission.decorator';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { CurrentTenant } from '../../common/decorators/current-tenant.decorator';
-import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
-import { CacheInterceptor } from '../../common/interceptors/cache.interceptor';
-import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
+import { RequireFeature } from '../../tenant/decorators/feature.decorator';
+import { RequirePermission } from '../../auth/decorators/require-permission.decorator';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { CurrentTenant } from '../../tenant/decorators/current-tenant.decorator';
+import { LoggingInterceptor } from '../../../common/interceptors/logging.interceptor';
+import { CacheInterceptor } from '../../../common/interceptors/cache.interceptor';
+import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 import { ComparativeAnalysisService } from '../services/comparative-analysis.service';
 import {
   PeriodComparison,
@@ -36,14 +36,14 @@ import {
 
 // DTOs for request validation
 export class CreatePeriodComparisonDto {
-  name: string;
-  metric: string;
-  currentPeriod: {
+  name!: string;
+  metric!: string;
+  currentPeriod!: {
     startDate: Date;
     endDate: Date;
     label: string;
   };
-  comparisonPeriod: {
+  comparisonPeriod!: {
     startDate: Date;
     endDate: Date;
     label: string;
@@ -53,21 +53,21 @@ export class CreatePeriodComparisonDto {
 }
 
 export class CreateLocationBenchmarkDto {
-  metric: string;
-  timeRange: {
+  metric!: string;
+  timeRange!: {
     startDate: Date;
     endDate: Date;
   };
-  locations: string[];
-  benchmarkType: 'performance' | 'efficiency' | 'growth' | 'custom';
-  normalizationMethod: 'per_employee' | 'per_sqft' | 'per_customer' | 'absolute';
+  locations!: string[];
+  benchmarkType!: 'performance' | 'efficiency' | 'growth' | 'custom';
+  normalizationMethod!: 'per_employee' | 'per_sqft' | 'per_customer' | 'absolute';
 }
 
 export class CreateIndustryBenchmarkDto {
-  industry: string;
-  businessSize: 'micro' | 'small' | 'medium' | 'large';
-  metrics: string[];
-  timeRange: {
+  industry!: string;
+  businessSize!: 'micro' | 'small' | 'medium' | 'large';
+  metrics!: string[];
+  timeRange!: {
     startDate: Date;
     endDate: Date;
   };
@@ -75,24 +75,24 @@ export class CreateIndustryBenchmarkDto {
 }
 
 export class CreateTrendAnalysisDto {
-  metric: string;
-  timeRange: {
+  metric!: string;
+  timeRange!: {
     startDate: Date;
     endDate: Date;
   };
-  granularity: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  granularity!: 'daily' | 'weekly' | 'monthly' | 'quarterly';
   dimensions?: string[];
   seasonalityDetection?: boolean;
   anomalyDetection?: boolean;
 }
 
 export class CreateComparativeReportDto {
-  name: string;
-  description: string;
-  type: 'period_comparison' | 'location_benchmark' | 'industry_benchmark' | 'trend_analysis' | 'custom';
-  analyses: string[];
-  layout: 'summary' | 'detailed' | 'executive';
-  visualizations: Array<{
+  name!: string;
+  description!: string;
+  type!: 'period_comparison' | 'location_benchmark' | 'industry_benchmark' | 'trend_analysis' | 'custom';
+  analyses!: string[];
+  layout!: 'summary' | 'detailed' | 'executive';
+  visualizations!: Array<{
     type: 'chart' | 'table' | 'scorecard' | 'heatmap';
     analysisId: string;
     position: number;
@@ -107,7 +107,7 @@ export class CreateComparativeReportDto {
 }
 
 @Controller('api/v1/analytics/comparative')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('comparative-analysis')
 @UseInterceptors(LoggingInterceptor, CacheInterceptor)
 @ApiTags('Comparative Analytics')
@@ -309,13 +309,14 @@ export class ComparativeAnalysisController {
     total: number;
     hasMore: boolean;
   }> {
-    return this.comparativeAnalysisService.listComparativeAnalyses(tenantId, {
-      type,
-      limit: limit ? parseInt(String(limit)) : undefined,
-      offset: offset ? parseInt(String(offset)) : undefined,
-      sortBy,
-      sortOrder,
-    });
+    const queryParams: { type?: 'period_comparison' | 'location_benchmark' | 'industry_benchmark' | 'trend_analysis'; limit?: number; offset?: number; sortBy?: 'name' | 'created' | 'updated'; sortOrder?: 'asc' | 'desc' } = {};
+    if (type !== undefined) queryParams.type = type;
+    if (limit !== undefined) queryParams.limit = parseInt(String(limit));
+    if (offset !== undefined) queryParams.offset = parseInt(String(offset));
+    if (sortBy !== undefined) queryParams.sortBy = sortBy;
+    if (sortOrder !== undefined) queryParams.sortOrder = sortOrder;
+    
+    return this.comparativeAnalysisService.listComparativeAnalyses(tenantId, queryParams);
   }
 
   // Comparative Report Endpoints
@@ -396,13 +397,13 @@ export class ComparativeAnalysisController {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<{
-    topPerformer: {
+    topPerformer?: {
       locationId: string;
       locationName: string;
       value: number;
       rank: number;
     };
-    bottomPerformer: {
+    bottomPerformer?: {
       locationId: string;
       locationName: string;
       value: number;
@@ -422,18 +423,22 @@ export class ComparativeAnalysisController {
     const bottomPerformer = rankings[rankings.length - 1];
 
     return {
-      topPerformer: {
-        locationId: topPerformer.locationId,
-        locationName: topPerformer.locationName,
-        value: topPerformer.normalizedValue,
-        rank: topPerformer.rank,
-      },
-      bottomPerformer: {
-        locationId: bottomPerformer.locationId,
-        locationName: bottomPerformer.locationName,
-        value: bottomPerformer.normalizedValue,
-        rank: bottomPerformer.rank,
-      },
+      ...(topPerformer ? {
+        topPerformer: {
+          locationId: topPerformer.locationId,
+          locationName: topPerformer.locationName,
+          value: topPerformer.normalizedValue,
+          rank: topPerformer.rank,
+        },
+      } : {}),
+      ...(bottomPerformer ? {
+        bottomPerformer: {
+          locationId: bottomPerformer.locationId,
+          locationName: bottomPerformer.locationName,
+          value: bottomPerformer.normalizedValue,
+          rank: bottomPerformer.rank,
+        },
+      } : {}),
       average: benchmark.results.statistics.average,
       spread: benchmark.results.statistics.range,
     };
@@ -558,7 +563,7 @@ export class ComparativeAnalysisController {
 
     // Top performer insight
     if (rankings.length > 0) {
-      const topPerformer = rankings[0];
+      const topPerformer = rankings[0]!;
       insights.push({
         type: 'positive' as const,
         title: 'Top Performing Location',
@@ -589,7 +594,7 @@ export class ComparativeAnalysisController {
 
     // Underperformer insight
     if (rankings.length > 1) {
-      const bottomPerformer = rankings[rankings.length - 1];
+      const bottomPerformer = rankings[rankings.length - 1]!;
       if (bottomPerformer.normalizedValue < stats.average * 0.7) {
         insights.push({
           type: 'negative' as const,

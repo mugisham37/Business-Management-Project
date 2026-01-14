@@ -15,15 +15,15 @@ import {
   ValidationPipe
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
-import { RequireFeature } from '../../tenant/decorators/require-feature.decorator';
+import { RequireFeature } from '../../tenant/decorators/feature.decorator';
 import { RequirePermission } from '../../auth/decorators/require-permission.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../../tenant/decorators/current-tenant.decorator';
-import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
-import { CacheInterceptor } from '../../common/interceptors/cache.interceptor';
+import { LoggingInterceptor } from '../../../common/interceptors/logging.interceptor';
+import { CacheInterceptor } from '../../../common/interceptors/cache.interceptor';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 import { 
@@ -37,11 +37,11 @@ import {
 } from '../services/custom-reporting.service';
 
 export class CreateReportDto {
-  name: string;
-  description: string;
-  category: string;
-  isPublic: boolean;
-  configuration: {
+  name!: string;
+  description!: string;
+  category!: string;
+  isPublic!: boolean;
+  configuration!: {
     dataSource: string;
     query?: string;
     visualizations: ReportVisualization[];
@@ -49,7 +49,7 @@ export class CreateReportDto {
     parameters: any[];
     layout: any;
   };
-  sharing: any;
+  sharing!: any;
 }
 
 export class UpdateReportDto {
@@ -76,30 +76,30 @@ export class ExecuteReportDto {
 }
 
 export class CreateDashboardDto {
-  name: string;
-  description: string;
-  isDefault: boolean;
-  configuration: {
+  name!: string;
+  description!: string;
+  isDefault!: boolean;
+  configuration!: {
     layout: any;
     widgets: any[];
     filters: any[];
     theme: 'light' | 'dark' | 'auto';
     refreshInterval: number;
   };
-  sharing: any;
+  sharing!: any;
 }
 
 export class ScheduleReportDto {
-  enabled: boolean;
-  frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly';
-  time: string;
-  timezone: string;
-  recipients: string[];
-  format: 'pdf' | 'excel' | 'csv' | 'email';
+  enabled!: boolean;
+  frequency!: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  time!: string;
+  timezone!: string;
+  recipients!: string[];
+  format!: 'pdf' | 'excel' | 'csv' | 'email';
 }
 
 @Controller('api/v1/analytics/reporting')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('advanced-analytics')
 @UseInterceptors(LoggingInterceptor, CacheInterceptor)
 @ApiTags('Custom Reporting')
@@ -151,16 +151,15 @@ export class CustomReportingController {
     total: number;
     hasMore: boolean;
   }> {
-    const options = {
-      category,
-      tags: tags ? tags.split(',') : undefined,
-      createdBy,
-      isPublic,
-      limit,
-      offset,
-      sortBy,
-      sortOrder,
-    };
+    const options: { category?: string; tags?: string[]; createdBy?: string; isPublic?: boolean; limit?: number; offset?: number; sortBy?: 'name' | 'created' | 'modified' | 'executions'; sortOrder?: 'asc' | 'desc' } = {};
+    if (category !== undefined) options.category = category;
+    if (tags !== undefined) options.tags = tags.split(',');
+    if (createdBy !== undefined) options.createdBy = createdBy;
+    if (isPublic !== undefined) options.isPublic = isPublic;
+    if (limit !== undefined) options.limit = limit;
+    if (offset !== undefined) options.offset = offset;
+    if (sortBy !== undefined) options.sortBy = sortBy;
+    if (sortOrder !== undefined) options.sortOrder = sortOrder;
 
     return this.customReportingService.listReports(tenantId, user.id, options);
   }
@@ -192,7 +191,15 @@ export class CustomReportingController {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ReportDefinition> {
-    return this.customReportingService.updateReport(tenantId, reportId, user.id, updateReportDto);
+    const cleanUpdateDto: Partial<ReportDefinition> = {};
+    if (updateReportDto.name !== undefined) (cleanUpdateDto as any).name = updateReportDto.name;
+    if (updateReportDto.description !== undefined) (cleanUpdateDto as any).description = updateReportDto.description;
+    if (updateReportDto.category !== undefined) (cleanUpdateDto as any).category = updateReportDto.category;
+    if (updateReportDto.isPublic !== undefined) (cleanUpdateDto as any).isPublic = updateReportDto.isPublic;
+    if (updateReportDto.configuration !== undefined) (cleanUpdateDto as any).configuration = updateReportDto.configuration;
+    if (updateReportDto.sharing !== undefined) (cleanUpdateDto as any).sharing = updateReportDto.sharing;
+    
+    return this.customReportingService.updateReport(tenantId, reportId, user.id, cleanUpdateDto as any);
   }
 
   @Delete('reports/:reportId')
@@ -346,7 +353,9 @@ export class CustomReportingController {
     }>;
     lastUpdated: Date;
   }> {
-    return this.customReportingService.getDashboardData(tenantId, dashboardId, user.id, { refresh });
+    const options: { refresh?: boolean; filters?: Record<string, any> } = {};
+    if (refresh !== undefined) options.refresh = refresh;
+    return this.customReportingService.getDashboardData(tenantId, dashboardId, user.id, options);
   }
 
   @Put('dashboards/:dashboardId')
@@ -505,7 +514,7 @@ export class CustomReportingController {
     } catch (error) {
       return {
         isValid: false,
-        error: error.message,
+        error: (error as any)?.message || 'Unknown error',
       };
     }
   }
@@ -546,7 +555,7 @@ export class CustomReportingController {
         executionTime: Math.random() * 1000 + 100,
       };
     } catch (error) {
-      throw new Error(`Query preview failed: ${error.message}`);
+      throw new Error(`Query preview failed: ${(error as any)?.message || 'Unknown error'}`);
     }
   }
 

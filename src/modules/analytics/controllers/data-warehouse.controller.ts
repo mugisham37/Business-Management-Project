@@ -13,22 +13,22 @@ import {
   ValidationPipe
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
-import { RequireFeature } from '../../tenant/decorators/require-feature.decorator';
+import { RequireFeature } from '../../tenant/decorators/feature.decorator';
 import { RequirePermission } from '../../auth/decorators/require-permission.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../../tenant/decorators/current-tenant.decorator';
-import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
-import { CacheInterceptor } from '../../common/interceptors/cache.interceptor';
+import { LoggingInterceptor } from '../../../common/interceptors/logging.interceptor';
+import { CacheInterceptor } from '../../../common/interceptors/cache.interceptor';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 import { DataWarehouseService } from '../services/data-warehouse.service';
 
 export class CreatePartitionDto {
-  tableName: string;
-  partitionStrategy: {
+  tableName!: string;
+  partitionStrategy!: {
     column: string;
     strategy: 'range' | 'hash';
     interval?: string;
@@ -37,7 +37,7 @@ export class CreatePartitionDto {
 }
 
 export class ExecuteQueryDto {
-  query: string;
+  query!: string;
   parameters?: any[];
   useCache?: boolean;
   cacheTTL?: number;
@@ -45,7 +45,7 @@ export class ExecuteQueryDto {
 }
 
 @Controller('api/v1/analytics/warehouse')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('advanced-analytics')
 @UseInterceptors(LoggingInterceptor, CacheInterceptor)
 @ApiTags('Data Warehouse')
@@ -102,15 +102,16 @@ export class DataWarehouseController {
       queryId: string;
     };
   }> {
+    const options: { useCache?: boolean; cacheTTL?: number; timeout?: number } = {};
+    if (queryDto.useCache !== undefined) options.useCache = queryDto.useCache;
+    if (queryDto.cacheTTL !== undefined) options.cacheTTL = queryDto.cacheTTL;
+    if (queryDto.timeout !== undefined) options.timeout = queryDto.timeout;
+    
     return this.dataWarehouseService.executeAnalyticsQuery(
       tenantId,
       queryDto.query,
       queryDto.parameters || [],
-      {
-        useCache: queryDto.useCache,
-        cacheTTL: queryDto.cacheTTL,
-        timeout: queryDto.timeout,
-      }
+      options
     );
   }
 
@@ -290,10 +291,13 @@ export class DataWarehouseController {
 
     const totalSize = tableBreakdown.reduce((sum, table) => sum + table.size, 0);
 
-    const growthTrend = Array.from({ length: 30 }, (_, i) => ({
-      date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      size: totalSize * (0.7 + (i / 29) * 0.3), // Simulate growth
-    }));
+    const growthTrend: Array<{ date: string; size: number }> = Array.from({ length: 30 }, (_, i) => {
+      const dateStr = new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      return {
+        date: dateStr!,
+        size: totalSize * (0.7 + (i / 29) * 0.3), // Simulate growth
+      };
+    });
 
     return {
       totalSize,

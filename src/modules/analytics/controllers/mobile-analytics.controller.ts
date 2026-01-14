@@ -3,6 +3,7 @@ import {
   Get, 
   Post, 
   Put, 
+  Delete,
   Body, 
   Param, 
   Query, 
@@ -15,15 +16,15 @@ import {
   ValidationPipe
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiHeader } from '@nestjs/swagger';
-import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
-import { RequireFeature } from '../../tenant/decorators/require-feature.decorator';
+import { RequireFeature } from '../../tenant/decorators/feature.decorator';
 import { RequirePermission } from '../../auth/decorators/require-permission.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../../tenant/decorators/current-tenant.decorator';
-import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
-import { CacheInterceptor } from '../../common/interceptors/cache.interceptor';
+import { LoggingInterceptor } from '../../../common/interceptors/logging.interceptor';
+import { CacheInterceptor } from '../../../common/interceptors/cache.interceptor';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 import { 
@@ -35,9 +36,9 @@ import {
 } from '../services/mobile-analytics.service';
 
 export class CreateMobileDashboardDto {
-  name: string;
-  description: string;
-  configuration: {
+  name!: string;
+  description!: string;
+  configuration!: {
     layout: {
       type: 'stack' | 'grid' | 'carousel';
       orientation: 'portrait' | 'landscape' | 'adaptive';
@@ -60,23 +61,23 @@ export class CreateMobileDashboardDto {
 }
 
 export class CreateMobileReportDto {
-  name: string;
-  description: string;
-  configuration: {
+  name!: string;
+  description!: string;
+  configuration!: {
     query: string;
     parameters: any[];
     filters: any[];
     visualization: MobileVisualization;
     exportFormats: ('pdf' | 'csv' | 'image')[];
   };
-  mobileOptimizations: {
+  mobileOptimizations!: {
     compressData: boolean;
     limitRows: number;
     useAggregation: boolean;
     cacheResults: boolean;
     offlineAvailable: boolean;
   };
-  sharing: {
+  sharing!: {
     allowOfflineSharing: boolean;
     requireAuthentication: boolean;
     expirationDays?: number;
@@ -105,7 +106,7 @@ interface DeviceInfo {
 }
 
 @Controller('api/v1/analytics/mobile')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('advanced-analytics')
 @UseInterceptors(LoggingInterceptor, CacheInterceptor)
 @ApiTags('Mobile Analytics')
@@ -179,15 +180,16 @@ export class MobileAnalyticsController {
       queriesSimplified: boolean;
     };
   }> {
-    const options = {
-      deviceType,
-      connectionType,
-      screenSize: screenWidth && screenHeight ? {
+    const options: { deviceType?: 'phone' | 'tablet'; connectionType?: 'wifi' | 'cellular' | 'offline'; screenSize?: { width: number; height: number }; forceRefresh?: boolean } = {};
+    if (deviceType !== undefined) options.deviceType = deviceType;
+    if (connectionType !== undefined) options.connectionType = connectionType;
+    if (screenWidth !== undefined && screenHeight !== undefined) {
+      options.screenSize = {
         width: parseInt(screenWidth),
         height: parseInt(screenHeight),
-      } : undefined,
-      forceRefresh,
-    };
+      };
+    }
+    if (forceRefresh !== undefined) options.forceRefresh = forceRefresh;
 
     return this.mobileAnalyticsService.getMobileDashboard(tenantId, dashboardId, user.id, options);
   }
@@ -292,11 +294,12 @@ export class MobileAnalyticsController {
       imageUrl?: string;
     };
   }> {
-    const options = {
-      ...executeReportDto,
-      deviceType,
-      connectionType,
-    };
+    const options: { parameters?: Record<string, any>; filters?: Record<string, any>; deviceType?: 'phone' | 'tablet'; connectionType?: 'wifi' | 'cellular' | 'offline'; format?: 'image' | 'csv' | 'json' } = {};
+    if (executeReportDto.parameters !== undefined) options.parameters = executeReportDto.parameters;
+    if (executeReportDto.filters !== undefined) options.filters = executeReportDto.filters;
+    if (executeReportDto.format !== undefined) options.format = executeReportDto.format;
+    if (deviceType !== undefined) options.deviceType = deviceType;
+    if (connectionType !== undefined) options.connectionType = connectionType;
 
     return this.mobileAnalyticsService.executeMobileReport(tenantId, reportId, user.id, options);
   }
@@ -405,11 +408,10 @@ export class MobileAnalyticsController {
       compressionSavings: number;
     };
   }> {
-    const options = {
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
-      deviceType,
-    };
+    const options: { startDate?: Date; endDate?: Date; userId?: string; deviceType?: 'phone' | 'tablet' } = {};
+    if (startDate !== undefined) options.startDate = new Date(startDate);
+    if (endDate !== undefined) options.endDate = new Date(endDate);
+    if (deviceType !== undefined) options.deviceType = deviceType;
 
     return this.mobileAnalyticsService.getMobileUsageStats(tenantId, options);
   }

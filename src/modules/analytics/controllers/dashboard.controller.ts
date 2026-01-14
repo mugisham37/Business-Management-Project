@@ -15,23 +15,23 @@ import {
   ValidationPipe
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
-import { RequireFeature } from '../../tenant/decorators/require-feature.decorator';
+import { RequireFeature } from '../../tenant/decorators/feature.decorator';
 import { RequirePermission } from '../../auth/decorators/require-permission.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../../tenant/decorators/current-tenant.decorator';
-import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
-import { CacheInterceptor } from '../../common/interceptors/cache.interceptor';
+import { LoggingInterceptor } from '../../../common/interceptors/logging.interceptor';
+import { CacheInterceptor } from '../../../common/interceptors/cache.interceptor';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 import { AnalyticsAPIService } from '../services/analytics-api.service';
 
 export class CreateDashboardDto {
-  name: string;
+  name!: string;
   description?: string;
-  widgets: Array<{
+  widgets!: Array<{
     id: string;
     type: 'chart' | 'table' | 'metric' | 'gauge' | 'map';
     title: string;
@@ -65,7 +65,7 @@ export class CreateDashboardDto {
     operator: string;
     value: any;
   }>;
-  isPublic: boolean;
+  isPublic!: boolean;
 }
 
 export class UpdateDashboardDto {
@@ -109,7 +109,7 @@ export class UpdateDashboardDto {
 }
 
 @Controller('api/v1/analytics/dashboards')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('advanced-analytics')
 @UseInterceptors(LoggingInterceptor, CacheInterceptor)
 @ApiTags('Analytics Dashboards')
@@ -258,7 +258,7 @@ export class DashboardController {
         data: result.widgetData[widget.id]?.data || [],
         metadata: {
           executionTime: result.widgetData[widget.id]?.metadata.executionTime || 0,
-          rowCount: result.widgetData[widget.id]?.metadata.rowCount || 0,
+          rowCount: result.widgetData[widget.id]?.metadata.totalRows || 0,
           lastUpdated: new Date(),
         },
       })),
@@ -283,9 +283,10 @@ export class DashboardController {
     const dashboard = await this.analyticsAPIService.saveDashboard(
       tenantId,
       {
+        tenantId,
         ...createDashboardDto,
         createdBy: user.id,
-      },
+      } as any,
       user.id
     );
 
@@ -387,7 +388,7 @@ export class DashboardController {
     
     return {
       shareId,
-      shareUrl: shareOptions.isPublic ? `/public/dashboard/${shareId}` : undefined,
+      ...(shareOptions.isPublic && { shareUrl: `/public/dashboard/${shareId}` }),
       message: 'Dashboard shared successfully',
     };
   }
