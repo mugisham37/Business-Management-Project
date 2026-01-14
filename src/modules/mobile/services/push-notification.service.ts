@@ -319,13 +319,14 @@ export class PushNotificationService {
    * Group tokens by platform
    */
   private groupTokensByPlatform(tokens: DeviceToken[]): Record<string, DeviceToken[]> {
-    return tokens.reduce((groups, token) => {
-      if (!groups[token.platform]) {
-        groups[token.platform] = [];
+    return tokens.reduce<Record<string, DeviceToken[]>>((groups, token) => {
+      const platform = token.platform;
+      if (!groups[platform]) {
+        groups[platform] = [];
       }
-      groups[token.platform].push(token);
+      groups[platform]!.push(token);
       return groups;
-    }, {} as Record<string, DeviceToken[]>);
+    }, {});
   }
 
   /**

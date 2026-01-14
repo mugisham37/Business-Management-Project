@@ -175,7 +175,7 @@ export class ComplianceService {
         if (!acc[type]) {
           acc[type] = [];
         }
-        acc[type].push(violation);
+        acc[type]!.push(violation);
       }
       return acc;
     }, {} as Record<string, any[]>);
@@ -450,7 +450,7 @@ export class ComplianceService {
         if (!acc[date]) {
           acc[date] = [];
         }
-        acc[date].push(entry);
+        acc[date]!.push(entry);
       }
       return acc;
     }, {} as Record<string, any[]>);
@@ -467,7 +467,7 @@ export class ComplianceService {
         if (!acc[weekKey]) {
           acc[weekKey] = [];
         }
-        acc[weekKey].push(entry);
+        acc[weekKey]!.push(entry);
       }
       return acc;
     }, {} as Record<string, any[]>);
@@ -485,9 +485,9 @@ export class ComplianceService {
         if (!acc[weekKey]) {
           acc[weekKey] = { total: 0, compliant: 0 };
         }
-        acc[weekKey].total++;
+        acc[weekKey]!.total++;
         if (check.status === ComplianceStatus.COMPLIANT) {
-          acc[weekKey].compliant++;
+          acc[weekKey]!.compliant++;
         }
       }
       return acc;

@@ -276,7 +276,8 @@ export class ProgressiveLoadingService {
       this.logger.debug(`Preloaded page ${nextPage}`);
       return nextPage;
     } catch (error) {
-      this.logger.warn(`Failed to preload page ${nextPage}: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`Failed to preload page ${nextPage}: ${errorMessage}`);
       throw error;
     }
   }

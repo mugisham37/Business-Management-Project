@@ -196,7 +196,6 @@ export class OfflineDataSyncService {
             errors.push(`Sync error for ${item.entityType}:${item.entityId}: ${errorMessage}`);
           }
         }
-        }
 
         // Small delay between batches to prevent overwhelming the server
         if (i + syncOptions.batchSize < sortedItems.length) {
@@ -233,7 +232,7 @@ export class OfflineDataSyncService {
         failedItems: 0,
         conflicts: 0,
         totalTime: Date.now() - startTime,
-        errors: [error.message],
+        errors: [errorMessage],
       };
     } finally {
       this.syncInProgress.delete(queueKey);
@@ -297,7 +296,11 @@ export class OfflineDataSyncService {
         return { success: resolved, conflict: !resolved };
       }
 
-      return { success: syncResult.success, error: syncResult.error };
+      if (syncResult.error) {
+        return { success: syncResult.success, conflict: false, error: syncResult.error };
+      }
+
+      return { success: syncResult.success, conflict: false };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Failed to sync item ${item.id}: ${errorMessage}`);
@@ -400,9 +403,9 @@ export class OfflineDataSyncService {
 
       // Then by entity type if prioritizeByType is enabled
       if (options.prioritizeByType) {
-        const typeOrder = { transaction: 1, customer: 2, product: 3, other: 4 };
-        const aTypeOrder = typeOrder[a.entityType] || typeOrder.other;
-        const bTypeOrder = typeOrder[b.entityType] || typeOrder.other;
+        const typeOrder: Record<string, number> = { transaction: 1, customer: 2, product: 3, other: 4 };
+        const aTypeOrder = a.entityType in typeOrder ? typeOrder[a.entityType]! : typeOrder['other']!;
+        const bTypeOrder = b.entityType in typeOrder ? typeOrder[b.entityType]! : typeOrder['other']!;
         
         if (aTypeOrder !== bTypeOrder) {
           return aTypeOrder - bTypeOrder;
