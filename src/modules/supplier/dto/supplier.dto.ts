@@ -64,12 +64,12 @@ export class CreateSupplierDto {
   @ApiProperty({ description: 'Unique supplier code' })
   @IsString()
   @Length(1, 50)
-  supplierCode: string;
+  supplierCode!: string;
 
   @ApiProperty({ description: 'Supplier name' })
   @IsString()
   @Length(1, 255)
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Legal name of the supplier' })
   @IsOptional()
@@ -79,7 +79,7 @@ export class CreateSupplierDto {
 
   @ApiProperty({ enum: SupplierType, description: 'Type of supplier' })
   @IsEnum(SupplierType)
-  supplierType: SupplierType;
+  supplierType!: SupplierType;
 
   @ApiPropertyOptional({ enum: SupplierStatus, description: 'Supplier status' })
   @IsOptional()
@@ -390,12 +390,12 @@ export class CreateSupplierContactDto {
   @ApiProperty({ description: 'First name' })
   @IsString()
   @Length(1, 100)
-  firstName: string;
+  firstName!: string;
 
   @ApiProperty({ description: 'Last name' })
   @IsString()
   @Length(1, 100)
-  lastName: string;
+  lastName!: string;
 
   @ApiPropertyOptional({ description: 'Job title' })
   @IsOptional()
@@ -526,7 +526,7 @@ export class UpdateSupplierContactDto {
 export class CreateSupplierCommunicationDto {
   @ApiProperty({ description: 'Supplier ID' })
   @IsUUID()
-  supplierId: string;
+  supplierId!: string;
 
   @ApiPropertyOptional({ description: 'Contact ID' })
   @IsOptional()
@@ -535,11 +535,11 @@ export class CreateSupplierCommunicationDto {
 
   @ApiProperty({ enum: CommunicationType, description: 'Communication type' })
   @IsEnum(CommunicationType)
-  type: CommunicationType;
+  type!: CommunicationType;
 
   @ApiProperty({ enum: CommunicationDirection, description: 'Communication direction' })
   @IsEnum(CommunicationDirection)
-  direction: CommunicationDirection;
+  direction!: CommunicationDirection;
 
   @ApiPropertyOptional({ description: 'Subject' })
   @IsOptional()
@@ -610,15 +610,15 @@ export class CreateSupplierCommunicationDto {
 export class CreateSupplierEvaluationDto {
   @ApiProperty({ description: 'Supplier ID' })
   @IsUUID()
-  supplierId: string;
+  supplierId!: string;
 
   @ApiProperty({ description: 'Evaluation period start date' })
   @IsDateString()
-  evaluationPeriodStart: string;
+  evaluationPeriodStart!: string;
 
   @ApiProperty({ description: 'Evaluation period end date' })
   @IsDateString()
-  evaluationPeriodEnd: string;
+  evaluationPeriodEnd!: string;
 
   @ApiPropertyOptional({ description: 'Evaluation date' })
   @IsOptional()
@@ -629,11 +629,11 @@ export class CreateSupplierEvaluationDto {
   @IsNumber()
   @Min(0)
   @Max(100)
-  overallScore: number;
+  overallScore!: number;
 
   @ApiProperty({ enum: SupplierRating, description: 'Overall rating' })
   @IsEnum(SupplierRating)
-  overallRating: SupplierRating;
+  overallRating!: SupplierRating;
 
   @ApiPropertyOptional({ description: 'Quality score (0-100)' })
   @IsOptional()
@@ -791,25 +791,25 @@ export class SupplierQueryDto {
 // Response DTOs
 export class SupplierResponseDto {
   @ApiProperty({ description: 'Supplier ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Tenant ID' })
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty({ description: 'Supplier code' })
-  supplierCode: string;
+  supplierCode!: string;
 
   @ApiProperty({ description: 'Supplier name' })
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Legal name' })
   legalName?: string;
 
   @ApiProperty({ enum: SupplierType, description: 'Supplier type' })
-  supplierType: SupplierType;
+  supplierType!: SupplierType;
 
   @ApiProperty({ enum: SupplierStatus, description: 'Supplier status' })
-  status: SupplierStatus;
+  status!: SupplierStatus;
 
   @ApiPropertyOptional({ description: 'Primary contact name' })
   primaryContactName?: string;
@@ -836,10 +836,10 @@ export class SupplierResponseDto {
   isPreferredSupplier?: boolean;
 
   @ApiProperty({ description: 'Created at' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated at' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ApiPropertyOptional({ description: 'Created by user ID' })
   createdBy?: string;
@@ -848,5 +848,5 @@ export class SupplierResponseDto {
   updatedBy?: string;
 
   @ApiProperty({ description: 'Is active' })
-  isActive: boolean;
+  isActive!: boolean;
 }

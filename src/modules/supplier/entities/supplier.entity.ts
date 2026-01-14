@@ -70,19 +70,19 @@ registerEnumType(CommunicationDirection, {
 @ObjectType()
 export class Supplier extends BaseEntity {
   @Field()
-  supplierCode: string;
+  supplierCode!: string;
 
   @Field()
-  name: string;
+  name!: string;
 
   @Field({ nullable: true })
   legalName?: string;
 
   @Field(() => SupplierType)
-  supplierType: SupplierType;
+  supplierType!: SupplierType;
 
   @Field(() => SupplierStatus)
-  status: SupplierStatus;
+  status!: SupplierStatus;
 
   // Contact Information
   @Field({ nullable: true })
@@ -141,7 +141,7 @@ export class Supplier extends BaseEntity {
 
   // Performance Metrics
   @Field(() => SupplierRating)
-  overallRating: SupplierRating;
+  overallRating!: SupplierRating;
 
   @Field(() => Float, { nullable: true })
   qualityRating?: number;
@@ -154,19 +154,19 @@ export class Supplier extends BaseEntity {
 
   // Additional Information
   @Field(() => [String])
-  certifications: string[];
+  certifications!: string[];
 
   @Field(() => [String])
-  tags: string[];
+  tags!: string[];
 
   @Field({ nullable: true })
   notes?: string;
 
   @Field(() => CommunicationType)
-  preferredCommunicationMethod: CommunicationType;
+  preferredCommunicationMethod!: CommunicationType;
 
   @Field()
-  isPreferredSupplier: boolean;
+  isPreferredSupplier!: boolean;
 
   @Field({ nullable: true })
   lastEvaluationDate?: Date;
@@ -176,28 +176,28 @@ export class Supplier extends BaseEntity {
 
   // Relations
   @Field(() => [SupplierContact])
-  contacts: SupplierContact[];
+  contacts!: SupplierContact[];
 
   @Field(() => [SupplierCommunication])
-  communications: SupplierCommunication[];
+  communications!: SupplierCommunication[];
 
   @Field(() => [SupplierEvaluation])
-  evaluations: SupplierEvaluation[];
+  evaluations!: SupplierEvaluation[];
 
   @Field(() => [SupplierPerformanceMetrics])
-  performanceMetrics: SupplierPerformanceMetrics[];
+  performanceMetrics!: SupplierPerformanceMetrics[];
 }
 
 @ObjectType()
 export class SupplierContact extends BaseEntity {
   @Field()
-  supplierId: string;
+  supplierId!: string;
 
   @Field()
-  firstName: string;
+  firstName!: string;
 
   @Field()
-  lastName: string;
+  lastName!: string;
 
   @Field({ nullable: true })
   title?: string;
@@ -218,32 +218,32 @@ export class SupplierContact extends BaseEntity {
   fax?: string;
 
   @Field()
-  isPrimary: boolean;
+  isPrimary!: boolean;
 
   @Field(() => CommunicationType)
-  preferredContactMethod: CommunicationType;
+  preferredContactMethod!: CommunicationType;
 
   @Field({ nullable: true })
   notes?: string;
 
   // Relations
   @Field(() => Supplier)
-  supplier: Supplier;
+  supplier!: Supplier;
 }
 
 @ObjectType()
 export class SupplierCommunication extends BaseEntity {
   @Field()
-  supplierId: string;
+  supplierId!: string;
 
   @Field({ nullable: true })
   contactId?: string;
 
   @Field(() => CommunicationType)
-  type: CommunicationType;
+  type!: CommunicationType;
 
   @Field(() => CommunicationDirection)
-  direction: CommunicationDirection;
+  direction!: CommunicationDirection;
 
   @Field({ nullable: true })
   subject?: string;
@@ -264,20 +264,20 @@ export class SupplierCommunication extends BaseEntity {
   toEmail?: string;
 
   @Field()
-  communicationDate: Date;
+  communicationDate!: Date;
 
   @Field()
-  followUpRequired: boolean;
+  followUpRequired!: boolean;
 
   @Field({ nullable: true })
   followUpDate?: Date;
 
   @Field(() => [String])
-  tags: string[];
+  tags!: string[];
 
   // Relations
   @Field(() => Supplier)
-  supplier: Supplier;
+  supplier!: Supplier;
 
   @Field(() => SupplierContact, { nullable: true })
   contact?: SupplierContact;
@@ -286,25 +286,25 @@ export class SupplierCommunication extends BaseEntity {
 @ObjectType()
 export class SupplierEvaluation extends BaseEntity {
   @Field()
-  supplierId: string;
+  supplierId!: string;
 
   @Field()
-  evaluationPeriodStart: Date;
+  evaluationPeriodStart!: Date;
 
   @Field()
-  evaluationPeriodEnd: Date;
+  evaluationPeriodEnd!: Date;
 
   @Field()
-  evaluationDate: Date;
+  evaluationDate!: Date;
 
   @Field()
-  evaluatorId: string;
+  evaluatorId!: string;
 
   @Field(() => Float)
-  overallScore: number;
+  overallScore!: number;
 
   @Field(() => SupplierRating)
-  overallRating: SupplierRating;
+  overallRating!: SupplierRating;
 
   @Field(() => Float, { nullable: true })
   qualityScore?: number;
@@ -343,7 +343,7 @@ export class SupplierEvaluation extends BaseEntity {
   recommendations?: string;
 
   @Field()
-  isApproved: boolean;
+  isApproved!: boolean;
 
   @Field({ nullable: true })
   approvedBy?: string;
@@ -353,61 +353,61 @@ export class SupplierEvaluation extends BaseEntity {
 
   // Relations
   @Field(() => Supplier)
-  supplier: Supplier;
+  supplier!: Supplier;
 }
 
 @ObjectType()
 export class SupplierPerformanceMetrics extends BaseEntity {
   @Field()
-  supplierId: string;
+  supplierId!: string;
 
   @Field()
-  periodStart: Date;
+  periodStart!: Date;
 
   @Field()
-  periodEnd: Date;
+  periodEnd!: Date;
 
   @Field()
-  totalOrders: number;
+  totalOrders!: number;
 
   @Field()
-  completedOrders: number;
+  completedOrders!: number;
 
   @Field()
-  cancelledOrders: number;
+  cancelledOrders!: number;
 
   @Field()
-  onTimeDeliveries: number;
+  onTimeDeliveries!: number;
 
   @Field()
-  lateDeliveries: number;
+  lateDeliveries!: number;
 
   @Field(() => Float, { nullable: true })
   averageDeliveryTime?: number;
 
   @Field()
-  totalItemsReceived: number;
+  totalItemsReceived!: number;
 
   @Field()
-  defectiveItems: number;
+  defectiveItems!: number;
 
   @Field()
-  returnedItems: number;
+  returnedItems!: number;
 
   @Field(() => Float)
-  totalSpend: number;
+  totalSpend!: number;
 
   @Field(() => Float, { nullable: true })
   averageOrderValue?: number;
 
   @Field(() => Float)
-  costSavings: number;
+  costSavings!: number;
 
   @Field(() => Float, { nullable: true })
   averageResponseTime?: number;
 
   @Field()
-  communicationCount: number;
+  communicationCount!: number;
 
   @Field(() => Float, { nullable: true })
   completionRate?: number;
@@ -420,5 +420,5 @@ export class SupplierPerformanceMetrics extends BaseEntity {
 
   // Relations
   @Field(() => Supplier)
-  supplier: Supplier;
+  supplier!: Supplier;
 }

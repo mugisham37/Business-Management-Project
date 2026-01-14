@@ -32,6 +32,10 @@ export interface PurchaseOrderWithRelations {
 export class PurchaseOrderRepository {
   constructor(private readonly drizzle: DrizzleService) {}
 
+  private get db() {
+    return this.drizzle.getDb();
+  }
+
   async generatePoNumber(tenantId: string): Promise<string> {
     // Get the current year and month
     const now = new Date();
@@ -40,7 +44,7 @@ export class PurchaseOrderRepository {
     const prefix = `PO${year}${month}`;
 
     // Get the last PO number for this month
-    const [lastPo] = await this.drizzle.db
+    const [lastPo] = await this.db
       .select({ poNumber: purchaseOrders.poNumber })
       .from(purchaseOrders)
       .where(
@@ -67,7 +71,7 @@ export class PurchaseOrderRepository {
     data: CreatePurchaseOrderDto,
     userId: string,
   ): Promise<PurchaseOrderWithRelations> {
-    return await this.drizzle.db.transaction(async (tx) => {
+    return await this.db.transaction(async (tx) => {
       // Generate PO number
       const poNumber = await this.generatePoNumber(tenantId);
 
@@ -79,7 +83,7 @@ export class PurchaseOrderRepository {
       const totalAmount = subtotal + taxAmount + shippingAmount - discountAmount;
 
       // Create purchase order
-      const [purchaseOrder] = await tx
+      const purchaseOrderResult = await tx
         .insert(purchaseOrders)
         .values({
           tenantId,
@@ -109,6 +113,12 @@ export class PurchaseOrderRepository {
         })
         .returning();
 
+      if (!purchaseOrderResult[0]) {
+        throw new Error('Failed to create purchase order');
+      }
+
+      const purchaseOrder = purchaseOrderResult[0];
+
       // Create purchase order items
       const items = await Promise.all(
         data.items.map(async (item) => {
@@ -132,6 +142,11 @@ export class PurchaseOrderRepository {
               updatedBy: userId,
             })
             .returning();
+          
+          if (!poItem) {
+            throw new Error('Failed to create purchase order item');
+          }
+          
           return poItem;
         }),
       );
@@ -151,7 +166,7 @@ export class PurchaseOrderRepository {
     id: string,
     includeRelations = false,
   ): Promise<PurchaseOrderWithRelations | null> {
-    const [purchaseOrder] = await this.drizzle.db
+    const [purchaseOrder] = await this.db
       .select()
       .from(purchaseOrders)
       .where(
@@ -173,7 +188,7 @@ export class PurchaseOrderRepository {
 
     if (includeRelations) {
       // Load items
-      result.items = await this.drizzle.db
+      result.items = await this.db
         .select()
         .from(purchaseOrderItems)
         .where(
@@ -186,7 +201,7 @@ export class PurchaseOrderRepository {
         .orderBy(asc(purchaseOrderItems.createdAt));
 
       // Load approvals
-      result.approvals = await this.drizzle.db
+      result.approvals = await this.db
         .select()
         .from(purchaseOrderApprovals)
         .where(
@@ -199,7 +214,7 @@ export class PurchaseOrderRepository {
         .orderBy(asc(purchaseOrderApprovals.approvalLevel));
 
       // Load receipts
-      result.receipts = await this.drizzle.db
+      result.receipts = await this.db
         .select()
         .from(purchaseOrderReceipts)
         .where(
@@ -212,7 +227,7 @@ export class PurchaseOrderRepository {
         .orderBy(desc(purchaseOrderReceipts.receiptDate));
 
       // Load invoices
-      result.invoices = await this.drizzle.db
+      result.invoices = await this.db
         .select()
         .from(purchaseOrderInvoices)
         .where(
@@ -232,7 +247,7 @@ export class PurchaseOrderRepository {
     tenantId: string,
     poNumber: string,
   ): Promise<typeof purchaseOrders.$inferSelect | null> {
-    const [purchaseOrder] = await this.drizzle.db
+    const [purchaseOrder] = await this.db
       .select()
       .from(purchaseOrders)
       .where(
@@ -312,18 +327,27 @@ export class PurchaseOrderRepository {
     const whereClause = and(...conditions);
 
     // Get total count
-    const [{ count }] = await this.drizzle.db
+    const countResult = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(purchaseOrders)
       .where(whereClause);
+    
+    const count = countResult[0]?.count || 0;
 
     // Build order by clause
-    const orderByColumn = purchaseOrders[sortBy as keyof typeof purchaseOrders] || purchaseOrders.orderDate;
+    const validSortColumns = ['poNumber', 'orderDate', 'status', 'priority', 'totalAmount', 'supplierId', 'requestedDeliveryDate'];
+    const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'orderDate';
+    const orderByColumn = purchaseOrders[sortColumn as keyof typeof purchaseOrders];
+    
+    if (!orderByColumn) {
+      throw new Error(`Invalid sort column: ${sortBy}`);
+    }
+    
     const orderByClause = sortOrder === 'desc' ? desc(orderByColumn) : asc(orderByColumn);
 
     // Get paginated results
     const offset = (page - 1) * limit;
-    const purchaseOrderList = await this.drizzle.db
+    const purchaseOrderList = await this.db
       .select()
       .from(purchaseOrders)
       .where(whereClause)
@@ -365,7 +389,7 @@ export class PurchaseOrderRepository {
       updateData.actualDeliveryDate = new Date(data.actualDeliveryDate);
     }
 
-    const [purchaseOrder] = await this.drizzle.db
+    const [purchaseOrder] = await this.db
       .update(purchaseOrders)
       .set(updateData)
       .where(
@@ -381,7 +405,7 @@ export class PurchaseOrderRepository {
   }
 
   async delete(tenantId: string, id: string, userId: string): Promise<boolean> {
-    const [purchaseOrder] = await this.drizzle.db
+    const [purchaseOrder] = await this.db
       .update(purchaseOrders)
       .set({
         deletedAt: new Date(),
@@ -406,7 +430,7 @@ export class PurchaseOrderRepository {
     data: CreateApprovalDto,
     userId: string,
   ): Promise<typeof purchaseOrderApprovals.$inferSelect> {
-    const [approval] = await this.drizzle.db
+    const [approval] = await this.db
       .insert(purchaseOrderApprovals)
       .values({
         tenantId,
@@ -415,6 +439,10 @@ export class PurchaseOrderRepository {
         updatedBy: userId,
       })
       .returning();
+
+    if (!approval) {
+      throw new Error('Failed to create approval');
+    }
 
     return approval;
   }
@@ -425,7 +453,7 @@ export class PurchaseOrderRepository {
     response: ApprovalResponseDto,
     userId: string,
   ): Promise<typeof purchaseOrderApprovals.$inferSelect | null> {
-    const [approval] = await this.drizzle.db
+    const [approval] = await this.db
       .update(purchaseOrderApprovals)
       .set({
         status: response.status,
@@ -460,7 +488,7 @@ export class PurchaseOrderRepository {
       conditions.push(eq(purchaseOrderApprovals.approverId, approverId));
     }
 
-    return await this.drizzle.db
+    return await this.db
       .select()
       .from(purchaseOrderApprovals)
       .where(and(...conditions))
@@ -476,7 +504,7 @@ export class PurchaseOrderRepository {
     receipt: typeof purchaseOrderReceipts.$inferSelect;
     items: (typeof purchaseOrderReceiptItems.$inferSelect)[];
   }> {
-    return await this.drizzle.db.transaction(async (tx) => {
+    return await this.db.transaction(async (tx) => {
       // Generate receipt number
       const receiptNumber = await this.generateReceiptNumber(tenantId);
 
@@ -501,6 +529,10 @@ export class PurchaseOrderRepository {
         })
         .returning();
 
+      if (!receipt) {
+        throw new Error('Failed to create receipt');
+      }
+
       // Create receipt items
       const items = await Promise.all(
         data.items.map(async (item) => {
@@ -521,6 +553,10 @@ export class PurchaseOrderRepository {
               updatedBy: userId,
             })
             .returning();
+
+          if (!receiptItem) {
+            throw new Error('Failed to create receipt item');
+          }
 
           // Update purchase order item quantities
           await tx
@@ -553,7 +589,7 @@ export class PurchaseOrderRepository {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const prefix = `REC${year}${month}`;
 
-    const [lastReceipt] = await this.drizzle.db
+    const [lastReceipt] = await this.db
       .select({ receiptNumber: purchaseOrderReceipts.receiptNumber })
       .from(purchaseOrderReceipts)
       .where(
@@ -584,7 +620,7 @@ export class PurchaseOrderRepository {
     invoice: typeof purchaseOrderInvoices.$inferSelect;
     items: (typeof purchaseOrderInvoiceItems.$inferSelect)[];
   }> {
-    return await this.drizzle.db.transaction(async (tx) => {
+    return await this.db.transaction(async (tx) => {
       // Create invoice
       const [invoice] = await tx
         .insert(purchaseOrderInvoices)
@@ -605,6 +641,10 @@ export class PurchaseOrderRepository {
         })
         .returning();
 
+      if (!invoice) {
+        throw new Error('Failed to create invoice');
+      }
+
       // Create invoice items
       const items = await Promise.all(
         data.items.map(async (item) => {
@@ -624,6 +664,10 @@ export class PurchaseOrderRepository {
               updatedBy: userId,
             })
             .returning();
+
+          if (!invoiceItem) {
+            throw new Error('Failed to create invoice item');
+          }
 
           return invoiceItem;
         }),
@@ -656,7 +700,7 @@ export class PurchaseOrderRepository {
       conditions.push(lte(purchaseOrders.orderDate, endDate));
     }
 
-    const stats = await this.drizzle.db
+    const stats = await this.db
       .select({
         totalOrders: sql<number>`count(*)`,
         totalValue: sql<number>`sum(total_amount::numeric)`,
@@ -680,28 +724,54 @@ export class PurchaseOrderRepository {
 
     const result = stats[0];
 
+    if (!result) {
+      return {
+        totalOrders: 0,
+        totalValue: 0,
+        byStatus: {
+          draft: 0,
+          pending_approval: 0,
+          approved: 0,
+          sent_to_supplier: 0,
+          acknowledged: 0,
+          partially_received: 0,
+          fully_received: 0,
+          cancelled: 0,
+          closed: 0,
+        },
+        byPriority: {
+          low: 0,
+          normal: 0,
+          high: 0,
+          urgent: 0,
+        },
+        averageOrderValue: 0,
+        pendingApprovals: 0,
+      };
+    }
+
     return {
-      totalOrders: result.totalOrders,
+      totalOrders: result.totalOrders || 0,
       totalValue: result.totalValue || 0,
       byStatus: {
-        draft: result.draftCount,
-        pending_approval: result.pendingApprovalCount,
-        approved: result.approvedCount,
-        sent_to_supplier: result.sentCount,
-        acknowledged: result.acknowledgedCount,
-        partially_received: result.partiallyReceivedCount,
-        fully_received: result.fullyReceivedCount,
-        cancelled: result.cancelledCount,
-        closed: result.closedCount,
+        draft: result.draftCount || 0,
+        pending_approval: result.pendingApprovalCount || 0,
+        approved: result.approvedCount || 0,
+        sent_to_supplier: result.sentCount || 0,
+        acknowledged: result.acknowledgedCount || 0,
+        partially_received: result.partiallyReceivedCount || 0,
+        fully_received: result.fullyReceivedCount || 0,
+        cancelled: result.cancelledCount || 0,
+        closed: result.closedCount || 0,
       },
       byPriority: {
-        low: result.lowPriorityCount,
-        normal: result.normalPriorityCount,
-        high: result.highPriorityCount,
-        urgent: result.urgentPriorityCount,
+        low: result.lowPriorityCount || 0,
+        normal: result.normalPriorityCount || 0,
+        high: result.highPriorityCount || 0,
+        urgent: result.urgentPriorityCount || 0,
       },
       averageOrderValue: result.averageValue || 0,
-      pendingApprovals: result.pendingApprovalCount,
+      pendingApprovals: result.pendingApprovalCount || 0,
     };
   }
 
@@ -730,7 +800,7 @@ export class PurchaseOrderRepository {
       conditions.push(lte(purchaseOrders.orderDate, endDate));
     }
 
-    const stats = await this.drizzle.db
+    const stats = await this.db
       .select({
         totalOrders: sql<number>`count(*)`,
         totalValue: sql<number>`sum(total_amount::numeric)`,
@@ -742,12 +812,22 @@ export class PurchaseOrderRepository {
       .where(and(...conditions));
 
     const result = stats[0];
-    const onTimeDeliveryRate = result.completedDeliveries > 0 
-      ? (result.onTimeDeliveries / result.completedDeliveries) * 100 
+    
+    if (!result) {
+      return {
+        totalOrders: 0,
+        totalSpend: 0,
+        averageOrderValue: 0,
+        onTimeDeliveryRate: 0,
+      };
+    }
+    
+    const onTimeDeliveryRate = (result.completedDeliveries || 0) > 0 
+      ? ((result.onTimeDeliveries || 0) / (result.completedDeliveries || 1)) * 100 
       : 0;
 
     return {
-      totalOrders: result.totalOrders,
+      totalOrders: result.totalOrders || 0,
       totalSpend: result.totalValue || 0,
       averageOrderValue: result.averageValue || 0,
       onTimeDeliveryRate: Math.round(onTimeDeliveryRate * 100) / 100,
@@ -765,7 +845,7 @@ export class PurchaseOrderRepository {
     totalSpend: number;
     orderCount: number;
   }>> {
-    const result = await this.drizzle.db
+    const result = await this.db
       .select({
         supplierId: purchaseOrders.supplierId,
         supplierName: sql<string>`s.name`,
@@ -802,7 +882,7 @@ export class PurchaseOrderRepository {
     totalSpend: number;
     orderCount: number;
   }>> {
-    const result = await this.drizzle.db
+    const result = await this.db
       .select({
         category: sql<string>`s.supplier_type`,
         totalSpend: sql<number>`sum(${purchaseOrders.totalAmount}::numeric)`,
@@ -838,7 +918,7 @@ export class PurchaseOrderRepository {
     orderCount: number;
     averageOrderValue: number;
   }>> {
-    const result = await this.drizzle.db
+    const result = await this.db
       .select({
         month: sql<string>`to_char(${purchaseOrders.orderDate}, 'YYYY-MM')`,
         totalSpend: sql<number>`sum(${purchaseOrders.totalAmount}::numeric)`,

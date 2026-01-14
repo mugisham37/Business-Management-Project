@@ -75,7 +75,7 @@ export class CreatePurchaseOrderItemDto {
   @ApiProperty({ description: 'Item description' })
   @IsString()
   @Length(1, 255)
-  itemDescription: string;
+  itemDescription!: string;
 
   @ApiPropertyOptional({ description: 'SKU' })
   @IsOptional()
@@ -86,12 +86,12 @@ export class CreatePurchaseOrderItemDto {
   @ApiProperty({ description: 'Quantity ordered' })
   @IsNumber()
   @Min(0.001)
-  quantityOrdered: number;
+  quantityOrdered!: number;
 
   @ApiProperty({ description: 'Unit price' })
   @IsNumber()
   @Min(0)
-  unitPrice: number;
+  unitPrice!: number;
 
   @ApiPropertyOptional({ description: 'Specifications', type: Object })
   @IsOptional()
@@ -203,7 +203,7 @@ export class AddressDto {
 export class CreatePurchaseOrderDto {
   @ApiProperty({ description: 'Supplier ID' })
   @IsUUID()
-  supplierId: string;
+  supplierId!: string;
 
   @ApiPropertyOptional({ enum: PurchaseOrderPriority, description: 'Priority' })
   @IsOptional()
@@ -304,7 +304,7 @@ export class CreatePurchaseOrderDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreatePurchaseOrderItemDto)
-  items: CreatePurchaseOrderItemDto[];
+  items!: CreatePurchaseOrderItemDto[];
 }
 
 export class UpdatePurchaseOrderDto {
@@ -418,16 +418,16 @@ export class UpdatePurchaseOrderDto {
 export class CreateApprovalDto {
   @ApiProperty({ description: 'Purchase order ID' })
   @IsUUID()
-  purchaseOrderId: string;
+  purchaseOrderId!: string;
 
   @ApiProperty({ description: 'Approver ID' })
   @IsUUID()
-  approverId: string;
+  approverId!: string;
 
   @ApiProperty({ description: 'Approval level' })
   @IsNumber()
   @Min(1)
-  approvalLevel: number;
+  approvalLevel!: number;
 
   @ApiPropertyOptional({ description: 'Approval rule' })
   @IsOptional()
@@ -439,7 +439,7 @@ export class CreateApprovalDto {
 export class ApprovalResponseDto {
   @ApiProperty({ enum: ApprovalStatus, description: 'Approval status' })
   @IsEnum(ApprovalStatus)
-  status: ApprovalStatus;
+  status!: ApprovalStatus;
 
   @ApiPropertyOptional({ description: 'Comments' })
   @IsOptional()
@@ -451,17 +451,17 @@ export class ApprovalResponseDto {
 export class CreateReceiptItemDto {
   @ApiProperty({ description: 'Purchase order item ID' })
   @IsUUID()
-  purchaseOrderItemId: string;
+  purchaseOrderItemId!: string;
 
   @ApiProperty({ description: 'Quantity received' })
   @IsNumber()
   @Min(0)
-  quantityReceived: number;
+  quantityReceived!: number;
 
   @ApiProperty({ description: 'Quantity accepted' })
   @IsNumber()
   @Min(0)
-  quantityAccepted: number;
+  quantityAccepted!: number;
 
   @ApiPropertyOptional({ description: 'Quantity rejected' })
   @IsOptional()
@@ -494,7 +494,7 @@ export class CreateReceiptItemDto {
 export class CreateReceiptDto {
   @ApiProperty({ description: 'Purchase order ID' })
   @IsUUID()
-  purchaseOrderId: string;
+  purchaseOrderId!: string;
 
   @ApiPropertyOptional({ description: 'Receipt date' })
   @IsOptional()
@@ -543,7 +543,7 @@ export class CreateReceiptDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateReceiptItemDto)
-  items: CreateReceiptItemDto[];
+  items!: CreateReceiptItemDto[];
 }
 
 // Invoice DTO
@@ -556,7 +556,7 @@ export class CreateInvoiceItemDto {
   @ApiProperty({ description: 'Description' })
   @IsString()
   @Length(1, 255)
-  description: string;
+  description!: string;
 
   @ApiPropertyOptional({ description: 'SKU' })
   @IsOptional()
@@ -567,27 +567,27 @@ export class CreateInvoiceItemDto {
   @ApiProperty({ description: 'Quantity' })
   @IsNumber()
   @Min(0)
-  quantity: number;
+  quantity!: number;
 
   @ApiProperty({ description: 'Unit price' })
   @IsNumber()
   @Min(0)
-  unitPrice: number;
+  unitPrice!: number;
 }
 
 export class CreateInvoiceDto {
   @ApiProperty({ description: 'Purchase order ID' })
   @IsUUID()
-  purchaseOrderId: string;
+  purchaseOrderId!: string;
 
   @ApiProperty({ description: 'Invoice number' })
   @IsString()
   @Length(1, 50)
-  invoiceNumber: string;
+  invoiceNumber!: string;
 
   @ApiProperty({ description: 'Invoice date' })
   @IsDateString()
-  invoiceDate: string;
+  invoiceDate!: string;
 
   @ApiPropertyOptional({ description: 'Due date' })
   @IsOptional()
@@ -597,7 +597,7 @@ export class CreateInvoiceDto {
   @ApiProperty({ description: 'Invoice amount' })
   @IsNumber()
   @Min(0)
-  invoiceAmount: number;
+  invoiceAmount!: number;
 
   @ApiPropertyOptional({ description: 'Tax amount' })
   @IsOptional()
@@ -630,7 +630,7 @@ export class CreateInvoiceDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateInvoiceItemDto)
-  items: CreateInvoiceItemDto[];
+  items!: CreateInvoiceItemDto[];
 }
 
 // Query DTOs
@@ -703,25 +703,25 @@ export class PurchaseOrderQueryDto {
 // Response DTOs
 export class PurchaseOrderResponseDto {
   @ApiProperty({ description: 'Purchase order ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Tenant ID' })
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty({ description: 'PO number' })
-  poNumber: string;
+  poNumber!: string;
 
   @ApiProperty({ description: 'Supplier ID' })
-  supplierId: string;
+  supplierId!: string;
 
   @ApiProperty({ enum: PurchaseOrderStatus, description: 'Status' })
-  status: PurchaseOrderStatus;
+  status!: PurchaseOrderStatus;
 
   @ApiProperty({ enum: PurchaseOrderPriority, description: 'Priority' })
-  priority: PurchaseOrderPriority;
+  priority!: PurchaseOrderPriority;
 
   @ApiProperty({ description: 'Order date' })
-  orderDate: Date;
+  orderDate!: Date;
 
   @ApiPropertyOptional({ description: 'Requested delivery date' })
   requestedDeliveryDate?: Date;
@@ -733,28 +733,28 @@ export class PurchaseOrderResponseDto {
   actualDeliveryDate?: Date;
 
   @ApiProperty({ description: 'Subtotal' })
-  subtotal: number;
+  subtotal!: number;
 
   @ApiProperty({ description: 'Tax amount' })
-  taxAmount: number;
+  taxAmount!: number;
 
   @ApiProperty({ description: 'Shipping amount' })
-  shippingAmount: number;
+  shippingAmount!: number;
 
   @ApiProperty({ description: 'Discount amount' })
-  discountAmount: number;
+  discountAmount!: number;
 
   @ApiProperty({ description: 'Total amount' })
-  totalAmount: number;
+  totalAmount!: number;
 
   @ApiProperty({ description: 'Currency' })
-  currency: string;
+  currency!: string;
 
   @ApiProperty({ description: 'Created at' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated at' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ApiPropertyOptional({ description: 'Created by user ID' })
   createdBy?: string;
@@ -763,5 +763,5 @@ export class PurchaseOrderResponseDto {
   updatedBy?: string;
 
   @ApiProperty({ description: 'Is active' })
-  isActive: boolean;
+  isActive!: boolean;
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { eq, and, desc, asc, isNull } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, isNull } from 'drizzle-orm';
 import { DrizzleService } from '../../database/drizzle.service';
 import { supplierContacts } from '../../database/schema/supplier.schema';
 import { CreateSupplierContactDto, UpdateSupplierContactDto } from '../dto/supplier.dto';
@@ -7,6 +7,10 @@ import { CreateSupplierContactDto, UpdateSupplierContactDto } from '../dto/suppl
 @Injectable()
 export class SupplierContactRepository {
   constructor(private readonly drizzle: DrizzleService) {}
+
+  private get db() {
+    return this.drizzle.getDb();
+  }
 
   async create(
     tenantId: string,
@@ -16,7 +20,7 @@ export class SupplierContactRepository {
   ): Promise<typeof supplierContacts.$inferSelect> {
     // If this is set as primary, unset other primary contacts for this supplier
     if (data.isPrimary) {
-      await this.drizzle.db
+      await this.db
         .update(supplierContacts)
         .set({ isPrimary: false, updatedBy: userId, updatedAt: new Date() })
         .where(
@@ -29,7 +33,7 @@ export class SupplierContactRepository {
         );
     }
 
-    const [contact] = await this.drizzle.db
+    const [contact] = await this.db
       .insert(supplierContacts)
       .values({
         tenantId,
@@ -40,6 +44,10 @@ export class SupplierContactRepository {
       })
       .returning();
 
+    if (!contact) {
+      throw new Error('Failed to create contact');
+    }
+
     return contact;
   }
 
@@ -47,7 +55,7 @@ export class SupplierContactRepository {
     tenantId: string,
     id: string,
   ): Promise<typeof supplierContacts.$inferSelect | null> {
-    const [contact] = await this.drizzle.db
+    const [contact] = await this.db
       .select()
       .from(supplierContacts)
       .where(
@@ -66,7 +74,7 @@ export class SupplierContactRepository {
     tenantId: string,
     supplierId: string,
   ): Promise<(typeof supplierContacts.$inferSelect)[]> {
-    return await this.drizzle.db
+    return await this.db
       .select()
       .from(supplierContacts)
       .where(
@@ -83,7 +91,7 @@ export class SupplierContactRepository {
     tenantId: string,
     supplierId: string,
   ): Promise<typeof supplierContacts.$inferSelect | null> {
-    const [contact] = await this.drizzle.db
+    const [contact] = await this.db
       .select()
       .from(supplierContacts)
       .where(
@@ -109,7 +117,7 @@ export class SupplierContactRepository {
     if (data.isPrimary) {
       const contact = await this.findById(tenantId, id);
       if (contact) {
-        await this.drizzle.db
+        await this.db
           .update(supplierContacts)
           .set({ isPrimary: false, updatedBy: userId, updatedAt: new Date() })
           .where(
@@ -123,7 +131,7 @@ export class SupplierContactRepository {
       }
     }
 
-    const [contact] = await this.drizzle.db
+    const [contact] = await this.db
       .update(supplierContacts)
       .set({
         ...data,
@@ -143,7 +151,7 @@ export class SupplierContactRepository {
   }
 
   async delete(tenantId: string, id: string, userId: string): Promise<boolean> {
-    const [contact] = await this.drizzle.db
+    const [contact] = await this.db
       .update(supplierContacts)
       .set({
         deletedAt: new Date(),
@@ -173,7 +181,7 @@ export class SupplierContactRepository {
     }
 
     // Unset other primary contacts for this supplier
-    await this.drizzle.db
+    await this.db
       .update(supplierContacts)
       .set({ isPrimary: false, updatedBy: userId, updatedAt: new Date() })
       .where(
@@ -186,7 +194,7 @@ export class SupplierContactRepository {
       );
 
     // Set this contact as primary
-    const [updatedContact] = await this.drizzle.db
+    const [updatedContact] = await this.db
       .update(supplierContacts)
       .set({
         isPrimary: true,
@@ -209,7 +217,7 @@ export class SupplierContactRepository {
     tenantId: string,
     email: string,
   ): Promise<(typeof supplierContacts.$inferSelect)[]> {
-    return await this.drizzle.db
+    return await this.db
       .select()
       .from(supplierContacts)
       .where(
@@ -223,8 +231,8 @@ export class SupplierContactRepository {
   }
 
   async countBySupplier(tenantId: string, supplierId: string): Promise<number> {
-    const [result] = await this.drizzle.db
-      .select({ count: eq(supplierContacts.id, supplierContacts.id) })
+    const result = await this.db
+      .select({ count: sql<number>`count(*)` })
       .from(supplierContacts)
       .where(
         and(
@@ -234,6 +242,6 @@ export class SupplierContactRepository {
         ),
       );
 
-    return result?.count || 0;
+    return result[0]?.count || 0;
   }
 }

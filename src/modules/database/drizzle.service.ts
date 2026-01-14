@@ -20,7 +20,7 @@ export class DrizzleService implements OnModuleDestroy {
   private readonly logger = new Logger(DrizzleService.name);
   private primaryPool: Pool | null = null;
   private readReplicaPools: Pool[] = [];
-  private db: NodePgDatabase<typeof schema> | null = null;
+  public db: NodePgDatabase<typeof schema> | null = null;
   private readReplicaDbs: NodePgDatabase<typeof schema>[] = [];
   private currentReadReplicaIndex = 0;
   private databaseConfig: DatabaseConfig;

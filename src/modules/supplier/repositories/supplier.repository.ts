@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { eq, and, like, ilike, desc, asc, sql, inArray, isNull } from 'drizzle-orm';
+import { eq, and, ilike, desc, asc, sql, isNull } from 'drizzle-orm';
 import { DrizzleService } from '../../database/drizzle.service';
 import {
   suppliers,
@@ -22,20 +22,55 @@ export interface SupplierWithRelations {
 export class SupplierRepository {
   constructor(private readonly drizzle: DrizzleService) {}
 
+  private get db() {
+    return this.drizzle.getDb();
+  }
+
   async create(
     tenantId: string,
     data: CreateSupplierDto,
     userId: string,
   ): Promise<typeof suppliers.$inferSelect> {
-    const [supplier] = await this.drizzle.db
+    const [supplier] = await this.db
       .insert(suppliers)
       .values({
         tenantId,
-        ...data,
+        supplierCode: data.supplierCode,
+        name: data.name,
+        legalName: data.legalName,
+        supplierType: data.supplierType,
+        status: data.status,
+        primaryContactName: data.primaryContactName,
+        primaryContactTitle: data.primaryContactTitle,
+        primaryContactEmail: data.primaryContactEmail,
+        primaryContactPhone: data.primaryContactPhone,
+        addressLine1: data.addressLine1,
+        addressLine2: data.addressLine2,
+        city: data.city,
+        state: data.state,
+        postalCode: data.postalCode,
+        country: data.country,
+        taxId: data.taxId,
+        businessRegistrationNumber: data.businessRegistrationNumber,
+        website: data.website,
+        description: data.description,
+        paymentTerms: data.paymentTerms,
+        creditLimit: data.creditLimit?.toString(),
+        currency: data.currency,
+        certifications: data.certifications || [],
+        tags: data.tags || [],
+        customFields: data.customFields || {},
+        notes: data.notes,
+        preferredCommunicationMethod: data.preferredCommunicationMethod,
+        isPreferredSupplier: data.isPreferredSupplier,
         createdBy: userId,
         updatedBy: userId,
       })
       .returning();
+
+    if (!supplier) {
+      throw new Error('Failed to create supplier');
+    }
 
     return supplier;
   }
@@ -45,23 +80,23 @@ export class SupplierRepository {
     id: string,
     includeRelations = false,
   ): Promise<SupplierWithRelations | null> {
-    const supplier = await this.drizzle.db
+    const supplierResult = await this.db
       .select()
       .from(suppliers)
       .where(and(eq(suppliers.tenantId, tenantId), eq(suppliers.id, id), isNull(suppliers.deletedAt)))
       .limit(1);
 
-    if (!supplier.length) {
+    if (!supplierResult.length || !supplierResult[0]) {
       return null;
     }
 
     const result: SupplierWithRelations = {
-      supplier: supplier[0],
+      supplier: supplierResult[0],
     };
 
     if (includeRelations) {
       // Load contacts
-      result.contacts = await this.drizzle.db
+      result.contacts = await this.db
         .select()
         .from(supplierContacts)
         .where(
@@ -74,7 +109,7 @@ export class SupplierRepository {
         .orderBy(desc(supplierContacts.isPrimary), asc(supplierContacts.firstName));
 
       // Load recent communications
-      result.communications = await this.drizzle.db
+      result.communications = await this.db
         .select()
         .from(supplierCommunications)
         .where(
@@ -88,7 +123,7 @@ export class SupplierRepository {
         .limit(10);
 
       // Load recent evaluations
-      result.evaluations = await this.drizzle.db
+      result.evaluations = await this.db
         .select()
         .from(supplierEvaluations)
         .where(
@@ -102,7 +137,7 @@ export class SupplierRepository {
         .limit(5);
 
       // Load performance metrics
-      result.performanceMetrics = await this.drizzle.db
+      result.performanceMetrics = await this.db
         .select()
         .from(supplierPerformanceMetrics)
         .where(
@@ -123,7 +158,7 @@ export class SupplierRepository {
     tenantId: string,
     supplierCode: string,
   ): Promise<typeof suppliers.$inferSelect | null> {
-    const [supplier] = await this.drizzle.db
+    const [supplier] = await this.db
       .select()
       .from(suppliers)
       .where(
@@ -182,18 +217,27 @@ export class SupplierRepository {
     const whereClause = and(...conditions);
 
     // Get total count
-    const [{ count }] = await this.drizzle.db
+    const countResult = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(suppliers)
       .where(whereClause);
+    
+    const count = countResult[0]?.count || 0;
 
     // Build order by clause
-    const orderByColumn = suppliers[sortBy as keyof typeof suppliers] || suppliers.name;
+    const validSortColumns = ['name', 'supplierCode', 'status', 'supplierType', 'overallRating', 'createdAt'];
+    const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'name';
+    const orderByColumn = suppliers[sortColumn as keyof typeof suppliers];
+    
+    if (!orderByColumn) {
+      throw new Error(`Invalid sort column: ${sortBy}`);
+    }
+    
     const orderByClause = sortOrder === 'desc' ? desc(orderByColumn) : asc(orderByColumn);
 
     // Get paginated results
     const offset = (page - 1) * limit;
-    const supplierList = await this.drizzle.db
+    const supplierList = await this.db
       .select()
       .from(suppliers)
       .where(whereClause)
@@ -218,13 +262,43 @@ export class SupplierRepository {
     data: UpdateSupplierDto,
     userId: string,
   ): Promise<typeof suppliers.$inferSelect | null> {
-    const [supplier] = await this.drizzle.db
+    const updateData: any = {
+      updatedBy: userId,
+      updatedAt: new Date(),
+    };
+
+    // Map all fields explicitly to handle type conversions
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.legalName !== undefined) updateData.legalName = data.legalName;
+    if (data.supplierType !== undefined) updateData.supplierType = data.supplierType;
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.primaryContactName !== undefined) updateData.primaryContactName = data.primaryContactName;
+    if (data.primaryContactTitle !== undefined) updateData.primaryContactTitle = data.primaryContactTitle;
+    if (data.primaryContactEmail !== undefined) updateData.primaryContactEmail = data.primaryContactEmail;
+    if (data.primaryContactPhone !== undefined) updateData.primaryContactPhone = data.primaryContactPhone;
+    if (data.addressLine1 !== undefined) updateData.addressLine1 = data.addressLine1;
+    if (data.addressLine2 !== undefined) updateData.addressLine2 = data.addressLine2;
+    if (data.city !== undefined) updateData.city = data.city;
+    if (data.state !== undefined) updateData.state = data.state;
+    if (data.postalCode !== undefined) updateData.postalCode = data.postalCode;
+    if (data.country !== undefined) updateData.country = data.country;
+    if (data.taxId !== undefined) updateData.taxId = data.taxId;
+    if (data.businessRegistrationNumber !== undefined) updateData.businessRegistrationNumber = data.businessRegistrationNumber;
+    if (data.website !== undefined) updateData.website = data.website;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.paymentTerms !== undefined) updateData.paymentTerms = data.paymentTerms;
+    if (data.creditLimit !== undefined) updateData.creditLimit = data.creditLimit.toString();
+    if (data.currency !== undefined) updateData.currency = data.currency;
+    if (data.certifications !== undefined) updateData.certifications = data.certifications;
+    if (data.tags !== undefined) updateData.tags = data.tags;
+    if (data.customFields !== undefined) updateData.customFields = data.customFields;
+    if (data.notes !== undefined) updateData.notes = data.notes;
+    if (data.preferredCommunicationMethod !== undefined) updateData.preferredCommunicationMethod = data.preferredCommunicationMethod;
+    if (data.isPreferredSupplier !== undefined) updateData.isPreferredSupplier = data.isPreferredSupplier;
+
+    const [supplier] = await this.db
       .update(suppliers)
-      .set({
-        ...data,
-        updatedBy: userId,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(and(eq(suppliers.tenantId, tenantId), eq(suppliers.id, id), isNull(suppliers.deletedAt)))
       .returning();
 
@@ -232,7 +306,7 @@ export class SupplierRepository {
   }
 
   async delete(tenantId: string, id: string, userId: string): Promise<boolean> {
-    const [supplier] = await this.drizzle.db
+    const [supplier] = await this.db
       .update(suppliers)
       .set({
         deletedAt: new Date(),
@@ -256,13 +330,27 @@ export class SupplierRepository {
     },
     userId: string,
   ): Promise<typeof suppliers.$inferSelect | null> {
-    const [supplier] = await this.drizzle.db
+    const updateData: any = {
+      updatedBy: userId,
+      updatedAt: new Date(),
+    };
+
+    if (ratings.overallRating !== undefined) {
+      updateData.overallRating = ratings.overallRating;
+    }
+    if (ratings.qualityRating !== undefined) {
+      updateData.qualityRating = ratings.qualityRating;
+    }
+    if (ratings.deliveryRating !== undefined) {
+      updateData.deliveryRating = ratings.deliveryRating;
+    }
+    if (ratings.serviceRating !== undefined) {
+      updateData.serviceRating = ratings.serviceRating;
+    }
+
+    const [supplier] = await this.db
       .update(suppliers)
-      .set({
-        ...ratings,
-        updatedBy: userId,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(and(eq(suppliers.tenantId, tenantId), eq(suppliers.id, supplierId), isNull(suppliers.deletedAt)))
       .returning();
 
@@ -270,7 +358,7 @@ export class SupplierRepository {
   }
 
   async findPreferredSuppliers(tenantId: string): Promise<(typeof suppliers.$inferSelect)[]> {
-    return await this.drizzle.db
+    return await this.db
       .select()
       .from(suppliers)
       .where(
@@ -288,13 +376,13 @@ export class SupplierRepository {
     tenantId: string,
     status: string,
   ): Promise<(typeof suppliers.$inferSelect)[]> {
-    return await this.drizzle.db
+    return await this.db
       .select()
       .from(suppliers)
       .where(
         and(
           eq(suppliers.tenantId, tenantId),
-          eq(suppliers.status, status),
+          sql`${suppliers.status} = ${status}`,
           isNull(suppliers.deletedAt),
         ),
       )
@@ -309,7 +397,7 @@ export class SupplierRepository {
     preferred: number;
     averageRating: number;
   }> {
-    const stats = await this.drizzle.db
+    const stats = await this.db
       .select({
         total: sql<number>`count(*)`,
         active: sql<number>`count(*) filter (where status = 'active')`,
@@ -324,6 +412,18 @@ export class SupplierRepository {
       .where(and(eq(suppliers.tenantId, tenantId), isNull(suppliers.deletedAt)));
 
     const result = stats[0];
+    
+    if (!result) {
+      return {
+        total: 0,
+        active: 0,
+        inactive: 0,
+        pendingApproval: 0,
+        preferred: 0,
+        averageRating: 0,
+      };
+    }
+    
     const averageRating = (
       (result.averageQualityRating || 0) +
       (result.averageDeliveryRating || 0) +
@@ -331,11 +431,11 @@ export class SupplierRepository {
     ) / 3;
 
     return {
-      total: result.total,
-      active: result.active,
-      inactive: result.inactive,
-      pendingApproval: result.pendingApproval,
-      preferred: result.preferred,
+      total: result.total || 0,
+      active: result.active || 0,
+      inactive: result.inactive || 0,
+      pendingApproval: result.pendingApproval || 0,
+      preferred: result.preferred || 0,
       averageRating: Math.round(averageRating * 100) / 100,
     };
   }
@@ -345,7 +445,7 @@ export class SupplierRepository {
     searchTerm: string,
     limit = 10,
   ): Promise<(typeof suppliers.$inferSelect)[]> {
-    return await this.drizzle.db
+    return await this.db
       .select()
       .from(suppliers)
       .where(
@@ -365,8 +465,8 @@ export class SupplierRepository {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-    return await this.drizzle.db
-      .select()
+    const result = await this.db
+      .select({ suppliers })
       .from(suppliers)
       .leftJoin(
         supplierEvaluations,
@@ -386,5 +486,7 @@ export class SupplierRepository {
       )
       .groupBy(suppliers.id)
       .orderBy(asc(suppliers.name));
+
+    return result.map(row => row.suppliers);
   }
 }
