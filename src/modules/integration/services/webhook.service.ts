@@ -28,14 +28,14 @@ interface WebhookPayload {
   timestamp: string;
   data: any;
   tenantId: string;
-  integrationId?: string;
+  integrationId?: string | undefined;
 }
 
-interface DeliveryResult {
+export interface DeliveryResult {
   success: boolean;
-  statusCode?: number;
-  responseBody?: string;
-  error?: string;
+  statusCode?: number | undefined;
+  responseBody?: string | undefined;
+  error?: string | undefined;
   duration: number;
 }
 
@@ -158,7 +158,7 @@ export class WebhookService {
       timestamp: new Date().toISOString(),
       data,
       tenantId,
-      integrationId,
+      integrationId: integrationId || undefined,
     };
 
     // Queue webhook deliveries
@@ -307,7 +307,7 @@ export class WebhookService {
 
     try {
       // Prepare headers
-      const headers = {
+      const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'User-Agent': 'UnifiedBusinessPlatform-Webhook/1.0',
         'X-Webhook-Event': payload.event,
@@ -351,13 +351,14 @@ export class WebhookService {
       };
 
     } catch (error) {
+      const err = error as any;
       const duration = Date.now() - startTime;
 
       return {
         success: false,
-        statusCode: error.response?.status,
-        responseBody: error.response?.data ? JSON.stringify(error.response.data) : undefined,
-        error: error.message,
+        statusCode: err.response?.status,
+        responseBody: err.response?.data ? JSON.stringify(err.response.data) : undefined,
+        error: err.message,
         duration,
       };
     }
@@ -377,7 +378,7 @@ export class WebhookService {
     
     if (!webhooks) {
       webhooks = await this.webhookRepository.findMatchingWebhooks(tenantId, event, integrationId);
-      await this.cacheService.set(cacheKey, webhooks, 300); // Cache for 5 minutes
+      await this.cacheService.set(cacheKey, webhooks, { ttl: 300 }); // Cache for 5 minutes
     }
 
     return webhooks.filter(webhook => webhook.isActive && webhook.status === WebhookStatus.ACTIVE);
@@ -425,13 +426,13 @@ export class WebhookService {
       eventType: payload.event,
       payload: payload.data,
       headers: {}, // Could include request headers if needed
-      statusCode: result.statusCode,
-      responseBody: result.responseBody,
+      ...(result.statusCode !== undefined ? { statusCode: result.statusCode } : {}),
+      ...(result.responseBody !== undefined ? { responseBody: result.responseBody } : {}),
       responseHeaders: {},
       deliveredAt: new Date(),
       duration: result.duration,
       success: result.success,
-      error: result.error,
+      ...(result.error !== undefined ? { error: result.error } : {}),
       retryCount: attempt - 1,
     });
   }
@@ -525,7 +526,8 @@ export class WebhookService {
 
       this.logger.log(`Queued ${failedDeliveries.length} failed deliveries for retry`);
     } catch (error) {
-      this.logger.error('Failed to retry webhook deliveries:', error);
+      const err = error as Error;
+      this.logger.error('Failed to retry webhook deliveries:', err);
     }
   }
 }

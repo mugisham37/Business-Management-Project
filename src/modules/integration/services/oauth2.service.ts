@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
 
 import { OAuth2Repository } from '../repositories/oauth2.repository';
-import { EncryptionService } from '../../common/services/encryption.service';
+import { EncryptionService } from '../../../common/services/encryption.service';
 import { CacheService } from '../../cache/cache.service';
 
 import {
@@ -47,50 +47,74 @@ export class OAuth2Service {
    */
   private initializeProviders(): void {
     // QuickBooks OAuth2 configuration
-    this.providers.set('quickbooks', {
-      name: 'QuickBooks',
-      authUrl: 'https://appcenter.intuit.com/connect/oauth2',
-      tokenUrl: 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
-      revokeUrl: 'https://developer.api.intuit.com/v2/oauth2/tokens/revoke',
-      scopes: ['com.intuit.quickbooks.accounting'],
-      clientId: this.configService.get('QUICKBOOKS_CLIENT_ID'),
-      clientSecret: this.configService.get('QUICKBOOKS_CLIENT_SECRET'),
-      redirectUri: this.configService.get('QUICKBOOKS_REDIRECT_URI'),
-    });
+    const quickbooksClientId = this.configService.get('QUICKBOOKS_CLIENT_ID');
+    const quickbooksClientSecret = this.configService.get('QUICKBOOKS_CLIENT_SECRET');
+    const quickbooksRedirectUri = this.configService.get('QUICKBOOKS_REDIRECT_URI');
+    
+    if (quickbooksClientId && quickbooksClientSecret && quickbooksRedirectUri) {
+      this.providers.set('quickbooks', {
+        name: 'QuickBooks',
+        authUrl: 'https://appcenter.intuit.com/connect/oauth2',
+        tokenUrl: 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
+        revokeUrl: 'https://developer.api.intuit.com/v2/oauth2/tokens/revoke',
+        scopes: ['com.intuit.quickbooks.accounting'],
+        clientId: quickbooksClientId,
+        clientSecret: quickbooksClientSecret,
+        redirectUri: quickbooksRedirectUri,
+      });
+    }
 
     // Xero OAuth2 configuration
-    this.providers.set('xero', {
-      name: 'Xero',
-      authUrl: 'https://login.xero.com/identity/connect/authorize',
-      tokenUrl: 'https://identity.xero.com/connect/token',
-      revokeUrl: 'https://identity.xero.com/connect/revocation',
-      scopes: ['accounting.transactions', 'accounting.contacts', 'accounting.settings'],
-      clientId: this.configService.get('XERO_CLIENT_ID'),
-      clientSecret: this.configService.get('XERO_CLIENT_SECRET'),
-      redirectUri: this.configService.get('XERO_REDIRECT_URI'),
-    });
+    const xeroClientId = this.configService.get('XERO_CLIENT_ID');
+    const xeroClientSecret = this.configService.get('XERO_CLIENT_SECRET');
+    const xeroRedirectUri = this.configService.get('XERO_REDIRECT_URI');
+    
+    if (xeroClientId && xeroClientSecret && xeroRedirectUri) {
+      this.providers.set('xero', {
+        name: 'Xero',
+        authUrl: 'https://login.xero.com/identity/connect/authorize',
+        tokenUrl: 'https://identity.xero.com/connect/token',
+        revokeUrl: 'https://identity.xero.com/connect/revocation',
+        scopes: ['accounting.transactions', 'accounting.contacts', 'accounting.settings'],
+        clientId: xeroClientId,
+        clientSecret: xeroClientSecret,
+        redirectUri: xeroRedirectUri,
+      });
+    }
 
     // Shopify OAuth2 configuration
-    this.providers.set('shopify', {
-      name: 'Shopify',
-      authUrl: 'https://{shop}.myshopify.com/admin/oauth/authorize',
-      tokenUrl: 'https://{shop}.myshopify.com/admin/oauth/access_token',
-      scopes: ['read_products', 'write_products', 'read_orders', 'write_orders'],
-      clientId: this.configService.get('SHOPIFY_CLIENT_ID'),
-      clientSecret: this.configService.get('SHOPIFY_CLIENT_SECRET'),
-      redirectUri: this.configService.get('SHOPIFY_REDIRECT_URI'),
-    });
+    const shopifyClientId = this.configService.get('SHOPIFY_CLIENT_ID');
+    const shopifyClientSecret = this.configService.get('SHOPIFY_CLIENT_SECRET');
+    const shopifyRedirectUri = this.configService.get('SHOPIFY_REDIRECT_URI');
+    
+    if (shopifyClientId && shopifyClientSecret && shopifyRedirectUri) {
+      this.providers.set('shopify', {
+        name: 'Shopify',
+        authUrl: 'https://{shop}.myshopify.com/admin/oauth/authorize',
+        tokenUrl: 'https://{shop}.myshopify.com/admin/oauth/access_token',
+        scopes: ['read_products', 'write_products', 'read_orders', 'write_orders'],
+        clientId: shopifyClientId,
+        clientSecret: shopifyClientSecret,
+        redirectUri: shopifyRedirectUri,
+      });
+    }
 
     // Stripe OAuth2 configuration (Connect)
-    this.providers.set('stripe', {
-      name: 'Stripe',
-      authUrl: 'https://connect.stripe.com/oauth/authorize',
-      tokenUrl: 'https://connect.stripe.com/oauth/token',
-      scopes: ['read_write'],
-      clientId: this.configService.get('STRIPE_CLIENT_ID'),
-      clientSecret: this.configService.get('STRIPE_CLIENT_SECRET'),
-      redirectUri: this.configService.get('STRIPE_REDIRECT_URI'),
-    });
+    const stripeClientId = this.configService.get('STRIPE_CLIENT_ID');
+    const stripeClientSecret = this.configService.get('STRIPE_CLIENT_SECRET');
+    const stripeRedirectUri = this.configService.get('STRIPE_REDIRECT_URI');
+    
+    if (stripeClientId && stripeClientSecret && stripeRedirectUri) {
+      this.providers.set('stripe', {
+        name: 'Stripe',
+        authUrl: 'https://connect.stripe.com/oauth/authorize',
+        tokenUrl: 'https://connect.stripe.com/oauth/token',
+        scopes: ['read_write'],
+        clientId: stripeClientId,
+        clientSecret: stripeClientSecret,
+        redirectUri: stripeRedirectUri,
+      });
+    }
 
     this.logger.log(`Initialized ${this.providers.size} OAuth2 providers`);
   }
@@ -146,7 +170,7 @@ export class OAuth2Service {
       integrationId,
       tenantId: dto.tenantId,
       timestamp: Date.now(),
-    }, 600); // 10 minutes
+    }, { ttl: 600 }); // 10 minutes
 
     // Build authorization URL
     const params = new URLSearchParams({
@@ -177,7 +201,7 @@ export class OAuth2Service {
     this.logger.log(`Handling OAuth2 callback with state: ${dto.state}`);
 
     // Verify state parameter
-    const stateData = await this.cacheService.get(`oauth2:state:${dto.state}`);
+    const stateData = await this.cacheService.get<{ integrationId: string; tenantId: string; timestamp: number }>(`oauth2:state:${dto.state}`);
     if (!stateData) {
       throw new UnauthorizedException('Invalid or expired state parameter');
     }
@@ -193,6 +217,10 @@ export class OAuth2Service {
 
     const config = await this.oauth2Repository.getConfig(integrationId);
     const provider = this.providers.get(config.provider);
+    
+    if (!provider) {
+      throw new BadRequestException(`Provider not found: ${config.provider}`);
+    }
 
     // Exchange authorization code for access token
     const tokenData = await this.exchangeCodeForToken(provider, config, dto.code, dto.shop);
@@ -263,6 +291,10 @@ export class OAuth2Service {
 
     const config = await this.oauth2Repository.getConfig(integrationId);
     const provider = this.providers.get(config.provider);
+    
+    if (!provider) {
+      throw new BadRequestException(`Provider not found: ${config.provider}`);
+    }
 
     try {
       const refreshTokenDecrypted = await this.encryptionService.decrypt(token.refreshToken);
@@ -318,6 +350,13 @@ export class OAuth2Service {
 
     const config = await this.oauth2Repository.getConfig(integrationId);
     const provider = this.providers.get(config.provider);
+    
+    if (!provider) {
+      this.logger.warn(`Provider not found for integration: ${integrationId}`);
+      // Delete token from database anyway
+      await this.oauth2Repository.deleteToken(integrationId);
+      return;
+    }
 
     // Revoke token with provider if revoke URL is available
     if (provider.revokeUrl) {

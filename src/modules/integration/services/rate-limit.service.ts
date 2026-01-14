@@ -54,7 +54,7 @@ export class RateLimitService {
 
       // Increment counter
       currentCount++;
-      await this.cacheService.set(key, currentCount, windowSeconds);
+      await this.cacheService.set(key, currentCount, { ttl: windowSeconds });
 
       return {
         allowed: true,
@@ -172,11 +172,12 @@ export class RateLimitService {
 
       // Check if limit exceeded
       if (validRequests.length >= limit) {
+        const oldestRequest = validRequests[0];
         return {
           allowed: false,
           limit,
           remaining: 0,
-          resetAt: new Date(validRequests[0] + windowMs),
+          resetAt: oldestRequest ? new Date(oldestRequest + windowMs) : new Date(now + windowMs),
           currentCount: validRequests.length,
         };
       }
@@ -185,10 +186,13 @@ export class RateLimitService {
       validRequests.push(now);
 
       // Store updated timestamps
-      await this.cacheService.set(key, validRequests, windowSeconds);
+      await this.cacheService.set(key, validRequests, { ttl: windowSeconds });
 
       // Calculate when the oldest request will expire
       const oldestRequest = validRequests[0];
+      if (!oldestRequest) {
+        throw new Error('No requests in valid requests array');
+      }
       const resetAt = new Date(oldestRequest + windowMs);
 
       return {
@@ -247,7 +251,7 @@ export class RateLimitService {
         await this.cacheService.set(key, {
           tokens: newTokens,
           lastRefill: now,
-        }, 3600); // 1 hour TTL
+        }, { ttl: 3600 }); // 1 hour TTL
 
         return {
           allowed: false,
@@ -266,7 +270,7 @@ export class RateLimitService {
       await this.cacheService.set(key, {
         tokens: remainingTokens,
         lastRefill: now,
-      }, 3600);
+      }, { ttl: 3600 });
 
       return {
         allowed: true,
@@ -308,10 +312,7 @@ export class RateLimitService {
   /**
    * Get rate limit statistics for monitoring
    */
-  async getRateLimitStats(
-    type: string,
-    timeRange: 'hour' | 'day' | 'week' = 'hour',
-  ): Promise<{
+  async getRateLimitStats(): Promise<{
     totalRequests: number;
     blockedRequests: number;
     topIdentifiers: Array<{ identifier: string; requests: number }>;
@@ -348,10 +349,6 @@ export class RateLimitService {
     identifier: string,
     config: RateLimitConfig,
   ): Promise<RateLimitResult> {
-    const key = config.keyGenerator 
-      ? config.keyGenerator(identifier, 'custom')
-      : this.generateKey(identifier, 'custom', Date.now());
-
     const windowSeconds = Math.floor(config.windowSizeMs / 1000);
     
     return this.checkRateLimit(identifier, 'custom', config.maxRequests, windowSeconds);

@@ -21,9 +21,10 @@ import {
 import {
   Integration,
   IntegrationStatus,
-  IntegrationType,
   AuthType,
 } from '../entities/integration.entity';
+
+import { SyncType } from '../entities/sync-log.entity';
 
 @Injectable()
 export class IntegrationService {
@@ -57,14 +58,14 @@ export class IntegrationService {
     }
 
     // Validate configuration against connector schema
-    await this.connectorService.validateConfig(dto.type, dto.providerName, dto.config);
+    await this.connectorService.validateConfig(dto.type, dto.providerName, dto.config || {});
 
     // Create integration record
     const integration = await this.integrationRepository.create({
       tenantId,
       name: dto.name,
       displayName: dto.displayName || dto.name,
-      description: dto.description,
+      ...(dto.description ? { description: dto.description } : {}),
       type: dto.type,
       status: IntegrationStatus.PENDING,
       authType: dto.authType,
@@ -72,17 +73,17 @@ export class IntegrationService {
       config: dto.config || {},
       settings: dto.settings || {},
       providerName: dto.providerName,
-      providerVersion: connector.version,
-      connectorVersion: connector.version,
+      providerVersion: connector.getMetadata().version,
+      connectorVersion: connector.getMetadata().version,
       syncEnabled: dto.syncEnabled || false,
-      syncInterval: dto.syncInterval,
+      ...(dto.syncInterval ? { syncInterval: dto.syncInterval } : {}),
       createdBy: userId,
       updatedBy: userId,
     });
 
     // Set up authentication if provided
     if (dto.authType === AuthType.OAUTH2 && dto.authConfig) {
-      await this.oauth2Service.initializeOAuth2(integration.id, dto.authConfig);
+      await this.oauth2Service.initializeOAuth2(integration.id, dto.authConfig as any);
     } else if (dto.authType === AuthType.API_KEY && dto.credentials) {
       await this.apiKeyService.storeCredentials(integration.id, dto.credentials);
     }
@@ -139,6 +140,10 @@ export class IntegrationService {
 
     // Validate configuration if provided
     if (dto.config) {
+      if (!integration.providerName) {
+        throw new BadRequestException('Integration provider name is not set');
+      }
+      
       await this.connectorService.validateConfig(
         integration.type,
         integration.providerName,
@@ -155,7 +160,7 @@ export class IntegrationService {
     // Update authentication if changed
     if (dto.authConfig) {
       if (integration.authType === AuthType.OAUTH2) {
-        await this.oauth2Service.updateOAuth2Config(integrationId, dto.authConfig);
+        await this.oauth2Service.updateOAuth2Config(integrationId, dto.authConfig as any);
       }
     }
 
@@ -204,6 +209,11 @@ export class IntegrationService {
     this.logger.log(`Testing connection for integration: ${integrationId}`);
 
     const integration = await this.findById(tenantId, integrationId);
+    
+    if (!integration.providerName) {
+      throw new BadRequestException('Integration provider name is not set');
+    }
+    
     const connector = await this.connectorService.getConnector(
       integration.type,
       integration.providerName,
@@ -223,7 +233,7 @@ export class IntegrationService {
       }
 
       // Test connection using connector
-      const isConnected = await connector.testConnection({
+      const testResult = await connector.testConnection({
         config: integration.config,
         credentials,
         authType: integration.authType,
@@ -231,20 +241,21 @@ export class IntegrationService {
 
       // Update health status
       await this.healthService.updateHealthStatus(integrationId, {
-        isHealthy: isConnected,
+        isHealthy: testResult.success,
         lastChecked: new Date(),
-        details: isConnected ? 'Connection successful' : 'Connection failed',
+        details: testResult.success ? 'Connection successful' : testResult.error || 'Connection failed',
       });
 
-      return isConnected;
+      return testResult.success;
     } catch (error) {
-      this.logger.error(`Connection test failed for integration ${integrationId}:`, error);
+      const err = error as Error;
+      this.logger.error(`Connection test failed for integration ${integrationId}:`, err);
       
       await this.healthService.updateHealthStatus(integrationId, {
         isHealthy: false,
         lastChecked: new Date(),
-        details: error.message,
-        error: error.stack,
+        details: err.message,
+        error: err.stack,
       });
 
       return false;
@@ -320,7 +331,7 @@ export class IntegrationService {
     }
 
     const syncId = await this.syncService.triggerSync(integrationId, {
-      type: syncType,
+      type: syncType === 'full' ? SyncType.FULL : SyncType.INCREMENTAL,
       triggeredBy: 'manual',
       tenantId,
     });

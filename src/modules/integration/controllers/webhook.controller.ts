@@ -23,7 +23,7 @@ import {
 
 import { WebhookService } from '../services/webhook.service';
 
-import { AuthGuard as JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
 

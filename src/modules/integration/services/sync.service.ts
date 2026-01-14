@@ -168,8 +168,8 @@ export class SyncService {
       triggeredBy: options.triggeredBy,
       startedAt: new Date(),
       options: {
-        entityTypes: options.entityTypes,
-        lastSyncTimestamp: options.lastSyncTimestamp,
+        ...(options.entityTypes ? { entityTypes: options.entityTypes } : {}),
+        ...(options.lastSyncTimestamp ? { lastSyncTimestamp: options.lastSyncTimestamp } : {}),
         batchSize: options.batchSize || 1000,
         conflictResolution: options.conflictResolution || ConflictResolutionStrategy.REMOTE_WINS,
       },
@@ -219,6 +219,15 @@ export class SyncService {
 
       // Get integration and connector
       const integration = await this.integrationRepository.findById(tenantId, integrationId);
+      
+      if (!integration) {
+        throw new Error(`Integration not found: ${integrationId}`);
+      }
+      
+      if (!integration.providerName) {
+        throw new Error(`Integration provider name is not set: ${integrationId}`);
+      }
+      
       const connector = await this.connectorService.getConnector(
         integration.type,
         integration.providerName
@@ -274,7 +283,8 @@ export class SyncService {
       this.logger.log(`Sync completed successfully: ${syncId}`);
 
     } catch (error) {
-      this.logger.error(`Sync failed: ${syncId}`, error);
+      const err = error as Error;
+      this.logger.error(`Sync failed: ${syncId}`, err);
 
       // Update sync log with error
       await this.syncLogRepository.update(syncId, {
@@ -282,9 +292,9 @@ export class SyncService {
         completedAt: new Date(),
         errors: [{
           entityType: 'sync',
-          error: error.message,
-          details: error.stack,
-          retryable: this.isRetryableError(error),
+          error: err.message,
+          details: err.stack,
+          retryable: this.isRetryableError(err),
         }],
       });
 
@@ -293,7 +303,7 @@ export class SyncService {
         syncId,
         integrationId,
         tenantId,
-        error: error.message,
+        error: err.message,
       });
 
       throw error;
@@ -385,12 +395,13 @@ export class SyncService {
           result.errors.push(...syncResults.errors);
 
         } catch (error) {
-          this.logger.error(`Failed to sync entity type ${entityType}:`, error);
+          const err = error as Error;
+          this.logger.error(`Failed to sync entity type ${entityType}:`, err);
           result.errors.push({
             entityType,
-            error: error.message,
-            details: error.stack,
-            retryable: this.isRetryableError(error),
+            error: err.message,
+            details: err.stack,
+            retryable: this.isRetryableError(err),
           });
         }
 
@@ -412,14 +423,15 @@ export class SyncService {
       return result;
 
     } catch (error) {
+      const err = error as Error;
       result.status = SyncStatus.FAILED;
       result.duration = Date.now() - startTime;
       result.completedAt = new Date();
       result.errors.push({
         entityType: 'sync',
-        error: error.message,
-        details: error.stack,
-        retryable: this.isRetryableError(error),
+        error: err.message,
+        details: err.stack,
+        retryable: this.isRetryableError(err),
       });
 
       throw error;
@@ -450,8 +462,8 @@ export class SyncService {
       updated: 0,
       deleted: 0,
       skipped: 0,
-      conflicts: [],
-      errors: [],
+      conflicts: [] as ConflictRecord[],
+      errors: [] as SyncError[],
     };
 
     // Create maps for efficient lookup
@@ -506,11 +518,12 @@ export class SyncService {
           }
         }
       } catch (error) {
+        const err = error as Error;
         results.errors.push({
           entityType,
           entityId: externalItem.id,
-          error: error.message,
-          retryable: this.isRetryableError(error),
+          error: err.message,
+          retryable: this.isRetryableError(err),
         });
       }
     }
@@ -522,11 +535,12 @@ export class SyncService {
           await this.deleteLocalRecord(tenantId, entityType, localItem.id);
           results.deleted++;
         } catch (error) {
+          const err = error as Error;
           results.errors.push({
             entityType,
             entityId: localItem.id,
-            error: error.message,
-            retryable: this.isRetryableError(error),
+            error: err.message,
+            retryable: this.isRetryableError(err),
           });
         }
       }
@@ -748,7 +762,8 @@ export class SyncService {
       
       this.logger.log(`Cleaned up ${deletedCount} old sync logs`);
     } catch (error) {
-      this.logger.error('Failed to cleanup old sync logs:', error);
+      const err = error as Error;
+      this.logger.error('Failed to cleanup old sync logs:', err);
     }
   }
 
@@ -799,7 +814,8 @@ export class SyncService {
       }
 
     } catch (error) {
-      this.logger.error('Failed to monitor sync health:', error);
+      const err = error as Error;
+      this.logger.error('Failed to monitor sync health:', err);
     }
   }
 }

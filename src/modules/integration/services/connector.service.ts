@@ -56,7 +56,7 @@ export class ConnectorService {
             this.logger.log(`Loaded connector: ${metadata.name} (${metadata.type})`);
           }
         } catch (error) {
-          this.logger.warn(`Failed to load connector ${connectorName}:`, error.message);
+          this.logger.warn(`Failed to load connector ${connectorName}:`, (error as Error).message);
         }
       }
 
@@ -93,7 +93,7 @@ export class ConnectorService {
       capabilities: metadata.capabilities,
       supportedEvents: metadata.supportedEvents,
       supportedOperations: metadata.supportedOperations,
-      documentationUrl: metadata.documentationUrl,
+      ...(metadata.documentationUrl ? { documentationUrl: metadata.documentationUrl } : {}),
       exampleConfig: metadata.exampleConfig,
       isActive: true,
       isOfficial: metadata.isOfficial || false,
@@ -120,7 +120,7 @@ export class ConnectorService {
     
     if (!connectors) {
       connectors = await this.connectorRepository.findAll(filters);
-      await this.cacheService.set(cacheKey, connectors, 300); // Cache for 5 minutes
+      await this.cacheService.set(cacheKey, connectors, { ttl: 300 }); // Cache for 5 minutes
     }
 
     return connectors;
@@ -157,7 +157,7 @@ export class ConnectorService {
     } catch (error) {
       return {
         isValid: false,
-        errors: [error.message],
+        errors: [(error as Error).message],
       };
     }
   }
@@ -192,8 +192,8 @@ export class ConnectorService {
       
       return {
         success: false,
-        error: error.message,
-        details: { stack: error.stack },
+        error: (error as Error).message,
+        details: { stack: (error as Error).stack },
       };
     }
   }

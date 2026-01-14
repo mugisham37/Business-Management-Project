@@ -48,7 +48,7 @@ import { AuthModule } from '../auth/auth.module';
   imports: [
     ConfigModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET,
+      secret: process.env.JWT_SECRET || 'default-secret-key-change-in-production',
       signOptions: { expiresIn: '1h' },
     }),
     DatabaseModule,

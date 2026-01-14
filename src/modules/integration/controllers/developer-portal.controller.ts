@@ -22,7 +22,7 @@ import {
 
 import { DeveloperPortalService } from '../services/developer-portal.service';
 
-import { AuthGuard as JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
 
@@ -100,10 +100,28 @@ export class DeveloperPortalController {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ) {
-    return this.developerPortalService.createDeveloperApiKey(tenantId, user.id, {
-      ...keyData,
-      expiresAt: keyData.expiresAt ? new Date(keyData.expiresAt) : undefined,
-    });
+    const apiKeyData: {
+      name: string;
+      description?: string;
+      scopes: string[];
+      rateLimit?: number;
+      expiresAt?: Date;
+    } = {
+      name: keyData.name,
+      scopes: keyData.scopes,
+    };
+
+    if (keyData.description !== undefined) {
+      apiKeyData.description = keyData.description;
+    }
+    if (keyData.rateLimit !== undefined) {
+      apiKeyData.rateLimit = keyData.rateLimit;
+    }
+    if (keyData.expiresAt !== undefined) {
+      apiKeyData.expiresAt = new Date(keyData.expiresAt);
+    }
+
+    return this.developerPortalService.createDeveloperApiKey(tenantId, user.id, apiKeyData);
   }
 
   @Get('api-keys/:keyId/usage')
@@ -122,7 +140,7 @@ export class DeveloperPortalController {
     @Query('timeRange') timeRange: 'hour' | 'day' | 'week' | 'month' = 'day',
     @CurrentTenant() tenantId: string,
   ) {
-    return this.developerPortalService.getApiUsageAnalytics(tenantId, keyId, timeRange);
+    return this.developerPortalService.getApiUsageAnalytics(tenantId, keyId);
   }
 
   @Post('validate-key')

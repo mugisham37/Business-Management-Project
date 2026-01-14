@@ -25,7 +25,7 @@ import {
 import { IntegrationService } from '../services/integration.service';
 import { ConnectorService } from '../services/connector.service';
 
-import { AuthGuard as JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
 import { RateLimitGuard } from '../guards/rate-limit.guard';
@@ -45,6 +45,8 @@ import {
   IntegrationStatusDto,
   TriggerSyncDto,
 } from '../dto/integration.dto';
+
+import { ConnectorListDto } from '../dto/connector.dto';
 
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
@@ -202,10 +204,16 @@ export class IntegrationController {
     @Query('type') type?: string,
     @Query('active') active?: boolean,
   ) {
-    return this.connectorService.listConnectors({
-      type: type as any,
-      isActive: active,
-    });
+    const filters: ConnectorListDto = {};
+    
+    if (type !== undefined) {
+      filters.type = type as any;
+    }
+    if (active !== undefined) {
+      filters.isActive = active;
+    }
+    
+    return this.connectorService.listConnectors(filters);
   }
 
   @Get('connectors/:type/:name/metadata')

@@ -12,12 +12,15 @@ export enum IntegrationType {
 }
 
 export enum ConnectorCapability {
+  READ = 'read',
+  WRITE = 'write',
   SYNC = 'sync',
   WEBHOOK = 'webhook',
-  REALTIME = 'realtime',
+  REAL_TIME = 'real_time',
   BATCH = 'batch',
-  IMPORT = 'import',
+  SEARCH = 'search',
   EXPORT = 'export',
+  IMPORT = 'import',
 }
 
 export class Connector {

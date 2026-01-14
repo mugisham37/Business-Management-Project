@@ -56,9 +56,9 @@ export class ApiKeyService {
       permissions: dto.permissions || [],
       rateLimit: dto.rateLimit || 1000,
       rateLimitWindow: dto.rateLimitWindow || 3600,
-      description: dto.description,
+      ...(dto.description ? { description: dto.description } : {}),
       ipWhitelist: dto.ipWhitelist || [],
-      expiresAt: dto.expiresAt,
+      ...(dto.expiresAt ? { expiresAt: dto.expiresAt } : {}),
       isActive: true,
       createdBy: userId,
       updatedBy: userId,
@@ -75,11 +75,11 @@ export class ApiKeyService {
 
     this.logger.log(`API key created successfully: ${apiKey.id}`);
     
+    // Return API key without sensitive hash
+    const { keyHash: _, ...apiKeyWithoutHash } = apiKey;
+    
     return {
-      apiKey: {
-        ...apiKey,
-        keyHash: undefined, // Don't return the hash
-      } as ApiKey,
+      apiKey: apiKeyWithoutHash as ApiKey,
       plainKey,
     };
   }
@@ -148,38 +148,38 @@ export class ApiKeyService {
       }
 
       // Cache the API key record for 5 minutes
-      await this.cacheService.set(cacheKey, apiKeyRecord, 300);
+      await this.cacheService.set(cacheKey, apiKeyRecord, { ttl: 300 });
     }
 
     // Verify the full API key hash
-    const isValidKey = await bcrypt.compare(apiKey, apiKeyRecord.keyHash);
+    const isValidKey = await bcrypt.compare(apiKey, apiKeyRecord!.keyHash);
     if (!isValidKey) {
       return { isValid: false, error: 'Invalid API key' };
     }
 
     // Check if API key is active
-    if (!apiKeyRecord.isActive) {
+    if (!apiKeyRecord!.isActive) {
       return { isValid: false, error: 'API key is inactive' };
     }
 
     // Check expiration
-    if (apiKeyRecord.expiresAt && apiKeyRecord.expiresAt <= new Date()) {
+    if (apiKeyRecord!.expiresAt && apiKeyRecord!.expiresAt <= new Date()) {
       return { isValid: false, error: 'API key has expired' };
     }
 
     // Check IP whitelist
-    if (clientIp && apiKeyRecord.ipWhitelist && apiKeyRecord.ipWhitelist.length > 0) {
-      if (!apiKeyRecord.ipWhitelist.includes(clientIp)) {
+    if (clientIp && apiKeyRecord!.ipWhitelist && apiKeyRecord!.ipWhitelist.length > 0) {
+      if (!apiKeyRecord!.ipWhitelist.includes(clientIp)) {
         return { isValid: false, error: 'IP address not whitelisted' };
       }
     }
 
     // Check rate limits
     const rateLimitResult = await this.rateLimitService.checkRateLimit(
-      apiKeyRecord.id,
+      apiKeyRecord!.id,
       'api_key',
-      apiKeyRecord.rateLimit,
-      apiKeyRecord.rateLimitWindow,
+      apiKeyRecord!.rateLimit,
+      apiKeyRecord!.rateLimitWindow,
     );
 
     if (!rateLimitResult.allowed) {
@@ -193,7 +193,7 @@ export class ApiKeyService {
     // Check required scopes
     if (requiredScopes && requiredScopes.length > 0) {
       const hasRequiredScopes = requiredScopes.every(scope =>
-        apiKeyRecord.scopes.includes(scope)
+        apiKeyRecord!.scopes.includes(scope)
       );
 
       if (!hasRequiredScopes) {
@@ -204,7 +204,7 @@ export class ApiKeyService {
     // Check required permissions
     if (requiredPermissions && requiredPermissions.length > 0) {
       const hasRequiredPermissions = requiredPermissions.every(permission =>
-        apiKeyRecord.permissions.includes(permission)
+        apiKeyRecord!.permissions.includes(permission)
       );
 
       if (!hasRequiredPermissions) {
@@ -213,7 +213,7 @@ export class ApiKeyService {
     }
 
     // Update usage statistics
-    await this.updateUsageStats(apiKeyRecord.id, userAgent);
+    await this.updateUsageStats(apiKeyRecord!.id, userAgent);
 
     return {
       isValid: true,
@@ -281,10 +281,10 @@ export class ApiKeyService {
       apiKeyId,
       name: apiKey.name,
       totalRequests: apiKey.requestCount,
-      lastUsedAt: apiKey.lastUsedAt,
+      ...(apiKey.lastUsedAt ? { lastUsedAt: apiKey.lastUsedAt } : {}),
       createdAt: apiKey.createdAt,
       isActive: apiKey.isActive,
-      expiresAt: apiKey.expiresAt,
+      ...(apiKey.expiresAt ? { expiresAt: apiKey.expiresAt } : {}),
       rateLimit: apiKey.rateLimit,
       rateLimitWindow: apiKey.rateLimitWindow,
       currentPeriodRequests: rateLimitStats.currentCount,
@@ -309,10 +309,10 @@ export class ApiKeyService {
     }
 
     // Remove sensitive data
-    return filteredKeys.map(key => ({
-      ...key,
-      keyHash: undefined,
-    })) as ApiKey[];
+    return filteredKeys.map(key => {
+      const { keyHash: _, ...keyWithoutHash } = key;
+      return keyWithoutHash as ApiKey;
+    });
   }
 
   /**
@@ -323,7 +323,7 @@ export class ApiKeyService {
 
     // This would typically encrypt and store credentials
     // For now, we'll create a system API key for the integration
-    const systemApiKey = await this.create(
+    await this.create(
       credentials.tenantId,
       integrationId,
       {

@@ -244,7 +244,7 @@ Download SDKs from the developer portal.
     };
 
     // Cache for 1 hour
-    await this.cacheService.set(cacheKey, documentation, 3600);
+    await this.cacheService.set(cacheKey, documentation, { ttl: 3600 });
 
     return documentation;
   }
@@ -274,13 +274,18 @@ Download SDKs from the developer portal.
     const apiDocs = await this.generateApiDocumentation(tenantId);
 
     sdkConfig = {
-      ...baseConfig,
+      language: baseConfig.language!,
       version: apiDocs.info.version,
+      packageName: baseConfig.packageName!,
+      ...(baseConfig.namespace ? { namespace: baseConfig.namespace } : {}),
+      clientName: baseConfig.clientName!,
+      features: baseConfig.features!,
+      dependencies: baseConfig.dependencies!,
       examples: await this.generateSDKExamples(language),
     };
 
     // Cache for 6 hours
-    await this.cacheService.set(cacheKey, sdkConfig, 21600);
+    await this.cacheService.set(cacheKey, sdkConfig, { ttl: 21600 });
 
     // Emit SDK generation event for analytics
     this.eventEmitter.emit('sdk.generated', {
@@ -289,7 +294,7 @@ Download SDKs from the developer portal.
       timestamp: new Date(),
     });
 
-    return sdkConfig;
+    return sdkConfig!;
   }
 
   /**
@@ -306,31 +311,34 @@ Download SDKs from the developer portal.
     }
 
     // Get API key statistics
-    const apiKeyStats = await this.apiKeyService.getStatistics(tenantId);
+    const apiKeys = await this.apiKeyService.findByIntegration(tenantId, '', true);
     
     // Get rate limit statistics
-    const rateLimitStats = await this.rateLimitService.getRateLimitStats('api_key');
+    const rateLimitStats = await this.rateLimitService.getRateLimitStats();
 
     // Calculate additional metrics
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const activeKeys = apiKeys.filter(k => k.isActive);
+    const totalRequests = apiKeys.reduce((sum, k) => sum + k.requestCount, 0);
+
     stats = {
-      totalDevelopers: apiKeyStats.totalKeys || 0,
-      activeApiKeys: apiKeyStats.activeKeys || 0,
-      totalRequests: apiKeyStats.totalRequests || 0,
-      requestsToday: apiKeyStats.requestsToday || 0,
-      averageResponseTime: apiKeyStats.averageResponseTime || 0,
-      errorRate: apiKeyStats.errorRate || 0,
-      topEndpoints: apiKeyStats.topEndpoints || [],
+      totalDevelopers: apiKeys.length,
+      activeApiKeys: activeKeys.length,
+      totalRequests,
+      requestsToday: 0, // Would need to be calculated from logs
+      averageResponseTime: 0, // Would need to be calculated from logs
+      errorRate: 0, // Would need to be calculated from logs
+      topEndpoints: [], // Would need to be calculated from logs
       rateLimitStats: {
-        totalLimited: rateLimitStats.totalLimited || 0,
-        limitedToday: rateLimitStats.limitedToday || 0,
+        totalLimited: rateLimitStats.blockedRequests || 0,
+        limitedToday: 0, // Would need to be calculated from logs
       },
     };
 
     // Cache for 15 minutes
-    await this.cacheService.set(cacheKey, stats, 900);
+    await this.cacheService.set(cacheKey, stats, { ttl: 900 });
 
     return stats;
   }
@@ -352,25 +360,27 @@ Download SDKs from the developer portal.
     this.logger.log(`Creating developer API key for tenant: ${tenantId}`);
 
     // Create API key with developer-specific settings
-    const result = await this.apiKeyService.createApiKey(tenantId, {
+    const result = await this.apiKeyService.create(tenantId, '', {
       name: keyData.name,
       description: keyData.description || 'Developer API Key',
       scopes: keyData.scopes,
       permissions: this.getDefaultDeveloperPermissions(keyData.scopes),
       rateLimit: keyData.rateLimit || this.getDefaultRateLimit(tenantId),
-      expiresAt: keyData.expiresAt,
-      createdBy: userId,
-    });
+      ...(keyData.expiresAt ? { expiresAt: keyData.expiresAt } : {}),
+    }, userId);
 
     // Emit developer key creation event
     this.eventEmitter.emit('developer.api_key_created', {
       tenantId,
       userId,
-      keyId: result.keyId,
+      keyId: result.apiKey.id,
       scopes: keyData.scopes,
     });
 
-    return result;
+    return {
+      apiKey: result.plainKey,
+      keyId: result.apiKey.id,
+    };
   }
 
   /**
@@ -379,11 +389,10 @@ Download SDKs from the developer portal.
   async getApiUsageAnalytics(
     tenantId: string,
     apiKeyId: string,
-    timeRange: 'hour' | 'day' | 'week' | 'month' = 'day'
   ): Promise<any> {
     this.logger.log(`Getting API usage analytics for key: ${apiKeyId}`);
 
-    const cacheKey = `api-usage:${apiKeyId}:${timeRange}`;
+    const cacheKey = `api-usage:${apiKeyId}`;
     let analytics = await this.cacheService.get(cacheKey);
     
     if (analytics) {
@@ -391,11 +400,10 @@ Download SDKs from the developer portal.
     }
 
     // Get usage data from rate limit service
-    analytics = await this.rateLimitService.getUsageStats(apiKeyId, 'api_key', timeRange);
+    analytics = await this.rateLimitService.getUsageStats(apiKeyId, 'api_key');
 
-    // Cache based on time range
-    const cacheTTL = timeRange === 'hour' ? 300 : timeRange === 'day' ? 900 : 3600;
-    await this.cacheService.set(cacheKey, analytics, cacheTTL);
+    // Cache for 15 minutes
+    await this.cacheService.set(cacheKey, analytics, { ttl: 900 });
 
     return analytics;
   }
@@ -417,25 +425,27 @@ Download SDKs from the developer portal.
     // Validate API key
     const keyInfo = await this.apiKeyService.validateApiKey(apiKey);
     
-    if (!keyInfo.isValid) {
+    if (!keyInfo.isValid || !keyInfo.apiKey) {
       return { isValid: false };
     }
 
     // Get rate limit information
     const rateLimitInfo = await this.rateLimitService.checkRateLimit(
-      keyInfo.keyId!,
-      'api_key'
+      keyInfo.apiKey.id,
+      'api_key',
+      keyInfo.apiKey.rateLimit,
+      keyInfo.apiKey.rateLimitWindow,
     );
 
     return {
       isValid: true,
-      tenantId: keyInfo.tenantId,
-      keyId: keyInfo.keyId,
-      scopes: keyInfo.scopes,
+      tenantId: keyInfo.apiKey.tenantId,
+      keyId: keyInfo.apiKey.id,
+      scopes: keyInfo.apiKey.scopes,
       rateLimit: {
         limit: rateLimitInfo.limit,
         remaining: rateLimitInfo.remaining,
-        resetTime: rateLimitInfo.resetTime,
+        resetTime: rateLimitInfo.resetAt,
       },
     };
   }
@@ -622,7 +632,7 @@ Download SDKs from the developer portal.
    * Get base SDK configuration for language
    */
   private async getBaseSDKConfig(language: string): Promise<Partial<SDKConfiguration>> {
-    const configs = {
+    const configs: Record<string, Partial<SDKConfiguration>> = {
       javascript: {
         language: 'javascript',
         packageName: 'unified-business-platform-sdk',
@@ -714,7 +724,7 @@ Download SDKs from the developer portal.
    * Generate SDK examples for language
    */
   private async generateSDKExamples(language: string): Promise<Array<{ title: string; description: string; code: string }>> {
-    const examples = {
+    const examples: Record<string, Array<{ title: string; description: string; code: string }>> = {
       javascript: [
         {
           title: 'Initialize Client',
@@ -802,7 +812,7 @@ print(f"Transaction created: {transaction.id}")
    * Get default developer permissions based on scopes
    */
   private getDefaultDeveloperPermissions(scopes: string[]): string[] {
-    const scopePermissionMap = {
+    const scopePermissionMap: Record<string, string[]> = {
       'pos': ['pos:read', 'pos:create'],
       'inventory': ['inventory:read', 'inventory:update'],
       'customers': ['customers:read', 'customers:create', 'customers:update'],
@@ -816,7 +826,7 @@ print(f"Transaction created: {transaction.id}")
     
     for (const scope of scopes) {
       const scopePermissions = scopePermissionMap[scope] || [];
-      scopePermissions.forEach(permission => permissions.add(permission));
+      scopePermissions.forEach((permission: string) => permissions.add(permission));
     }
 
     return Array.from(permissions);
