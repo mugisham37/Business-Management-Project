@@ -167,6 +167,10 @@ export class OfflineDataSyncService {
           const result = batchResults[j];
           const item = batch[j];
 
+          if (!result || !item) {
+            continue;
+          }
+
           if (result.status === 'fulfilled') {
             if (result.value.success) {
               syncedItems++;
@@ -177,7 +181,7 @@ export class OfflineDataSyncService {
               errors.push(`Conflict in ${item.entityType}:${item.entityId}`);
             } else {
               failedItems++;
-              errors.push(`Failed to sync ${item.entityType}:${item.entityId}: ${result.value.error}`);
+              errors.push(`Failed to sync ${item.entityType}:${item.entityId}: ${result.value.error || 'Unknown error'}`);
               
               // Retry logic
               item.retryCount++;
@@ -186,10 +190,12 @@ export class OfflineDataSyncService {
                 this.logger.error(`Max retries reached for ${item.entityType}:${item.entityId}`);
               }
             }
-          } else {
+          } else if (result.status === 'rejected') {
             failedItems++;
-            errors.push(`Sync error for ${item.entityType}:${item.entityId}: ${result.reason}`);
+            const errorMessage = result.reason instanceof Error ? result.reason.message : String(result.reason);
+            errors.push(`Sync error for ${item.entityType}:${item.entityId}: ${errorMessage}`);
           }
+        }
         }
 
         // Small delay between batches to prevent overwhelming the server

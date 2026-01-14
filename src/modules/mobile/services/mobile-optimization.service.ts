@@ -130,7 +130,7 @@ export class MobileOptimizationService {
     }
 
     if (typeof data === 'object' && data !== null) {
-      const optimized = { ...data };
+      const optimized = { ...data } as Record<string, any>;
       
       // Remove heavy fields for phone optimization
       const fieldsToRemove = ['fullDescription', 'detailedMetadata', 'largeImages'];
@@ -140,7 +140,7 @@ export class MobileOptimizationService {
         }
       });
 
-      return optimized;
+      return optimized as T;
     }
 
     return data;
@@ -156,7 +156,7 @@ export class MobileOptimizationService {
     }
 
     if (typeof data === 'object' && data !== null) {
-      const optimized = { ...data };
+      const optimized = { ...data } as Record<string, any>;
       
       // Remove non-essential fields for cellular
       const fieldsToRemove = ['images', 'attachments', 'richContent', 'analytics'];
@@ -166,7 +166,7 @@ export class MobileOptimizationService {
         }
       });
 
-      return optimized;
+      return optimized as T;
     }
 
     return data;
@@ -182,7 +182,7 @@ export class MobileOptimizationService {
     }
 
     if (typeof data === 'object' && data !== null) {
-      const optimized = { ...data };
+      const optimized = { ...data } as Record<string, any>;
       
       // Keep only essential fields
       const essentialFields = ['id', 'name', 'status', 'createdAt'];
@@ -194,7 +194,7 @@ export class MobileOptimizationService {
         }
       });
 
-      return optimized;
+      return optimized as T;
     }
 
     return data;

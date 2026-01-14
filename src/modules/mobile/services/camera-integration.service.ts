@@ -39,7 +39,7 @@ export interface ImageAnalysisResult {
       height: number;
     };
   }>;
-  text?: string;
+  text?: string | undefined;
   faces?: Array<{
     confidence: number;
     boundingBox: {
@@ -53,7 +53,7 @@ export interface ImageAnalysisResult {
       gender?: string;
       emotion?: string;
     };
-  }>;
+  }> | undefined;
 }
 
 export interface CameraCapabilities {
@@ -280,7 +280,9 @@ export class CameraIntegrationService {
 
       return result;
     } catch (error) {
-      this.logger.error(`Image processing failed: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Image processing failed: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -331,7 +333,9 @@ export class CameraIntegrationService {
 
       return result;
     } catch (error) {
-      this.logger.error(`Barcode lookup failed: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Barcode lookup failed: ${errorMessage}`, errorStack);
       return { found: false };
     }
   }
@@ -442,7 +446,7 @@ export class CameraIntegrationService {
 
     for (let i = 0; i < numObjects; i++) {
       objects.push({
-        name: mockObjects[Math.floor(Math.random() * mockObjects.length)],
+        name: mockObjects[Math.floor(Math.random() * mockObjects.length)]!,
         confidence: 0.7 + Math.random() * 0.3,
         boundingBox: {
           x: Math.random() * 300,
@@ -460,15 +464,16 @@ export class CameraIntegrationService {
           x: 100,
           y: 50,
           width: 80,
-            height: 100,
-          },
-          attributes: {
-            age: 25 + Math.floor(Math.random() * 30),
-            gender: Math.random() > 0.5 ? 'male' : 'female',
-            emotion: ['happy', 'neutral', 'surprised'][Math.floor(Math.random() * 3)],
-          },
+          height: 100,
         },
-      ] : undefined;
+        attributes: {
+          age: 25 + Math.floor(Math.random() * 30),
+          gender: Math.random() > 0.5 ? 'male' : 'female',
+          emotion: ['happy', 'neutral', 'surprised'][Math.floor(Math.random() * 3)] || 'neutral',
+        },
+      },
+    ] : undefined;
+
 
     return {
       objects,

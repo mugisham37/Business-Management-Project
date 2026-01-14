@@ -146,7 +146,7 @@ export class LocationBasedService {
       type,
       isActive: true,
       createdAt: new Date(),
-      metadata,
+      ...(metadata && { metadata }),
     };
 
     await this.saveGeofence(geofence);
@@ -415,26 +415,28 @@ export class LocationBasedService {
     // Nearby customer recommendations
     const nearbyStores = nearbyLocations.filter(loc => loc.type === 'store');
     if (nearbyStores.length > 0) {
+      const store = nearbyStores[0]!;
       recommendations.push({
         type: 'nearby_customer',
         title: 'Nearby Store Detected',
-        description: `You are near ${nearbyStores[0].name}. Check inventory levels or visit customers.`,
+        description: `You are near ${store.name}. Check inventory levels or visit customers.`,
         priority: 'medium',
-        actionUrl: `/stores/${nearbyStores[0].id}`,
-        metadata: { storeId: nearbyStores[0].id, distance: nearbyStores[0].distance },
+        actionUrl: `/stores/${store.id}`,
+        metadata: { storeId: store.id, distance: store.distance },
       });
     }
 
     // Warehouse proximity recommendations
     const nearbyWarehouses = nearbyLocations.filter(loc => loc.type === 'warehouse');
     if (nearbyWarehouses.length > 0) {
+      const warehouse = nearbyWarehouses[0]!;
       recommendations.push({
         type: 'inventory_alert',
         title: 'Warehouse Nearby',
-        description: `${nearbyWarehouses[0].name} is nearby. Perfect time to check inventory or pick up supplies.`,
+        description: `${warehouse.name} is nearby. Perfect time to check inventory or pick up supplies.`,
         priority: 'low',
-        actionUrl: `/warehouses/${nearbyWarehouses[0].id}`,
-        metadata: { warehouseId: nearbyWarehouses[0].id },
+        actionUrl: `/warehouses/${warehouse.id}`,
+        metadata: { warehouseId: warehouse.id },
       });
     }
 
@@ -547,7 +549,9 @@ export class LocationBasedService {
     const maxCount = Math.max(...locationCounts.values());
 
     return Array.from(locationCounts.entries()).map(([key, count]) => {
-      const [lat, lng] = key.split(',').map(Number);
+      const [latStr, lngStr] = key.split(',');
+      const lat = Number(latStr);
+      const lng = Number(lngStr);
       return {
         lat,
         lng,

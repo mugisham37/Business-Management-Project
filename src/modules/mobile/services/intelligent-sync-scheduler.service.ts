@@ -725,11 +725,16 @@ export class IntelligentSyncSchedulerService {
     // 95% success rate
     const success = Math.random() > 0.05;
     
-    return {
+    const result: { success: boolean; dataUsed: number; error?: string } = {
       success,
       dataUsed: success ? schedule.estimatedDataUsage : 0,
-      error: success ? undefined : 'Mock sync failure',
     };
+
+    if (!success) {
+      result.error = 'Mock sync failure';
+    }
+
+    return result;
   }
 
   /**
