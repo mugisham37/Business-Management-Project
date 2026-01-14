@@ -5,10 +5,9 @@ import { IntelligentCacheService } from '../../cache/intelligent-cache.service';
 import { 
   b2bOrders,
   quotes,
-  users,
-  customers
+  users
 } from '../../database/schema';
-import { eq, and, isNull, inArray } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 
 export interface ApprovalWorkflow {
   id: string;
@@ -85,7 +84,10 @@ export class B2BWorkflowService {
       );
 
       // Send notification to first approver
-      await this.notifyApprover(tenantId, workflow, workflow.approvals[0]);
+      const firstApproval = workflow.approvals[0];
+      if (firstApproval) {
+        await this.notifyApprover(tenantId, workflow, firstApproval);
+      }
 
       // Emit event
       this.eventEmitter.emit('workflow.started', {
@@ -133,7 +135,9 @@ export class B2BWorkflowService {
       // Update approval step
       currentStep.status = 'approved';
       currentStep.approvedAt = new Date();
-      currentStep.notes = notes;
+      if (notes) {
+        currentStep.notes = notes;
+      }
 
       // Check if this was the last step
       if (workflow.currentStep === workflow.totalSteps) {
@@ -314,8 +318,12 @@ export class B2BWorkflowService {
 
       // Filter users by roles (simplified - in real implementation, roles would be in a separate table)
       const requiredApprovers = approvers.filter(user => {
-        const userRoles = user.roles as string[] || [];
-        return applicableRule.roles.some(role => userRoles.includes(role));
+        // Check if user has role field (single role) or roles array
+        const userRole = user.role;
+        if (userRole && applicableRule.roles.includes(userRole)) {
+          return true;
+        }
+        return false;
       });
 
       return requiredApprovers.slice(0, 2); // Maximum 2 approvers
@@ -367,12 +375,17 @@ export class B2BWorkflowService {
 
   private async completeApproval(tenantId: string, workflow: ApprovalWorkflow): Promise<void> {
     try {
+      const lastApproval = workflow.approvals[workflow.approvals.length - 1];
+      if (!lastApproval) {
+        throw new Error('No approval steps found in workflow');
+      }
+
       if (workflow.entityType === 'b2b_order') {
         await this.drizzle.getDb()
           .update(b2bOrders)
           .set({
             status: 'approved',
-            approvedBy: workflow.approvals[workflow.approvals.length - 1].approverId,
+            approvedBy: lastApproval.approverId,
             approvedAt: new Date(),
             approvalNotes: 'Approved through workflow',
           })
@@ -385,7 +398,7 @@ export class B2BWorkflowService {
           .update(quotes)
           .set({
             status: 'approved',
-            approvedBy: workflow.approvals[workflow.approvals.length - 1].approverId,
+            approvedBy: lastApproval.approverId,
             approvedAt: new Date(),
             approvalNotes: 'Approved through workflow',
           })

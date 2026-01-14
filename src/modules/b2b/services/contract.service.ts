@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DrizzleService } from '../../database/drizzle.service';
 import { IntelligentCacheService } from '../../cache/intelligent-cache.service';
@@ -7,7 +7,7 @@ import {
   customers,
   users
 } from '../../database/schema';
-import { eq, and, or, gte, lte, desc, asc, sql, isNull, ilike, not, inArray } from 'drizzle-orm';
+import { eq, and, or, gte, lte, desc, asc, sql, isNull, ilike, inArray } from 'drizzle-orm';
 import { CreateContractDto, UpdateContractDto, ContractQueryDto, ContractStatus } from '../dto/contract.dto';
 
 export interface Contract {
@@ -24,8 +24,8 @@ export interface Contract {
   autoRenewal: boolean;
   renewalTermMonths?: number;
   renewalNoticeDays: number;
-  contractValue?: number;
-  minimumCommitment?: number;
+  contractValue?: number | null;
+  minimumCommitment?: number | null;
   paymentTerms: string;
   pricingModel: string;
   pricingTerms: Record<string, any>;
@@ -104,6 +104,10 @@ export class ContractService {
           updatedBy: userId,
         })
         .returning();
+
+      if (!contractRecord) {
+        throw new Error('Failed to create contract');
+      }
 
       // Clear caches
       await this.invalidateContractCaches(tenantId);
@@ -268,9 +272,16 @@ export class ContractService {
 
         // Get paginated results
         const offset = ((query.page || 1) - 1) * (query.limit || 20);
+        let sortByField: any = contracts.contractNumber;
+        if (query.sortBy && query.sortBy in contracts) {
+          const field = contracts[query.sortBy as keyof typeof contracts];
+          if (field && typeof field !== 'function') {
+            sortByField = field;
+          }
+        }
         const orderBy = query.sortOrder === 'asc' 
-          ? asc(contracts[query.sortBy as keyof typeof contracts] || contracts.contractNumber)
-          : desc(contracts[query.sortBy as keyof typeof contracts] || contracts.contractNumber);
+          ? asc(sortByField)
+          : desc(sortByField);
 
         const contractsList = await this.drizzle.getDb()
           .select()
@@ -365,7 +376,7 @@ export class ContractService {
     }
   }
 
-  async approveContract(tenantId: string, contractId: string, approvalNotes: string, userId: string): Promise<Contract> {
+  async approveContract(tenantId: string, contractId: string, _approvalNotes: string, userId: string): Promise<Contract> {
     try {
       const existingContract = await this.findContractById(tenantId, contractId);
       
@@ -676,8 +687,8 @@ export class ContractService {
       autoRenewal: contractRecord.autoRenewal,
       renewalTermMonths: contractRecord.renewalTermMonths,
       renewalNoticeDays: contractRecord.renewalNoticeDays,
-      contractValue: contractRecord.contractValue ? parseFloat(contractRecord.contractValue) : undefined,
-      minimumCommitment: contractRecord.minimumCommitment ? parseFloat(contractRecord.minimumCommitment) : undefined,
+      contractValue: contractRecord.contractValue ? parseFloat(contractRecord.contractValue) : null,
+      minimumCommitment: contractRecord.minimumCommitment ? parseFloat(contractRecord.minimumCommitment) : null,
       paymentTerms: contractRecord.paymentTerms,
       pricingModel: contractRecord.pricingModel,
       pricingTerms: contractRecord.pricingTerms || {},

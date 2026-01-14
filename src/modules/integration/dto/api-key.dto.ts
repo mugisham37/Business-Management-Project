@@ -5,7 +5,7 @@ import { Type } from 'class-transformer';
 export class CreateApiKeyDto {
   @ApiProperty({ description: 'API Key name' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'API key scopes' })
   @IsOptional()

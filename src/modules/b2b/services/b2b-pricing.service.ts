@@ -8,22 +8,22 @@ import {
   products,
   customers
 } from '../../database/schema';
-import { eq, and, or, gte, lte, desc, isNull, sql } from 'drizzle-orm';
+import { eq, and, or, gte, lte, desc, isNull } from 'drizzle-orm';
 
 export interface PricingRule {
   id: string;
   ruleType: string;
-  targetId?: string;
-  targetType?: string;
+  targetId?: string | null;
+  targetType?: string | null;
   discountType: string;
   discountValue: number;
-  minimumQuantity?: number;
-  maximumQuantity?: number;
-  minimumAmount?: number;
+  minimumQuantity?: number | null;
+  maximumQuantity?: number | null;
+  minimumAmount?: number | null;
   effectiveDate: Date;
-  expirationDate?: Date;
+  expirationDate?: Date | null;
   priority: number;
-  description?: string;
+  description?: string | null;
 }
 
 export interface CustomerPricing {
@@ -243,22 +243,26 @@ export class B2BPricingService {
           tenantId,
           customerId,
           ruleType: ruleData.ruleType,
-          targetId: ruleData.targetId,
-          targetType: ruleData.targetType,
+          targetId: ruleData.targetId || null,
+          targetType: ruleData.targetType || null,
           discountType: ruleData.discountType,
           discountValue: ruleData.discountValue.toString(),
-          minimumQuantity: ruleData.minimumQuantity,
-          maximumQuantity: ruleData.maximumQuantity,
-          minimumAmount: ruleData.minimumAmount?.toString(),
+          minimumQuantity: ruleData.minimumQuantity || null,
+          maximumQuantity: ruleData.maximumQuantity || null,
+          minimumAmount: ruleData.minimumAmount?.toString() || null,
           effectiveDate: ruleData.effectiveDate || new Date(),
-          expirationDate: ruleData.expirationDate,
+          expirationDate: ruleData.expirationDate || null,
           priority: ruleData.priority || 0,
-          description: ruleData.description,
+          description: ruleData.description || null,
           isActive: true,
           createdBy: userId,
           updatedBy: userId,
         })
         .returning();
+
+      if (!pricingRule) {
+        throw new Error('Failed to create pricing rule');
+      }
 
       // Clear pricing caches for this customer
       await this.invalidatePricingCaches(tenantId, customerId);
@@ -272,7 +276,7 @@ export class B2BPricingService {
         discountValue: parseFloat(pricingRule.discountValue),
         minimumQuantity: pricingRule.minimumQuantity,
         maximumQuantity: pricingRule.maximumQuantity,
-        minimumAmount: pricingRule.minimumAmount ? parseFloat(pricingRule.minimumAmount) : undefined,
+        minimumAmount: pricingRule.minimumAmount ? parseFloat(pricingRule.minimumAmount) : null,
         effectiveDate: pricingRule.effectiveDate,
         expirationDate: pricingRule.expirationDate,
         priority: pricingRule.priority,
@@ -355,7 +359,7 @@ export class B2BPricingService {
       discountValue: parseFloat(rule.discountValue),
       minimumQuantity: rule.minimumQuantity,
       maximumQuantity: rule.maximumQuantity,
-      minimumAmount: rule.minimumAmount ? parseFloat(rule.minimumAmount) : undefined,
+      minimumAmount: rule.minimumAmount ? parseFloat(rule.minimumAmount) : null,
       effectiveDate: rule.effectiveDate,
       expirationDate: rule.expirationDate,
       priority: rule.priority,

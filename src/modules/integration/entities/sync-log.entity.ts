@@ -26,30 +26,30 @@ export enum ConflictResolutionStrategy {
 export class SyncLog {
   @ApiProperty({ description: 'Sync log ID' })
   @IsUUID()
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Integration ID' })
   @IsUUID()
-  integrationId: string;
+  integrationId!: string;
 
   @ApiProperty({ description: 'Tenant ID' })
   @IsUUID()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty({ description: 'Sync type', enum: SyncType })
   @IsEnum(SyncType)
-  type: SyncType;
+  type!: SyncType;
 
   @ApiProperty({ description: 'Sync status', enum: SyncStatus })
   @IsEnum(SyncStatus)
-  status: SyncStatus;
+  status!: SyncStatus;
 
   @ApiProperty({ description: 'Who triggered the sync' })
-  triggeredBy: 'manual' | 'scheduled' | 'webhook';
+  triggeredBy!: 'manual' | 'scheduled' | 'webhook';
 
   @ApiProperty({ description: 'Sync start timestamp' })
   @IsDate()
-  startedAt: Date;
+  startedAt!: Date;
 
   @ApiPropertyOptional({ description: 'Sync completion timestamp' })
   @IsOptional()
@@ -127,18 +127,18 @@ export class SyncLog {
 
   @ApiProperty({ description: 'Created at timestamp' })
   @IsDate()
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated at timestamp' })
   @IsDate()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 
 export interface SyncStatistics {
   totalSyncs: number;
   successfulSyncs: number;
   failedSyncs: number;
-  lastSyncAt?: Date;
+  lastSyncAt: Date | null;
   averageDuration: number;
   totalRecordsProcessed: number;
   totalConflicts: number;

@@ -29,40 +29,40 @@ export enum AuthType {
 
 export class Integration {
   @ApiProperty({ description: 'Integration ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Tenant ID' })
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty({ description: 'Integration name' })
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Display name' })
-  displayName: string;
+  displayName!: string;
 
   @ApiPropertyOptional({ description: 'Integration description' })
   description?: string;
 
   @ApiProperty({ enum: IntegrationType, description: 'Integration type' })
-  type: IntegrationType;
+  type!: IntegrationType;
 
   @ApiProperty({ enum: IntegrationStatus, description: 'Integration status' })
-  status: IntegrationStatus;
+  status!: IntegrationStatus;
 
   @ApiProperty({ description: 'Integration configuration' })
-  config: Record<string, any>;
+  config!: Record<string, any>;
 
   @ApiProperty({ description: 'Encrypted credentials' })
-  credentials: Record<string, any>;
+  credentials!: Record<string, any>;
 
   @ApiProperty({ description: 'Integration settings' })
-  settings: Record<string, any>;
+  settings!: Record<string, any>;
 
   @ApiProperty({ enum: AuthType, description: 'Authentication type' })
-  authType: AuthType;
+  authType!: AuthType;
 
   @ApiProperty({ description: 'Authentication configuration' })
-  authConfig: Record<string, any>;
+  authConfig!: Record<string, any>;
 
   @ApiPropertyOptional({ description: 'Provider name' })
   providerName?: string;
@@ -80,7 +80,7 @@ export class Integration {
   healthStatus?: string;
 
   @ApiProperty({ description: 'Error count', default: 0 })
-  errorCount: number;
+  errorCount!: number;
 
   @ApiPropertyOptional({ description: 'Last error message' })
   lastError?: string;
@@ -89,13 +89,13 @@ export class Integration {
   lastErrorAt?: Date;
 
   @ApiProperty({ description: 'Request count', default: 0 })
-  requestCount: number;
+  requestCount!: number;
 
   @ApiPropertyOptional({ description: 'Last request timestamp' })
   lastRequestAt?: Date;
 
   @ApiProperty({ description: 'Sync enabled', default: false })
-  syncEnabled: boolean;
+  syncEnabled!: boolean;
 
   @ApiPropertyOptional({ description: 'Sync interval in minutes' })
   syncInterval?: number;
@@ -107,51 +107,51 @@ export class Integration {
   nextSyncAt?: Date;
 
   @ApiProperty({ description: 'Created timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ApiPropertyOptional({ description: 'Deleted timestamp' })
   deletedAt?: Date;
 
   @ApiProperty({ description: 'Created by user ID' })
-  createdBy: string;
+  createdBy!: string;
 
   @ApiProperty({ description: 'Updated by user ID' })
-  updatedBy: string;
+  updatedBy!: string;
 
   @ApiProperty({ description: 'Version for optimistic locking', default: 1 })
-  version: number;
+  version!: number;
 }
 
 export class IntegrationSummary {
   @ApiProperty({ description: 'Integration ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Integration name' })
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Display name' })
-  displayName: string;
+  displayName!: string;
 
   @ApiProperty({ enum: IntegrationType, description: 'Integration type' })
-  type: IntegrationType;
+  type!: IntegrationType;
 
   @ApiProperty({ enum: IntegrationStatus, description: 'Integration status' })
-  status: IntegrationStatus;
+  status!: IntegrationStatus;
 
   @ApiPropertyOptional({ description: 'Provider name' })
   providerName?: string;
 
   @ApiProperty({ description: 'Sync enabled' })
-  syncEnabled: boolean;
+  syncEnabled!: boolean;
 
   @ApiPropertyOptional({ description: 'Last sync timestamp' })
   lastSyncAt?: Date;
 
   @ApiProperty({ description: 'Created timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiPropertyOptional({ description: 'Health status' })
   healthStatus?: string;
@@ -159,13 +159,13 @@ export class IntegrationSummary {
 
 export class IntegrationHealth {
   @ApiProperty({ description: 'Integration ID' })
-  integrationId: string;
+  integrationId!: string;
 
   @ApiProperty({ description: 'Is healthy' })
-  isHealthy: boolean;
+  isHealthy!: boolean;
 
   @ApiProperty({ description: 'Last checked timestamp' })
-  lastChecked: Date;
+  lastChecked!: Date;
 
   @ApiPropertyOptional({ description: 'Health details' })
   details?: string;
@@ -182,51 +182,51 @@ export class IntegrationHealth {
 
 export class IntegrationMetrics {
   @ApiProperty({ description: 'Integration ID' })
-  integrationId: string;
+  integrationId!: string;
 
   @ApiProperty({ description: 'Total requests' })
-  totalRequests: number;
+  totalRequests!: number;
 
   @ApiProperty({ description: 'Successful requests' })
-  successfulRequests: number;
+  successfulRequests!: number;
 
   @ApiProperty({ description: 'Failed requests' })
-  failedRequests: number;
+  failedRequests!: number;
 
   @ApiProperty({ description: 'Average response time in milliseconds' })
-  averageResponseTime: number;
+  averageResponseTime!: number;
 
   @ApiProperty({ description: 'Success rate percentage' })
-  successRate: number;
+  successRate!: number;
 
   @ApiProperty({ description: 'Uptime percentage' })
-  uptime: number;
+  uptime!: number;
 
   @ApiProperty({ description: 'Last 24 hours requests' })
-  last24HoursRequests: number;
+  last24HoursRequests!: number;
 
   @ApiProperty({ description: 'Peak requests per hour' })
-  peakRequestsPerHour: number;
+  peakRequestsPerHour!: number;
 
   @ApiProperty({ description: 'Metrics timestamp' })
-  timestamp: Date;
+  timestamp!: Date;
 }
 
 export class IntegrationEvent {
   @ApiProperty({ description: 'Event ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Integration ID' })
-  integrationId: string;
+  integrationId!: string;
 
   @ApiProperty({ description: 'Event type' })
-  eventType: string;
+  eventType!: string;
 
   @ApiProperty({ description: 'Event data' })
-  data: Record<string, any>;
+  data!: Record<string, any>;
 
   @ApiProperty({ description: 'Event timestamp' })
-  timestamp: Date;
+  timestamp!: Date;
 
   @ApiPropertyOptional({ description: 'Event source' })
   source?: string;
@@ -235,7 +235,7 @@ export class IntegrationEvent {
   metadata?: Record<string, any>;
 
   @ApiProperty({ description: 'Processing status' })
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status!: 'pending' | 'processing' | 'completed' | 'failed';
 
   @ApiPropertyOptional({ description: 'Processing error' })
   error?: string;
@@ -246,19 +246,19 @@ export class IntegrationEvent {
 
 export class IntegrationLog {
   @ApiProperty({ description: 'Log ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Integration ID' })
-  integrationId: string;
+  integrationId!: string;
 
   @ApiProperty({ description: 'Log level' })
-  level: 'debug' | 'info' | 'warn' | 'error';
+  level!: 'debug' | 'info' | 'warn' | 'error';
 
   @ApiProperty({ description: 'Log message' })
-  message: string;
+  message!: string;
 
   @ApiProperty({ description: 'Log timestamp' })
-  timestamp: Date;
+  timestamp!: Date;
 
   @ApiPropertyOptional({ description: 'Additional log data' })
   data?: Record<string, any>;

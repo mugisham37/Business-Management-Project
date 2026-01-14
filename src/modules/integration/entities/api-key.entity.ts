@@ -2,43 +2,43 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ApiKey {
   @ApiProperty({ description: 'API Key ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Tenant ID' })
-  tenantId: string;
+  tenantId!: string;
 
   @ApiPropertyOptional({ description: 'Integration ID' })
   integrationId?: string;
 
   @ApiProperty({ description: 'API Key name' })
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Hashed API key' })
-  keyHash: string;
+  keyHash!: string;
 
   @ApiProperty({ description: 'Key prefix for identification' })
-  keyPrefix: string;
+  keyPrefix!: string;
 
   @ApiProperty({ description: 'API key scopes' })
-  scopes: string[];
+  scopes!: string[];
 
   @ApiProperty({ description: 'API key permissions' })
-  permissions: string[];
+  permissions!: string[];
 
   @ApiProperty({ description: 'Rate limit per hour', default: 1000 })
-  rateLimit: number;
+  rateLimit!: number;
 
   @ApiProperty({ description: 'Rate limit window in seconds', default: 3600 })
-  rateLimitWindow: number;
+  rateLimitWindow!: number;
 
   @ApiProperty({ description: 'Request count', default: 0 })
-  requestCount: number;
+  requestCount!: number;
 
   @ApiPropertyOptional({ description: 'Last used timestamp' })
   lastUsedAt?: Date;
 
   @ApiProperty({ description: 'Is active', default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @ApiPropertyOptional({ description: 'Expiry timestamp' })
   expiresAt?: Date;
@@ -47,20 +47,20 @@ export class ApiKey {
   description?: string;
 
   @ApiProperty({ description: 'IP whitelist' })
-  ipWhitelist: string[];
+  ipWhitelist!: string[];
 
   @ApiPropertyOptional({ description: 'User agent' })
   userAgent?: string;
 
   @ApiProperty({ description: 'Created timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ApiProperty({ description: 'Created by user ID' })
-  createdBy: string;
+  createdBy!: string;
 
   @ApiProperty({ description: 'Updated by user ID' })
-  updatedBy: string;
+  updatedBy!: string;
 }

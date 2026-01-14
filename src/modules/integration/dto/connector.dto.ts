@@ -5,11 +5,11 @@ import { IntegrationType } from '../entities/integration.entity';
 export class CreateConnectorDto {
   @ApiProperty({ description: 'Connector name' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Display name' })
   @IsString()
-  displayName: string;
+  displayName!: string;
 
   @ApiPropertyOptional({ description: 'Connector description' })
   @IsOptional()
@@ -18,34 +18,34 @@ export class CreateConnectorDto {
 
   @ApiProperty({ enum: IntegrationType, description: 'Connector type' })
   @IsEnum(IntegrationType)
-  type: IntegrationType;
+  type!: IntegrationType;
 
   @ApiProperty({ description: 'Connector version' })
   @IsString()
-  version: string;
+  version!: string;
 
   @ApiProperty({ description: 'Configuration schema' })
   @IsObject()
-  configSchema: any;
+  configSchema!: any;
 
   @ApiProperty({ description: 'Authentication schema' })
   @IsObject()
-  authSchema: any;
+  authSchema!: any;
 
   @ApiProperty({ description: 'Connector capabilities' })
   @IsArray()
   @IsString({ each: true })
-  capabilities: string[];
+  capabilities!: string[];
 
   @ApiProperty({ description: 'Supported events' })
   @IsArray()
   @IsString({ each: true })
-  supportedEvents: string[];
+  supportedEvents!: string[];
 
   @ApiProperty({ description: 'Supported operations' })
   @IsArray()
   @IsString({ each: true })
-  supportedOperations: string[];
+  supportedOperations!: string[];
 }
 
 export class UpdateConnectorDto {

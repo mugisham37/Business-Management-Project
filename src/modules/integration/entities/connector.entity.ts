@@ -3,22 +3,22 @@ import { IntegrationType } from './integration.entity';
 
 export class Connector {
   @ApiProperty({ description: 'Connector ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Connector name' })
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Display name' })
-  displayName: string;
+  displayName!: string;
 
   @ApiPropertyOptional({ description: 'Connector description' })
   description?: string;
 
   @ApiProperty({ enum: IntegrationType, description: 'Connector type' })
-  type: IntegrationType;
+  type!: IntegrationType;
 
   @ApiProperty({ description: 'Connector version' })
-  version: string;
+  version!: string;
 
   @ApiPropertyOptional({ description: 'Minimum supported version' })
   minVersion?: string;
@@ -27,35 +27,35 @@ export class Connector {
   maxVersion?: string;
 
   @ApiProperty({ description: 'Configuration schema' })
-  configSchema: any;
+  configSchema!: any;
 
   @ApiProperty({ description: 'Authentication schema' })
-  authSchema: any;
+  authSchema!: any;
 
   @ApiProperty({ description: 'Connector capabilities' })
-  capabilities: string[];
+  capabilities!: string[];
 
   @ApiProperty({ description: 'Supported events' })
-  supportedEvents: string[];
+  supportedEvents!: string[];
 
   @ApiProperty({ description: 'Supported operations' })
-  supportedOperations: string[];
+  supportedOperations!: string[];
 
   @ApiPropertyOptional({ description: 'Documentation URL' })
   documentationUrl?: string;
 
   @ApiProperty({ description: 'Example configuration' })
-  exampleConfig: Record<string, any>;
+  exampleConfig!: Record<string, any>;
 
   @ApiProperty({ description: 'Is active', default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @ApiProperty({ description: 'Is official connector', default: false })
-  isOfficial: boolean;
+  isOfficial!: boolean;
 
   @ApiProperty({ description: 'Created timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }

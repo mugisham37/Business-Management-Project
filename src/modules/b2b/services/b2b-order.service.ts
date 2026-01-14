@@ -1,15 +1,14 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DrizzleService } from '../../database/drizzle.service';
 import { IntelligentCacheService } from '../../cache/intelligent-cache.service';
 import { 
   b2bOrders, 
   b2bOrderItems,
-  quotes,
   customers,
   products
 } from '../../database/schema';
-import { eq, and, or, gte, lte, desc, asc, sql, isNull, ilike, not, inArray } from 'drizzle-orm';
+import { eq, and, or, gte, lte, desc, asc, sql, isNull, ilike, inArray } from 'drizzle-orm';
 import { CreateB2BOrderDto, UpdateB2BOrderDto, B2BOrderQueryDto, B2BOrderItemDto } from '../dto/b2b-order.dto';
 import { B2BPricingService } from './b2b-pricing.service';
 import { B2BWorkflowService } from './b2b-workflow.service';
@@ -101,7 +100,7 @@ export class B2BOrderService {
       const requiresApproval = await this.checkApprovalRequired(tenantId, data.customerId, totalAmount);
 
       // Create order record
-      const [orderRecord] = await this.drizzle.getDb()
+      const orderRecords = await this.drizzle.getDb()
         .insert(b2bOrders)
         .values({
           tenantId,
@@ -130,7 +129,9 @@ export class B2BOrderService {
           createdBy: userId,
           updatedBy: userId,
         })
-        .returning();
+        .returning() as any[];
+
+      const orderRecord = orderRecords[0];
 
       // Create order items
       const orderItemsData = pricedItems.map(item => ({
@@ -319,10 +320,10 @@ export class B2BOrderService {
           .where(whereClause)
           .orderBy(orderBy)
           .limit(query.limit || 20)
-          .offset(offset);
+          .offset(offset) as any[];
 
         // Get order items for each order
-        const orderIds = orders.map(row => row.b2b_orders.id);
+        const orderIds = orders.map((row: any) => row.b2b_orders.id);
         const allOrderItems = orderIds.length > 0 ? await this.drizzle.getDb()
           .select()
           .from(b2bOrderItems)
@@ -332,7 +333,7 @@ export class B2BOrderService {
             isNull(b2bOrderItems.deletedAt)
           )) : [];
 
-        const ordersList = orders.map(row => {
+        const ordersList = orders.map((row: any) => {
           const orderItems = allOrderItems.filter(item => item.orderId === row.b2b_orders.id);
           return this.mapToB2BOrder(row.b2b_orders, orderItems);
         });

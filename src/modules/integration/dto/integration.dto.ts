@@ -8,7 +8,6 @@ import {
   IsBoolean,
   IsNumber,
   IsDate,
-  ValidateNested,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
@@ -17,7 +16,7 @@ import { IntegrationType, IntegrationStatus, AuthType } from '../entities/integr
 export class CreateIntegrationDto {
   @ApiProperty({ description: 'Integration name' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Display name for the integration' })
   @IsOptional()
@@ -31,15 +30,15 @@ export class CreateIntegrationDto {
 
   @ApiProperty({ enum: IntegrationType, description: 'Integration type' })
   @IsEnum(IntegrationType)
-  type: IntegrationType;
+  type!: IntegrationType;
 
   @ApiProperty({ description: 'Provider name (e.g., quickbooks, xero)' })
   @IsString()
-  providerName: string;
+  providerName!: string;
 
   @ApiProperty({ enum: AuthType, description: 'Authentication type' })
   @IsEnum(AuthType)
-  authType: AuthType;
+  authType!: AuthType;
 
   @ApiPropertyOptional({ description: 'Authentication configuration' })
   @IsOptional()
@@ -127,7 +126,7 @@ export class UpdateIntegrationDto {
 export class IntegrationStatusDto {
   @ApiProperty({ enum: IntegrationStatus, description: 'New integration status' })
   @IsEnum(IntegrationStatus)
-  status: IntegrationStatus;
+  status!: IntegrationStatus;
 }
 
 export class IntegrationListDto {
@@ -189,10 +188,10 @@ export class TriggerSyncDto {
 export class IntegrationConfigDto {
   @ApiProperty({ description: 'Configuration key' })
   @IsString()
-  key: string;
+  key!: string;
 
   @ApiProperty({ description: 'Configuration value' })
-  value: any;
+  value!: any;
 
   @ApiPropertyOptional({ description: 'Configuration description' })
   @IsOptional()
@@ -208,15 +207,15 @@ export class IntegrationConfigDto {
 export class IntegrationHealthDto {
   @ApiProperty({ description: 'Integration ID' })
   @IsString()
-  integrationId: string;
+  integrationId!: string;
 
   @ApiProperty({ description: 'Health status' })
   @IsBoolean()
-  isHealthy: boolean;
+  isHealthy!: boolean;
 
   @ApiProperty({ description: 'Last health check timestamp' })
   @IsDate()
-  lastChecked: Date;
+  lastChecked!: Date;
 
   @ApiPropertyOptional({ description: 'Health check details' })
   @IsOptional()
@@ -237,23 +236,23 @@ export class IntegrationHealthDto {
 export class IntegrationStatsDto {
   @ApiProperty({ description: 'Total number of requests' })
   @IsNumber()
-  totalRequests: number;
+  totalRequests!: number;
 
   @ApiProperty({ description: 'Number of successful requests' })
   @IsNumber()
-  successfulRequests: number;
+  successfulRequests!: number;
 
   @ApiProperty({ description: 'Number of failed requests' })
   @IsNumber()
-  failedRequests: number;
+  failedRequests!: number;
 
   @ApiProperty({ description: 'Average response time in milliseconds' })
   @IsNumber()
-  averageResponseTime: number;
+  averageResponseTime!: number;
 
   @ApiProperty({ description: 'Last request timestamp' })
   @IsDate()
-  lastRequestAt: Date;
+  lastRequestAt!: Date;
 
   @ApiPropertyOptional({ description: 'Success rate percentage' })
   @IsOptional()
@@ -269,15 +268,15 @@ export class IntegrationStatsDto {
 export class BatchOperationDto {
   @ApiProperty({ description: 'Operation type' })
   @IsEnum(['create', 'update', 'delete', 'sync'])
-  operation: 'create' | 'update' | 'delete' | 'sync';
+  operation!: 'create' | 'update' | 'delete' | 'sync';
 
   @ApiProperty({ description: 'Entity type' })
   @IsString()
-  entity: string;
+  entity!: string;
 
   @ApiProperty({ description: 'Data for the operation' })
   @IsArray()
-  data: any[];
+  data!: any[];
 
   @ApiPropertyOptional({ description: 'Batch operation options' })
   @IsOptional()
@@ -292,16 +291,16 @@ export class BatchOperationDto {
 export class IntegrationEventDto {
   @ApiProperty({ description: 'Event type' })
   @IsString()
-  eventType: string;
+  eventType!: string;
 
   @ApiProperty({ description: 'Event data' })
   @IsObject()
-  data: Record<string, any>;
+  data!: Record<string, any>;
 
   @ApiProperty({ description: 'Event timestamp' })
   @IsDate()
   @Type(() => Date)
-  timestamp: Date;
+  timestamp!: Date;
 
   @ApiPropertyOptional({ description: 'Event source' })
   @IsOptional()
@@ -317,16 +316,16 @@ export class IntegrationEventDto {
 export class IntegrationLogDto {
   @ApiProperty({ description: 'Log level' })
   @IsEnum(['debug', 'info', 'warn', 'error'])
-  level: 'debug' | 'info' | 'warn' | 'error';
+  level!: 'debug' | 'info' | 'warn' | 'error';
 
   @ApiProperty({ description: 'Log message' })
   @IsString()
-  message: string;
+  message!: string;
 
   @ApiProperty({ description: 'Log timestamp' })
   @IsDate()
   @Type(() => Date)
-  timestamp: Date;
+  timestamp!: Date;
 
   @ApiPropertyOptional({ description: 'Additional log data' })
   @IsOptional()
@@ -342,20 +341,20 @@ export class IntegrationLogDto {
 export class IntegrationMetricsDto {
   @ApiProperty({ description: 'Metric name' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Metric value' })
   @IsNumber()
-  value: number;
+  value!: number;
 
   @ApiProperty({ description: 'Metric unit' })
   @IsString()
-  unit: string;
+  unit!: string;
 
   @ApiProperty({ description: 'Metric timestamp' })
   @IsDate()
   @Type(() => Date)
-  timestamp: Date;
+  timestamp!: Date;
 
   @ApiPropertyOptional({ description: 'Metric tags' })
   @IsOptional()

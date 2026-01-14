@@ -28,8 +28,8 @@ export interface Territory {
   primarySalesRepId?: string;
   secondarySalesRepIds: string[];
   managerId?: string;
-  annualRevenueTarget?: number;
-  quarterlyRevenueTarget?: number;
+  annualRevenueTarget?: number | null;
+  quarterlyRevenueTarget?: number | null;
   customerAcquisitionTarget?: number;
   commissionStructure: Record<string, any>;
   metadata: Record<string, any>;
@@ -129,6 +129,10 @@ export class TerritoryService {
           updatedBy: userId,
         })
         .returning();
+
+      if (!territoryRecord) {
+        throw new Error('Failed to create territory');
+      }
 
       // Clear caches
       await this.invalidateTerritoryCaches(tenantId);
@@ -248,9 +252,16 @@ export class TerritoryService {
 
         // Get paginated results
         const offset = ((query.page || 1) - 1) * (query.limit || 20);
+        let sortByField: any = salesTerritories.territoryCode;
+        if (query.sortBy && query.sortBy in salesTerritories) {
+          const field = salesTerritories[query.sortBy as keyof typeof salesTerritories];
+          if (field && typeof field !== 'function') {
+            sortByField = field;
+          }
+        }
         const orderBy = query.sortOrder === 'asc' 
-          ? asc(salesTerritories[query.sortBy as keyof typeof salesTerritories] || salesTerritories.territoryCode)
-          : desc(salesTerritories[query.sortBy as keyof typeof salesTerritories] || salesTerritories.territoryCode);
+          ? asc(sortByField)
+          : desc(sortByField);
 
         const territoriesList = await this.drizzle.getDb()
           .select()
@@ -282,7 +293,7 @@ export class TerritoryService {
       const existingTerritory = await this.findTerritoryById(tenantId, territoryId);
 
       // Validate update data
-      if (data.primarySalesRepId || data.secondarySalesRepIds || data.managerId) {
+      if (data.primarySalesRepId !== undefined || data.secondarySalesRepIds !== undefined || data.managerId !== undefined) {
         await this.validateTerritoryUsers(tenantId, {
           primarySalesRepId: data.primarySalesRepId,
           secondarySalesRepIds: data.secondarySalesRepIds,
@@ -646,15 +657,15 @@ export class TerritoryService {
   }
 
   private async validateTerritoryUsers(tenantId: string, userData: {
-    primarySalesRepId?: string;
-    secondarySalesRepIds?: string[];
-    managerId?: string;
+    primarySalesRepId?: string | undefined;
+    secondarySalesRepIds?: string[] | undefined;
+    managerId?: string | undefined;
   }): Promise<void> {
     const userIds = [
       userData.primarySalesRepId,
       userData.managerId,
       ...(userData.secondarySalesRepIds || [])
-    ].filter(Boolean) as string[];
+    ].filter((id): id is string => Boolean(id));
 
     if (userIds.length > 0) {
       const existingUsers = await this.drizzle.getDb()
@@ -692,8 +703,8 @@ export class TerritoryService {
       primarySalesRepId: territoryRecord.primarySalesRepId,
       secondarySalesRepIds: territoryRecord.secondarySalesRepIds || [],
       managerId: territoryRecord.managerId,
-      annualRevenueTarget: territoryRecord.annualRevenueTarget ? parseFloat(territoryRecord.annualRevenueTarget) : undefined,
-      quarterlyRevenueTarget: territoryRecord.quarterlyRevenueTarget ? parseFloat(territoryRecord.quarterlyRevenueTarget) : undefined,
+      annualRevenueTarget: territoryRecord.annualRevenueTarget ? parseFloat(territoryRecord.annualRevenueTarget) : null,
+      quarterlyRevenueTarget: territoryRecord.quarterlyRevenueTarget ? parseFloat(territoryRecord.quarterlyRevenueTarget) : null,
       customerAcquisitionTarget: territoryRecord.customerAcquisitionTarget,
       commissionStructure: territoryRecord.commissionStructure || {},
       metadata: territoryRecord.metadata || {},

@@ -10,7 +10,7 @@ import {
   customers,
   products
 } from '../../database/schema';
-import { eq, and, or, gte, lte, desc, asc, sql, isNull, ilike, not, inArray } from 'drizzle-orm';
+import { eq, and, or, gte, lte, desc, asc, sql, isNull, ilike, inArray } from 'drizzle-orm';
 import { CreateQuoteDto, UpdateQuoteDto, QuoteQueryDto, QuoteItemDto } from '../dto/quote.dto';
 import { B2BPricingService } from './b2b-pricing.service';
 import { B2BWorkflowService } from './b2b-workflow.service';
@@ -105,7 +105,7 @@ export class QuoteService {
       const requiresApproval = await this.checkApprovalRequired(tenantId, data.customerId, totalAmount);
 
       // Create quote record
-      const [quoteRecord] = await this.drizzle.getDb()
+      const quoteRecords = await this.drizzle.getDb()
         .insert(quotes)
         .values({
           tenantId,
@@ -132,7 +132,9 @@ export class QuoteService {
           createdBy: userId,
           updatedBy: userId,
         })
-        .returning();
+        .returning() as any[];
+
+      const quoteRecord = quoteRecords[0];
 
       // Create quote items
       const quoteItemsData = pricedItems.map(item => ({
@@ -321,10 +323,10 @@ export class QuoteService {
           .where(whereClause)
           .orderBy(orderBy)
           .limit(query.limit || 20)
-          .offset(offset);
+          .offset(offset) as any[];
 
         // Get quote items for each quote
-        const quoteIds = quotesData.map(row => row.quotes.id);
+        const quoteIds = quotesData.map((row: any) => row.quotes.id);
         const allQuoteItems = quoteIds.length > 0 ? await this.drizzle.getDb()
           .select()
           .from(quoteItems)
@@ -334,7 +336,7 @@ export class QuoteService {
             isNull(quoteItems.deletedAt)
           )) : [];
 
-        const quotesList = quotesData.map(row => {
+        const quotesList = quotesData.map((row: any) => {
           const items = allQuoteItems.filter(item => item.quoteId === row.quotes.id);
           return this.mapToQuote(row.quotes, items);
         });
@@ -433,7 +435,7 @@ export class QuoteService {
       }
 
       // Create order from quote
-      const [orderRecord] = await this.drizzle.getDb()
+      const orderRecords = await this.drizzle.getDb()
         .insert(b2bOrders)
         .values({
           tenantId,
@@ -462,7 +464,9 @@ export class QuoteService {
           createdBy: userId,
           updatedBy: userId,
         })
-        .returning();
+        .returning() as any[];
+
+      const orderRecord = orderRecords[0];
 
       // Create order items from quote items
       const orderItemsData = quote.items.map(item => ({

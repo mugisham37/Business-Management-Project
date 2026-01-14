@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { eq, and, desc, sql } from 'drizzle-orm';
 
 import { DrizzleService } from '../../database/drizzle.service';
@@ -8,12 +8,10 @@ import { Webhook, WebhookDelivery } from '../entities/webhook.entity';
 
 @Injectable()
 export class WebhookRepository {
-  private readonly logger = new Logger(WebhookRepository.name);
-
   constructor(private readonly drizzle: DrizzleService) {}
 
   async create(data: Partial<Webhook>): Promise<Webhook> {
-    const [webhook] = await this.drizzle.db
+    const [webhook] = await this.drizzle.db!
       .insert(webhooks)
       .values({
         ...data,
@@ -26,7 +24,7 @@ export class WebhookRepository {
   }
 
   async findById(webhookId: string): Promise<Webhook | null> {
-    const [webhook] = await this.drizzle.db
+    const [webhook] = await this.drizzle.db!
       .select()
       .from(webhooks)
       .where(eq(webhooks.id, webhookId))
@@ -36,7 +34,7 @@ export class WebhookRepository {
   }
 
   async findByIntegration(integrationId: string): Promise<Webhook[]> {
-    const results = await this.drizzle.db
+    const results = await this.drizzle.db!
       .select()
       .from(webhooks)
       .where(eq(webhooks.integrationId, integrationId));
@@ -49,26 +47,31 @@ export class WebhookRepository {
     event: string,
     integrationId?: string,
   ): Promise<Webhook[]> {
-    let query = this.drizzle.db
-      .select()
-      .from(webhooks)
-      .where(
-        and(
-          eq(webhooks.isActive, true),
-          sql`${webhooks.events} @> ${JSON.stringify([event])}`
-        )
-      );
+    const db = this.drizzle.db!;
+    
+    const baseConditions = and(
+      eq(webhooks.isActive, true),
+      sql`${webhooks.events} @> ${JSON.stringify([event])}`
+    );
 
+    let results;
     if (integrationId) {
-      query = query.where(eq(webhooks.integrationId, integrationId));
+      results = await db
+        .select()
+        .from(webhooks)
+        .where(and(baseConditions, eq(webhooks.integrationId, integrationId)));
+    } else {
+      results = await db
+        .select()
+        .from(webhooks)
+        .where(baseConditions);
     }
 
-    const results = await query;
     return results as Webhook[];
   }
 
   async update(webhookId: string, data: Partial<Webhook>): Promise<Webhook> {
-    const [webhook] = await this.drizzle.db
+    const [webhook] = await this.drizzle.db!
       .update(webhooks)
       .set({
         ...data,
@@ -81,7 +84,7 @@ export class WebhookRepository {
   }
 
   async softDelete(webhookId: string): Promise<void> {
-    await this.drizzle.db
+    await this.drizzle.db!
       .update(webhooks)
       .set({
         deletedAt: new Date(),
@@ -91,7 +94,7 @@ export class WebhookRepository {
   }
 
   async logDelivery(data: Partial<WebhookDelivery>): Promise<WebhookDelivery> {
-    const [delivery] = await this.drizzle.db
+    const [delivery] = await this.drizzle.db!
       .insert(webhookDeliveries)
       .values({
         ...data,
@@ -108,7 +111,7 @@ export class WebhookRepository {
     limit: number = 50,
     offset: number = 0,
   ): Promise<WebhookDelivery[]> {
-    const results = await this.drizzle.db
+    const results = await this.drizzle.db!
       .select()
       .from(webhookDeliveries)
       .where(eq(webhookDeliveries.webhookId, webhookId))
@@ -120,7 +123,7 @@ export class WebhookRepository {
   }
 
   async getFailedDeliveries(): Promise<WebhookDelivery[]> {
-    const results = await this.drizzle.db
+    const results = await this.drizzle.db!
       .select()
       .from(webhookDeliveries)
       .where(

@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { eq, and, desc } from 'drizzle-orm';
+import { Injectable } from '@nestjs/common';
+import { eq, and } from 'drizzle-orm';
 
 import { DrizzleService } from '../../database/drizzle.service';
 import { apiKeys } from '../../database/schema/integration.schema';
@@ -8,12 +8,10 @@ import { ApiKey } from '../entities/api-key.entity';
 
 @Injectable()
 export class ApiKeyRepository {
-  private readonly logger = new Logger(ApiKeyRepository.name);
-
   constructor(private readonly drizzle: DrizzleService) {}
 
   async create(data: Partial<ApiKey>): Promise<ApiKey> {
-    const [apiKey] = await this.drizzle.db
+    const [apiKey] = await this.drizzle.db!
       .insert(apiKeys)
       .values({
         ...data,
@@ -26,7 +24,7 @@ export class ApiKeyRepository {
   }
 
   async findById(tenantId: string, apiKeyId: string): Promise<ApiKey | null> {
-    const [apiKey] = await this.drizzle.db
+    const [apiKey] = await this.drizzle.db!
       .select()
       .from(apiKeys)
       .where(
@@ -41,7 +39,7 @@ export class ApiKeyRepository {
   }
 
   async findByPrefix(keyPrefix: string): Promise<ApiKey | null> {
-    const [apiKey] = await this.drizzle.db
+    const [apiKey] = await this.drizzle.db!
       .select()
       .from(apiKeys)
       .where(eq(apiKeys.keyPrefix, keyPrefix))
@@ -51,7 +49,7 @@ export class ApiKeyRepository {
   }
 
   async findByIntegration(integrationId: string): Promise<ApiKey[]> {
-    const results = await this.drizzle.db
+    const results = await this.drizzle.db!
       .select()
       .from(apiKeys)
       .where(eq(apiKeys.integrationId, integrationId));
@@ -60,7 +58,7 @@ export class ApiKeyRepository {
   }
 
   async update(apiKeyId: string, data: Partial<ApiKey>): Promise<ApiKey> {
-    const [apiKey] = await this.drizzle.db
+    const [apiKey] = await this.drizzle.db!
       .update(apiKeys)
       .set({
         ...data,

@@ -10,58 +10,58 @@ export enum WebhookStatus {
 
 export class Webhook {
   @ApiProperty({ description: 'Webhook ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Integration ID' })
-  integrationId: string;
+  integrationId!: string;
 
   @ApiProperty({ description: 'Webhook name' })
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Webhook URL' })
-  url: string;
+  url!: string;
 
   @ApiProperty({ description: 'HTTP method', default: 'POST' })
-  method: string;
+  method!: string;
 
   @ApiProperty({ description: 'Events to listen for' })
-  events: string[];
+  events!: string[];
 
   @ApiPropertyOptional({ description: 'Event filters' })
   filters?: Record<string, any>;
 
   @ApiProperty({ enum: AuthType, description: 'Authentication type' })
-  authType: AuthType;
+  authType!: AuthType;
 
   @ApiProperty({ description: 'Authentication configuration' })
-  authConfig: Record<string, any>;
+  authConfig!: Record<string, any>;
 
   @ApiPropertyOptional({ description: 'Secret key for signature verification' })
   secretKey?: string;
 
   @ApiProperty({ description: 'Custom headers' })
-  headers: Record<string, any>;
+  headers!: Record<string, any>;
 
   @ApiProperty({ description: 'Timeout in seconds', default: 30 })
-  timeout: number;
+  timeout!: number;
 
   @ApiProperty({ description: 'Retry attempts', default: 3 })
-  retryAttempts: number;
+  retryAttempts!: number;
 
   @ApiProperty({ description: 'Retry delay in milliseconds', default: 1000 })
-  retryDelay: number;
+  retryDelay!: number;
 
   @ApiProperty({ enum: WebhookStatus, description: 'Webhook status' })
-  status: WebhookStatus;
+  status!: WebhookStatus;
 
   @ApiProperty({ description: 'Is active', default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @ApiProperty({ description: 'Success count', default: 0 })
-  successCount: number;
+  successCount!: number;
 
   @ApiProperty({ description: 'Failure count', default: 0 })
-  failureCount: number;
+  failureCount!: number;
 
   @ApiPropertyOptional({ description: 'Last delivery timestamp' })
   lastDeliveryAt?: Date;
@@ -76,10 +76,10 @@ export class Webhook {
   lastError?: string;
 
   @ApiProperty({ description: 'Created timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @ApiPropertyOptional({ description: 'Deleted timestamp' })
   deletedAt?: Date;
@@ -87,19 +87,19 @@ export class Webhook {
 
 export class WebhookDelivery {
   @ApiProperty({ description: 'Delivery ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Webhook ID' })
-  webhookId: string;
+  webhookId!: string;
 
   @ApiProperty({ description: 'Event type' })
-  eventType: string;
+  eventType!: string;
 
   @ApiProperty({ description: 'Event payload' })
-  payload: any;
+  payload!: any;
 
   @ApiProperty({ description: 'Request headers' })
-  headers: Record<string, any>;
+  headers!: Record<string, any>;
 
   @ApiPropertyOptional({ description: 'Response status code' })
   statusCode?: number;
@@ -108,7 +108,7 @@ export class WebhookDelivery {
   responseBody?: string;
 
   @ApiProperty({ description: 'Response headers' })
-  responseHeaders: Record<string, any>;
+  responseHeaders!: Record<string, any>;
 
   @ApiPropertyOptional({ description: 'Delivery timestamp' })
   deliveredAt?: Date;
@@ -117,20 +117,20 @@ export class WebhookDelivery {
   duration?: number;
 
   @ApiProperty({ description: 'Success status', default: false })
-  success: boolean;
+  success!: boolean;
 
   @ApiPropertyOptional({ description: 'Error message' })
   error?: string;
 
   @ApiProperty({ description: 'Retry count', default: 0 })
-  retryCount: number;
+  retryCount!: number;
 
   @ApiPropertyOptional({ description: 'Next retry timestamp' })
   nextRetryAt?: Date;
 
   @ApiProperty({ description: 'Created timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }

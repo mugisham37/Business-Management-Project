@@ -8,13 +8,9 @@ import {
   customers,
   b2bCustomers,
   products,
-  inventoryLevels,
-  b2bOrders,
-  b2bOrderItems,
-  quotes,
-  contracts
+  inventoryLevels
 } from '../../database/schema';
-import { eq, and, or, gte, lte, desc, asc, sql, isNull, ilike, not, inArray } from 'drizzle-orm';
+import { eq, and, or, gte, lte, desc, asc, sql, isNull, ilike, inArray } from 'drizzle-orm';
 import { 
   CustomerPortalLoginDto, 
   CustomerPortalRegistrationDto, 
@@ -22,8 +18,7 @@ import {
   PortalOrderQueryDto,
   ProductCatalogQueryDto,
   UpdateAccountInfoDto,
-  ChangePasswordDto,
-  InvoiceQueryDto
+  ChangePasswordDto
 } from '../dto/customer-portal.dto';
 import { B2BOrderService } from './b2b-order.service';
 import { B2BPricingService } from './b2b-pricing.service';
@@ -123,7 +118,8 @@ export class CustomerPortalService {
       }
 
       // Verify password (assuming password is stored in b2bCustomer metadata)
-      const storedPasswordHash = customerRecord.b2bCustomer.b2bMetadata?.passwordHash;
+      const b2bMetadata = customerRecord.b2bCustomer.b2bMetadata as any;
+      const storedPasswordHash = b2bMetadata?.passwordHash;
       if (!storedPasswordHash || !await bcrypt.compare(loginDto.password, storedPasswordHash)) {
         throw new UnauthorizedException('Invalid email or password');
       }
@@ -161,7 +157,7 @@ export class CustomerPortalService {
   async register(tenantId: string, registrationDto: CustomerPortalRegistrationDto): Promise<{ customer: PortalCustomer; accessToken: string }> {
     try {
       // Check if email already exists
-      const existingCustomer = await this.drizzle.getDb()
+      const existingCustomers = await this.drizzle.getDb()
         .select()
         .from(customers)
         .where(and(
@@ -171,7 +167,7 @@ export class CustomerPortalService {
         ))
         .limit(1);
 
-      if (existingCustomer.length > 0) {
+      if (existingCustomers.length > 0) {
         throw new BadRequestException('Email address already registered');
       }
 
@@ -179,7 +175,7 @@ export class CustomerPortalService {
       const passwordHash = await bcrypt.hash(registrationDto.password, 10);
 
       // Create base customer record
-      const [customerRecord] = await this.drizzle.getDb()
+      const customerRecords = await this.drizzle.getDb()
         .insert(customers)
         .values({
           tenantId,
@@ -209,7 +205,9 @@ export class CustomerPortalService {
           createdBy: 'portal_registration',
           updatedBy: 'portal_registration',
         })
-        .returning();
+        .returning() as any[];
+
+      const customerRecord = customerRecords[0];
 
       // Create B2B customer extension with default values
       const [b2bCustomerRecord] = await this.drizzle.getDb()
@@ -217,8 +215,7 @@ export class CustomerPortalService {
         .values({
           tenantId,
           customerId: customerRecord.id,
-          creditLimit: '5000.00', // Default credit limit
-          paymentTerms: 'net_30',
+          paymentTermsType: 'net_30',
           pricingTier: 'standard',
           creditStatus: 'pending',
           b2bMetadata: {
@@ -390,7 +387,8 @@ export class CustomerPortalService {
       }
 
       // Verify current password
-      const currentPasswordHash = b2bCustomerRecord.b2bMetadata?.passwordHash;
+      const b2bMetadata = b2bCustomerRecord.b2bMetadata as any;
+      const currentPasswordHash = b2bMetadata?.passwordHash;
       if (!currentPasswordHash || !await bcrypt.compare(changePasswordDto.currentPassword, currentPasswordHash)) {
         throw new BadRequestException('Current password is incorrect');
       }
@@ -403,7 +401,7 @@ export class CustomerPortalService {
         .update(b2bCustomers)
         .set({
           b2bMetadata: {
-            ...b2bCustomerRecord.b2bMetadata,
+            ...(b2bMetadata || {}),
             passwordHash: newPasswordHash,
             passwordChangedAt: new Date().toISOString(),
           },
@@ -452,7 +450,7 @@ export class CustomerPortalService {
         }
 
         if (query.category) {
-          conditions.push(eq(products.category, query.category));
+          conditions.push(eq(products.categoryId, query.category));
         }
 
         if (query.minPrice !== undefined) {
@@ -475,9 +473,16 @@ export class CustomerPortalService {
 
         // Get paginated results
         const offset = ((query.page || 1) - 1) * (query.limit || 20);
+        let sortByField: any = products.name;
+        if (query.sortBy && query.sortBy in products) {
+          const field = products[query.sortBy as keyof typeof products];
+          if (field && typeof field !== 'function') {
+            sortByField = field;
+          }
+        }
         const orderBy = query.sortOrder === 'asc' 
-          ? asc(products[query.sortBy as keyof typeof products] || products.name)
-          : desc(products[query.sortBy as keyof typeof products] || products.name);
+          ? asc(sortByField)
+          : desc(sortByField);
 
         const productsList = await this.drizzle.getDb()
           .select({
@@ -501,7 +506,7 @@ export class CustomerPortalService {
               1 // Default quantity for catalog display
             );
 
-            return this.mapToPortalProduct(row.product, row.inventory, customerPrice);
+            return this.mapToPortalProduct(row.product, row.inventory, customerPrice ?? undefined);
           })
         );
 
@@ -523,8 +528,20 @@ export class CustomerPortalService {
 
   async createOrder(tenantId: string, customerId: string, orderDto: CreatePortalOrderDto): Promise<PortalOrder> {
     try {
+      // Get customer's default payment terms
+      const [b2bCustomer] = await this.drizzle.getDb()
+        .select()
+        .from(b2bCustomers)
+        .where(and(
+          eq(b2bCustomers.tenantId, tenantId),
+          eq(b2bCustomers.customerId, customerId),
+          isNull(b2bCustomers.deletedAt)
+        ));
+
+      const paymentTerms = b2bCustomer?.paymentTermsType || 'net_30';
+
       // Convert portal order to B2B order format
-      const b2bOrderData = {
+      const b2bOrderData: any = {
         customerId,
         items: orderDto.items.map(item => ({
           productId: item.productId,
@@ -532,16 +549,24 @@ export class CustomerPortalService {
           description: item.specialInstructions,
           metadata: {},
         })),
-        requestedDeliveryDate: orderDto.requestedDeliveryDate,
-        shippingMethod: orderDto.shippingMethod,
+        paymentTerms,
         shippingAddress: orderDto.shippingAddress || undefined,
         billingAddress: undefined, // Use customer's default billing address
-        specialInstructions: orderDto.specialInstructions,
         metadata: {
           source: 'customer_portal',
           purchaseOrderNumber: orderDto.purchaseOrderNumber,
         },
       };
+
+      if (orderDto.requestedDeliveryDate) {
+        b2bOrderData.requestedDeliveryDate = orderDto.requestedDeliveryDate;
+      }
+      if (orderDto.shippingMethod) {
+        b2bOrderData.shippingMethod = orderDto.shippingMethod;
+      }
+      if (orderDto.specialInstructions) {
+        b2bOrderData.specialInstructions = orderDto.specialInstructions;
+      }
 
       // Create B2B order
       const b2bOrder = await this.b2bOrderService.createB2BOrder(tenantId, b2bOrderData, customerId);
@@ -567,17 +592,20 @@ export class CustomerPortalService {
   async getOrders(tenantId: string, customerId: string, query: PortalOrderQueryDto): Promise<{ orders: PortalOrder[]; total: number }> {
     try {
       // Convert portal query to B2B order query
-      const b2bQuery = {
+      const b2bQuery: any = {
         customerId,
         status: query.status,
         startDate: query.orderDateFrom,
         endDate: query.orderDateTo,
-        search: query.search,
         page: query.page,
         limit: query.limit,
         sortBy: query.sortBy === 'orderDate' ? 'orderDate' : query.sortBy,
         sortOrder: query.sortOrder,
       };
+
+      if (query.search) {
+        b2bQuery.search = query.search;
+      }
 
       const b2bResult = await this.b2bOrderService.findB2BOrders(tenantId, b2bQuery);
 
@@ -612,7 +640,7 @@ export class CustomerPortalService {
 
   private async mapToPortalCustomer(customerRecord: any, b2bCustomerRecord: any): Promise<PortalCustomer> {
     // Calculate available credit (would need to query outstanding invoices/orders)
-    const creditLimit = parseFloat(b2bCustomerRecord.creditLimit || '0');
+    const creditLimit = 5000; // Default credit limit since it's not in the schema
     const usedCredit = 0; // Would calculate from outstanding orders/invoices
     const availableCredit = creditLimit - usedCredit;
 
@@ -626,7 +654,7 @@ export class CustomerPortalService {
       phone: customerRecord.phone,
       creditLimit,
       availableCredit,
-      paymentTerms: b2bCustomerRecord.paymentTerms,
+      paymentTerms: b2bCustomerRecord.paymentTermsType || 'net_30',
       pricingTier: b2bCustomerRecord.pricingTier,
       billingAddress: customerRecord.billingAddress,
       shippingAddress: customerRecord.shippingAddress,

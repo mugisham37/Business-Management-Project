@@ -4,7 +4,7 @@ import { IsString, IsOptional, IsArray, IsObject } from 'class-validator';
 export class OAuth2Config {
   @ApiProperty({ description: 'OAuth2 provider name' })
   @IsString()
-  provider: string;
+  provider!: string;
 
   @ApiPropertyOptional({ description: 'OAuth2 scopes' })
   @IsOptional()
@@ -21,7 +21,7 @@ export class OAuth2Config {
 export class OAuth2Token {
   @ApiProperty({ description: 'Access token' })
   @IsString()
-  accessToken: string;
+  accessToken!: string;
 
   @ApiPropertyOptional({ description: 'Refresh token' })
   @IsOptional()
@@ -30,7 +30,7 @@ export class OAuth2Token {
 
   @ApiProperty({ description: 'Token type', default: 'Bearer' })
   @IsString()
-  tokenType: string;
+  tokenType!: string;
 
   @ApiPropertyOptional({ description: 'Token expiry date' })
   @IsOptional()
@@ -39,7 +39,7 @@ export class OAuth2Token {
   @ApiProperty({ description: 'Token scopes' })
   @IsArray()
   @IsString({ each: true })
-  scopes: string[];
+  scopes!: string[];
 
   @ApiPropertyOptional({ description: 'Provider user ID' })
   @IsOptional()
@@ -55,7 +55,7 @@ export class OAuth2Token {
 export class OAuth2AuthorizeDto {
   @ApiProperty({ description: 'Tenant ID' })
   @IsString()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiPropertyOptional({ description: 'Shop domain (for Shopify)' })
   @IsOptional()
@@ -66,11 +66,11 @@ export class OAuth2AuthorizeDto {
 export class OAuth2CallbackDto {
   @ApiProperty({ description: 'Authorization code' })
   @IsString()
-  code: string;
+  code!: string;
 
   @ApiProperty({ description: 'State parameter' })
   @IsString()
-  state: string;
+  state!: string;
 
   @ApiPropertyOptional({ description: 'Error code' })
   @IsOptional()
@@ -86,5 +86,5 @@ export class OAuth2CallbackDto {
 export class OAuth2RefreshDto {
   @ApiProperty({ description: 'Integration ID' })
   @IsString()
-  integrationId: string;
+  integrationId!: string;
 }

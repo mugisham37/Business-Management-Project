@@ -5,11 +5,11 @@ import { AuthType } from '../entities/integration.entity';
 export class CreateWebhookDto {
   @ApiProperty({ description: 'Webhook name' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Webhook URL' })
   @IsString()
-  url: string;
+  url!: string;
 
   @ApiPropertyOptional({ description: 'HTTP method', default: 'POST' })
   @IsOptional()
@@ -19,7 +19,7 @@ export class CreateWebhookDto {
   @ApiProperty({ description: 'Events to listen for' })
   @IsArray()
   @IsString({ each: true })
-  events: string[];
+  events!: string[];
 
   @ApiPropertyOptional({ description: 'Event filters' })
   @IsOptional()
@@ -93,11 +93,11 @@ export class UpdateWebhookDto {
 export class WebhookDeliveryDto {
   @ApiProperty({ description: 'Event type' })
   @IsString()
-  eventType: string;
+  eventType!: string;
 
   @ApiProperty({ description: 'Event data' })
   @IsObject()
-  data: any;
+  data!: any;
 
   @ApiPropertyOptional({ description: 'Tenant ID' })
   @IsOptional()
@@ -118,5 +118,5 @@ export class WebhookTestDto {
 
   @ApiProperty({ description: 'Tenant ID' })
   @IsString()
-  tenantId: string;
+  tenantId!: string;
 }
