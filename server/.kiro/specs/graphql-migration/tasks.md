@@ -490,15 +490,15 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - **Validates: Requirements 2.3, 8.4**
 
 
-- [ ] 7.3 Implement Supplier module resolvers (4 resolvers)
-  - [ ] 7.3.1 Create supplier.resolver.ts for supplier management
+- [x] 7.3 Implement Supplier module resolvers (4 resolvers)
+  - [x] 7.3.1 Create supplier.resolver.ts for supplier management
     - Implement supplier CRUD operations
     - Implement rateSupplier mutation
     - Add field resolvers (products, purchaseOrders, contacts)
     - Add DataLoader for relationship loading
     - _Requirements: 21.1-21.6_
   
-  - [ ] 7.3.2 Create edi-integration.resolver.ts for EDI
+  - [x] 7.3.2 Create edi-integration.resolver.ts for EDI
     - Implement sendEDIDocument mutation
     - Implement receiveEDIDocument query
     - Implement getEDIStatus query
@@ -506,7 +506,7 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - Enqueue EDI processing to Bull queue
     - _Requirements: 21.1-21.6, 12.1-12.2_
   
-  - [ ] 7.3.3 Create procurement-analytics.resolver.ts
+  - [x] 7.3.3 Create procurement-analytics.resolver.ts
     - Implement getSupplierPerformance query
     - Implement getSpendAnalysis query
     - Implement getLeadTimeAnalysis query
@@ -514,7 +514,7 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - Add caching with 1-hour TTL
     - _Requirements: 21.1-21.6_
   
-  - [ ] 7.3.4 Create purchase-order.resolver.ts for PO management
+  - [x] 7.3.4 Create purchase-order.resolver.ts for PO management
     - Implement purchase order CRUD operations
     - Implement approvePurchaseOrder mutation
     - Implement receivePurchaseOrder mutation

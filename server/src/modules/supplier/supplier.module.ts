@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bull';
 import { SupplierController } from './controllers/supplier.controller';
 import { PurchaseOrderController } from './controllers/purchase-order.controller';
 import { ProcurementAnalyticsController } from './controllers/procurement-analytics.controller';
@@ -12,15 +13,26 @@ import { SupplierContactRepository } from './repositories/supplier-contact.repos
 import { SupplierCommunicationRepository } from './repositories/supplier-communication.repository';
 import { SupplierEvaluationRepository } from './repositories/supplier-evaluation.repository';
 import { PurchaseOrderRepository } from './repositories/purchase-order.repository';
+import { SupplierResolver } from './resolvers/supplier.resolver';
+import { PurchaseOrderResolver } from './resolvers/purchase-order.resolver';
+import { ProcurementAnalyticsResolver } from './resolvers/procurement-analytics.resolver';
+import { EDIIntegrationResolver } from './resolvers/edi-integration.resolver';
 import { DatabaseModule } from '../database/database.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantModule } from '../tenant/tenant.module';
+import { GraphQLCommonModule } from '../../common/graphql/graphql-common.module';
+import { PubSubModule } from '../../common/graphql/pubsub.module';
 
 @Module({
   imports: [
     DatabaseModule,
     AuthModule,
     TenantModule,
+    GraphQLCommonModule,
+    PubSubModule,
+    BullModule.registerQueue({
+      name: 'edi',
+    }),
   ],
   controllers: [
     SupplierController,
@@ -38,6 +50,10 @@ import { TenantModule } from '../tenant/tenant.module';
     SupplierCommunicationRepository,
     SupplierEvaluationRepository,
     PurchaseOrderRepository,
+    SupplierResolver,
+    PurchaseOrderResolver,
+    ProcurementAnalyticsResolver,
+    EDIIntegrationResolver,
   ],
   exports: [
     SupplierService,
