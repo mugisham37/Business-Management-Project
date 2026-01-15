@@ -7,7 +7,7 @@ import { BackupType, BackupStorageLocation } from '../entities/backup.entity';
 export class CreateBackupDto {
   @ApiProperty({ enum: BackupType, description: 'Type of backup to create' })
   @IsEnum(BackupType)
-  type: BackupType;
+  type!: BackupType;
 
   @ApiPropertyOptional({ enum: BackupStorageLocation, description: 'Storage location for backup' })
   @IsOptional()
@@ -88,17 +88,17 @@ export class RestoreBackupDto {
 export class CreateScheduledBackupDto {
   @ApiProperty({ enum: BackupType, description: 'Type of backup to schedule' })
   @IsEnum(BackupType)
-  type: BackupType;
+  type!: BackupType;
 
   @ApiProperty({ description: 'Cron schedule expression' })
   @IsString()
-  schedule: string;
+  schedule!: string;
 
   @ApiProperty({ description: 'Retention period in days', minimum: 1, maximum: 3650 })
   @IsNumber()
   @Min(1)
   @Max(3650)
-  retentionDays: number;
+  retentionDays!: number;
 
   @ApiPropertyOptional({ enum: BackupStorageLocation, description: 'Storage location for backup' })
   @IsOptional()
@@ -234,7 +234,7 @@ export class BackupFilterDto {
 export class PointInTimeRecoveryDto {
   @ApiProperty({ description: 'Target date and time for recovery' })
   @IsDateString()
-  targetDateTime: string;
+  targetDateTime!: string;
 
   @ApiPropertyOptional({ description: 'Data to include in recovery', type: [String] })
   @IsOptional()
@@ -257,7 +257,7 @@ export class PointInTimeRecoveryDto {
 export class RecoveryEstimateDto {
   @ApiProperty({ description: 'Target date and time for recovery' })
   @IsDateString()
-  targetDateTime: string;
+  targetDateTime!: string;
 }
 
 export class BackupVerificationDto {

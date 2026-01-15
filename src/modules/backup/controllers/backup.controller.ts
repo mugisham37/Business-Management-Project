@@ -21,10 +21,10 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 
-import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
-import { RequireFeature } from '../../tenant/decorators/require-feature.decorator';
+import { RequireFeature } from '../../tenant/decorators/feature.decorator';
 import { RequirePermission } from '../../auth/decorators/require-permission.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../../tenant/decorators/current-tenant.decorator';
@@ -45,7 +45,7 @@ import {
 import { CreateBackupDto, RestoreBackupDto, CreateScheduledBackupDto } from '../dto/backup.dto';
 
 @Controller('api/v1/backup')
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('backup-recovery')
 @ApiTags('Backup & Recovery')
 @ApiBearerAuth()
@@ -73,14 +73,14 @@ export class BackupController {
     const options: CreateBackupOptions = {
       tenantId,
       type: dto.type,
-      storageLocation: dto.storageLocation,
-      retentionDays: dto.retentionDays,
-      includeData: dto.includeData,
-      excludeData: dto.excludeData,
-      compressionEnabled: dto.compressionEnabled,
-      encryptionEnabled: dto.encryptionEnabled,
-      geographicReplication: dto.geographicReplication,
-      priority: dto.priority,
+      storageLocation: dto.storageLocation ?? BackupStorageLocation.S3,
+      ...(dto.retentionDays !== undefined && { retentionDays: dto.retentionDays }),
+      ...(dto.includeData !== undefined && { includeData: dto.includeData }),
+      ...(dto.excludeData !== undefined && { excludeData: dto.excludeData }),
+      ...(dto.compressionEnabled !== undefined && { compressionEnabled: dto.compressionEnabled }),
+      ...(dto.encryptionEnabled !== undefined && { encryptionEnabled: dto.encryptionEnabled }),
+      ...(dto.geographicReplication !== undefined && { geographicReplication: dto.geographicReplication }),
+      ...(dto.priority !== undefined && { priority: dto.priority }),
       userId: user.id,
     };
 
@@ -128,14 +128,14 @@ export class BackupController {
     @Query('limit') limit = 50,
     @Query('offset') offset = 0,
   ): Promise<{ backups: BackupEntity[]; total: number }> {
-    const filter = {
+    const filter: any = {
       tenantId,
-      type,
-      status,
-      storageLocation,
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
-      isVerified,
+      ...(type !== undefined && { type }),
+      ...(status !== undefined && { status }),
+      ...(storageLocation !== undefined && { storageLocation }),
+      ...(startDate && { startDate: new Date(startDate) }),
+      ...(endDate && { endDate: new Date(endDate) }),
+      ...(isVerified !== undefined && { isVerified }),
     };
 
     return this.backupService.listBackups(filter, limit, offset);
@@ -171,14 +171,15 @@ export class BackupController {
     @Param('id', ParseUUIDPipe) backupId: string,
     @Body(ValidationPipe) dto: RestoreBackupDto,
     @CurrentUser() user: any,
+    @CurrentTenant() tenantId: string,
   ): Promise<{ restoreJobId: string }> {
     const options: RestoreOptions = {
       backupId,
-      targetTenantId: dto.targetTenantId,
-      pointInTime: dto.pointInTime,
-      includeData: dto.includeData,
-      excludeData: dto.excludeData,
-      dryRun: dto.dryRun,
+      targetTenantId: dto.targetTenantId ?? tenantId,
+      ...(dto.pointInTime !== undefined && { pointInTime: dto.pointInTime }),
+      ...(dto.includeData !== undefined && { includeData: dto.includeData }),
+      ...(dto.excludeData !== undefined && { excludeData: dto.excludeData }),
+      ...(dto.dryRun !== undefined && { dryRun: dto.dryRun }),
       userId: user.id,
     };
 
@@ -233,14 +234,14 @@ export class BackupController {
       type: dto.type,
       schedule: dto.schedule,
       retentionDays: dto.retentionDays,
-      storageLocation: dto.storageLocation,
-      isEnabled: dto.isEnabled,
+      storageLocation: dto.storageLocation ?? BackupStorageLocation.S3,
+      isEnabled: dto.isEnabled ?? true,
       configuration: {
-        compressionEnabled: dto.compressionEnabled,
-        encryptionEnabled: dto.encryptionEnabled,
-        geographicReplication: dto.geographicReplication,
-        includeData: dto.includeData,
-        excludeData: dto.excludeData,
+        compressionEnabled: dto.compressionEnabled ?? true,
+        encryptionEnabled: dto.encryptionEnabled ?? true,
+        geographicReplication: dto.geographicReplication ?? false,
+        ...(dto.includeData !== undefined && { includeData: dto.includeData }),
+        ...(dto.excludeData !== undefined && { excludeData: dto.excludeData }),
       },
     };
 
@@ -310,12 +311,12 @@ export class BackupController {
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<any> {
-    const options = {
+    const options: any = {
       tenantId,
       targetDateTime: new Date(dto.targetDateTime),
-      includeData: dto.includeData,
-      excludeData: dto.excludeData,
       userId: user.id,
+      ...(dto.includeData && { includeData: dto.includeData }),
+      ...(dto.excludeData && { excludeData: dto.excludeData }),
     };
 
     return this.recoveryService.createRecoveryPlan(options);
@@ -339,13 +340,13 @@ export class BackupController {
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<any> {
-    const options = {
+    const options: any = {
       tenantId,
       targetDateTime: new Date(dto.targetDateTime),
-      includeData: dto.includeData,
-      excludeData: dto.excludeData,
-      dryRun: dto.dryRun,
       userId: user.id,
+      ...(dto.includeData && { includeData: dto.includeData }),
+      ...(dto.excludeData && { excludeData: dto.excludeData }),
+      ...(dto.dryRun !== undefined && { dryRun: dto.dryRun }),
     };
 
     return this.recoveryService.executeRecovery(options);

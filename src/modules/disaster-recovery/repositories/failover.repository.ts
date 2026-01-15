@@ -34,7 +34,7 @@ export class FailoverRepository {
       })
       .returning();
 
-    return config;
+    return config as unknown as FailoverConfiguration;
   }
 
   /**
@@ -49,7 +49,7 @@ export class FailoverRepository {
       .where(eq(failoverConfigurations.id, configId))
       .limit(1);
 
-    return config || null;
+    return (config as unknown as FailoverConfiguration) || null;
   }
 
   /**
@@ -58,11 +58,13 @@ export class FailoverRepository {
   async findConfigurationsByTenant(tenantId: string): Promise<FailoverConfiguration[]> {
     const db = this.databaseService.getDatabase();
     
-    return db
+    const configs = await db
       .select()
       .from(failoverConfigurations)
       .where(eq(failoverConfigurations.tenantId, tenantId))
       .orderBy(desc(failoverConfigurations.createdAt));
+
+    return configs as unknown as FailoverConfiguration[];
   }
 
   /**
@@ -85,7 +87,7 @@ export class FailoverRepository {
       )
       .limit(1);
 
-    return config || null;
+    return (config as unknown as FailoverConfiguration) || null;
   }
 
   /**
@@ -108,7 +110,7 @@ export class FailoverRepository {
       .where(eq(failoverConfigurations.id, configId))
       .returning();
 
-    return config;
+    return config as unknown as FailoverConfiguration;
   }
 
   /**
@@ -133,7 +135,7 @@ export class FailoverRepository {
   /**
    * Create failover execution
    */
-  async createExecution(data: InsertFailoverExecution): Promise<FailoverExecution> {
+  async createExecution(data: InsertFailoverExecution): Promise<any> {
     this.logger.log(`Creating failover execution for configuration ${data.configurationId}`);
 
     const db = this.databaseService.getDatabase();
@@ -153,7 +155,7 @@ export class FailoverRepository {
   /**
    * Find failover execution by ID
    */
-  async findExecutionById(executionId: string): Promise<FailoverExecution | null> {
+  async findExecutionById(executionId: string): Promise<any | null> {
     const db = this.databaseService.getDatabase();
     
     const [execution] = await db
@@ -173,7 +175,7 @@ export class FailoverRepository {
     limit = 50, 
     offset = 0
   ): Promise<{
-    executions: FailoverExecution[];
+    executions: any[];
     total: number;
   }> {
     const db = this.databaseService.getDatabase();
@@ -205,7 +207,7 @@ export class FailoverRepository {
   async findExecutionsByConfiguration(
     configurationId: string, 
     limit = 10
-  ): Promise<FailoverExecution[]> {
+  ): Promise<any[]> {
     const db = this.databaseService.getDatabase();
     
     return db
@@ -222,7 +224,7 @@ export class FailoverRepository {
   async updateExecution(
     executionId: string, 
     updates: Partial<InsertFailoverExecution>
-  ): Promise<FailoverExecution> {
+  ): Promise<any> {
     this.logger.log(`Updating failover execution ${executionId}`);
 
     const db = this.databaseService.getDatabase();
@@ -276,17 +278,17 @@ export class FailoverRepository {
       .where(eq(failoverExecutions.tenantId, tenantId));
 
     // Calculate success rate
-    const totalExecutions = executionMetrics.totalExecutions || 0;
-    const successfulExecutions = executionMetrics.successfulExecutions || 0;
+    const totalExecutions = executionMetrics?.totalExecutions || 0;
+    const successfulExecutions = executionMetrics?.successfulExecutions || 0;
     const successRate = totalExecutions > 0 ? (successfulExecutions / totalExecutions) * 100 : 0;
 
     return {
-      totalConfigurations: configCounts.totalConfigurations || 0,
-      activeConfigurations: configCounts.activeConfigurations || 0,
+      totalConfigurations: configCounts?.totalConfigurations || 0,
+      activeConfigurations: configCounts?.activeConfigurations || 0,
       totalExecutions: totalExecutions,
       successfulExecutions: successfulExecutions,
-      failedExecutions: executionMetrics.failedExecutions || 0,
-      averageFailoverTime: Math.round((executionMetrics.averageFailoverTime || 0) * 100) / 100,
+      failedExecutions: executionMetrics?.failedExecutions || 0,
+      averageFailoverTime: Math.round((executionMetrics?.averageFailoverTime || 0) * 100) / 100,
       successRate: Math.round(successRate * 100) / 100,
     };
   }
@@ -317,7 +319,7 @@ export class FailoverRepository {
       .where(eq(failoverConfigurations.tenantId, tenantId))
       .groupBy(failoverConfigurations.serviceName);
 
-    return stats.map(stat => ({
+    return stats.map((stat: any) => ({
       serviceName: stat.serviceName,
       executionCount: stat.executionCount,
       successRate: stat.executionCount > 0 
@@ -335,7 +337,7 @@ export class FailoverRepository {
     const fiveMinutesAgo = new Date();
     fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
     
-    return db
+    const configs = await db
       .select()
       .from(failoverConfigurations)
       .where(
@@ -345,6 +347,8 @@ export class FailoverRepository {
         )
       )
       .orderBy(failoverConfigurations.lastHealthCheckAt);
+
+    return configs as unknown as FailoverConfiguration[];
   }
 
   /**

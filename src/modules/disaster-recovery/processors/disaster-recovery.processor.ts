@@ -59,10 +59,7 @@ export class DisasterRecoveryProcessor {
         await this.drRepository.updateExecution(executionId, {
           status: RecoveryStatus.FAILED,
           completedAt: new Date(),
-          errors: [{
-            message: errorMessage,
-            timestamp: new Date(),
-          }],
+          errors: [errorMessage],
         });
       } catch (updateError) {
         this.logger.error(`Failed to update execution status: ${updateError instanceof Error ? updateError.message : 'Unknown error'}`);

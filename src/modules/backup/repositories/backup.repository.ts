@@ -20,7 +20,7 @@ export interface CreateBackupData {
   sizeBytes: number;
   checksum: string;
   encryptionKeyId: string;
-  compressionAlgorithm?: string;
+  compressionAlgorithm?: string | undefined;
   compressionRatio: number;
   startedAt: Date;
   retentionDays: number;
@@ -30,29 +30,29 @@ export interface CreateBackupData {
   geographicRegions: string[];
   rtoMinutes: number;
   rpoMinutes: number;
-  createdBy?: string;
+  createdBy?: string | undefined;
 }
 
 export interface UpdateBackupData {
-  status?: BackupStatus;
-  sizeBytes?: number;
-  checksum?: string;
-  compressionRatio?: number;
-  completedAt?: Date;
-  errorMessage?: string;
-  isVerified?: boolean;
-  verifiedAt?: Date;
-  metadata?: Record<string, any>;
+  status?: BackupStatus | undefined;
+  sizeBytes?: number | undefined;
+  checksum?: string | undefined;
+  compressionRatio?: number | undefined;
+  completedAt?: Date | undefined;
+  errorMessage?: string | undefined;
+  isVerified?: boolean | undefined;
+  verifiedAt?: Date | undefined;
+  metadata?: Record<string, any> | undefined;
 }
 
 export interface BackupFilter {
-  tenantId?: string;
-  type?: BackupType;
-  status?: BackupStatus;
-  storageLocation?: BackupStorageLocation;
-  startDate?: Date;
-  endDate?: Date;
-  isVerified?: boolean;
+  tenantId?: string | undefined;
+  type?: BackupType | undefined;
+  status?: BackupStatus | undefined;
+  storageLocation?: BackupStorageLocation | undefined;
+  startDate?: Date | undefined;
+  endDate?: Date | undefined;
+  isVerified?: boolean | undefined;
 }
 
 @Injectable()
@@ -75,9 +75,6 @@ export class BackupRepository {
       const backup: BackupEntity = {
         id: `backup_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         ...data,
-        completedAt: null,
-        errorMessage: null,
-        verifiedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -89,7 +86,9 @@ export class BackupRepository {
       return backup;
 
     } catch (error) {
-      this.logger.error(`Failed to create backup record: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to create backup record: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -120,7 +119,6 @@ export class BackupRepository {
           compressionRatio: 0.7,
           startedAt: new Date(Date.now() - 3600000), // 1 hour ago
           completedAt: new Date(Date.now() - 3000000), // 50 minutes ago
-          errorMessage: null,
           retentionDays: 90,
           expiresAt: new Date(Date.now() + 90 * 24 * 3600000),
           isVerified: true,
@@ -138,7 +136,9 @@ export class BackupRepository {
       return null;
 
     } catch (error) {
-      this.logger.error(`Failed to find backup ${id}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find backup ${id}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -212,7 +212,6 @@ export class BackupRepository {
           compressionRatio: 0.7,
           startedAt: new Date(Date.now() - (3600000 + i * 86400000)),
           completedAt: new Date(Date.now() - (3000000 + i * 86400000)),
-          errorMessage: null,
           retentionDays: 90,
           expiresAt: new Date(Date.now() + 90 * 24 * 3600000),
           isVerified: true,
@@ -233,7 +232,9 @@ export class BackupRepository {
       };
 
     } catch (error) {
-      this.logger.error(`Failed to find backups: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find backups: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -262,7 +263,9 @@ export class BackupRepository {
       return updatedBackup;
 
     } catch (error) {
-      this.logger.error(`Failed to update backup ${id}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to update backup ${id}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -282,7 +285,9 @@ export class BackupRepository {
       this.logger.log(`Backup record deleted: ${id}`);
 
     } catch (error) {
-      this.logger.error(`Failed to delete backup ${id}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to delete backup ${id}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -302,7 +307,9 @@ export class BackupRepository {
       return [];
 
     } catch (error) {
-      this.logger.error(`Failed to find expired backups: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find expired backups: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -325,7 +332,9 @@ export class BackupRepository {
       return [];
 
     } catch (error) {
-      this.logger.error(`Failed to find unverified backups: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find unverified backups: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -361,7 +370,9 @@ export class BackupRepository {
       };
 
     } catch (error) {
-      this.logger.error(`Failed to get backup statistics for tenant ${tenantId}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to get backup statistics for tenant ${tenantId}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -387,7 +398,8 @@ export class BackupRepository {
       status: BackupStatus.COMPLETED,
     }, 1, 0);
 
-    return result.backups.length > 0 ? result.backups[0] : null;
+    const backup = result.backups && result.backups.length > 0 ? result.backups[0] : null;
+    return backup || null;
   }
 
   /**
@@ -417,7 +429,9 @@ export class BackupRepository {
       };
 
     } catch (error) {
-      this.logger.error(`Failed to count backups by status for tenant ${tenantId}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to count backups by status for tenant ${tenantId}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -447,7 +461,9 @@ export class BackupRepository {
       };
 
     } catch (error) {
-      this.logger.error(`Failed to get storage usage for tenant ${tenantId}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to get storage usage for tenant ${tenantId}: ${errorMessage}`, errorStack);
       throw error;
     }
   }

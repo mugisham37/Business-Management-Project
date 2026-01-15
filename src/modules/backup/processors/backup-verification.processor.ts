@@ -60,12 +60,14 @@ export class BackupVerificationProcessor {
       }
 
     } catch (error) {
-      this.logger.error(`Backup verification failed for ${backupId}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Backup verification failed for ${backupId}: ${errorMessage}`, errorStack);
 
       // Emit verification failed event
       this.eventEmitter.emit('backup.verification.failed', {
         backupId,
-        error: error.message,
+        error: errorMessage,
       });
 
       throw error;

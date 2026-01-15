@@ -10,48 +10,48 @@ export class CreateDRPlanDto {
   @ApiProperty({ description: 'Name of the disaster recovery plan' })
   @Field()
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Description of the disaster recovery plan' })
   @Field()
   @IsString()
-  description: string;
+  description!: string;
 
   @ApiProperty({ description: 'Types of disasters this plan covers', enum: DisasterType, isArray: true })
   @Field(() => [String])
   @IsArray()
   @IsEnum(DisasterType, { each: true })
-  disasterTypes: DisasterType[];
+  disasterTypes!: DisasterType[];
 
   @ApiProperty({ description: 'Recovery Time Objective in minutes', minimum: 1, maximum: 1440 })
   @Field()
   @IsNumber()
   @Min(1)
   @Max(1440)
-  rtoMinutes: number;
+  rtoMinutes!: number;
 
   @ApiProperty({ description: 'Recovery Point Objective in minutes', minimum: 1, maximum: 1440 })
   @Field()
   @IsNumber()
   @Min(1)
   @Max(1440)
-  rpoMinutes: number;
+  rpoMinutes!: number;
 
   @ApiProperty({ description: 'Primary region for operations' })
   @Field()
   @IsString()
-  primaryRegion: string;
+  primaryRegion!: string;
 
   @ApiProperty({ description: 'Secondary regions for disaster recovery', isArray: true })
   @Field(() => [String])
   @IsArray()
   @IsString({ each: true })
-  secondaryRegions: string[];
+  secondaryRegions!: string[];
 
   @ApiProperty({ description: 'Enable automatic failover' })
   @Field()
   @IsBoolean()
-  automaticFailover: boolean;
+  automaticFailover!: boolean;
 
   @ApiPropertyOptional({ description: 'Additional configuration options' })
   @Field(() => String, { nullable: true })
@@ -134,7 +134,7 @@ export class ExecuteDRDto {
   @ApiProperty({ description: 'Type of disaster', enum: DisasterType })
   @Field()
   @IsEnum(DisasterType)
-  disasterType: DisasterType;
+  disasterType!: DisasterType;
 
   @ApiPropertyOptional({ description: 'Whether this is a test execution', default: false })
   @Field({ defaultValue: false })
@@ -151,7 +151,7 @@ export class TestDRPlanDto {
   @ApiProperty({ description: 'Type of test to perform', enum: ['full', 'partial', 'failover_only'] })
   @Field()
   @IsEnum(['full', 'partial', 'failover_only'])
-  testType: 'full' | 'partial' | 'failover_only';
+  testType!: 'full' | 'partial' | 'failover_only';
 }
 
 @InputType()
@@ -163,23 +163,23 @@ export class CreateFailoverConfigDto {
   @ApiProperty({ description: 'Name of the service' })
   @Field()
   @IsString()
-  serviceName: string;
+  serviceName!: string;
 
   @ApiProperty({ description: 'Primary endpoint URL' })
   @Field()
   @IsString()
-  primaryEndpoint: string;
+  primaryEndpoint!: string;
 
   @ApiProperty({ description: 'Secondary endpoint URLs', isArray: true })
   @Field(() => [String])
   @IsArray()
   @IsString({ each: true })
-  secondaryEndpoints: string[];
+  secondaryEndpoints!: string[];
 
   @ApiProperty({ description: 'Enable automatic failover' })
   @Field()
   @IsBoolean()
-  automaticFailover: boolean;
+  automaticFailover!: boolean;
 
   @ApiPropertyOptional({ description: 'Health check interval in seconds', default: 60 })
   @Field({ defaultValue: 60 })
@@ -206,12 +206,12 @@ export class ExecuteFailoverDto {
   @ApiProperty({ description: 'Service name to failover' })
   @Field()
   @IsString()
-  serviceName: string;
+  serviceName!: string;
 
   @ApiProperty({ description: 'Target region for failover' })
   @Field()
   @IsString()
-  targetRegion: string;
+  targetRegion!: string;
 
   @ApiPropertyOptional({ description: 'Reason for failover' })
   @Field({ nullable: true })
@@ -229,19 +229,19 @@ export class CreateReplicationDto {
   @ApiProperty({ description: 'Source region' })
   @Field()
   @IsString()
-  sourceRegion: string;
+  sourceRegion!: string;
 
   @ApiProperty({ description: 'Target region' })
   @Field()
   @IsString()
-  targetRegion: string;
+  targetRegion!: string;
 
   @ApiProperty({ description: 'RPO in minutes' })
   @Field()
   @IsNumber()
   @Min(1)
   @Max(1440)
-  rpoMinutes: number;
+  rpoMinutes!: number;
 
   @ApiPropertyOptional({ description: 'Replication type', enum: ['synchronous', 'asynchronous'], default: 'asynchronous' })
   @Field({ defaultValue: 'asynchronous' })
@@ -264,90 +264,90 @@ export class CreateReplicationInput extends CreateReplicationDto {}
 export class DRPlanResponseDto {
   @ApiProperty()
   @Field()
-  success: boolean;
+  success!: boolean;
 
   @ApiProperty()
   @Field()
-  data: any;
+  data!: any;
 
   @ApiProperty()
   @Field()
-  message: string;
+  message!: string;
 }
 
 @ObjectType()
 export class DRExecutionResponseDto {
   @ApiProperty()
   @Field()
-  success: boolean;
+  success!: boolean;
 
   @ApiProperty()
   @Field()
-  data: any;
+  data!: any;
 
   @ApiProperty()
   @Field()
-  message: string;
+  message!: string;
 }
 
 @ObjectType()
 export class DRMetricsResponseDto {
   @ApiProperty()
   @Field()
-  success: boolean;
+  success!: boolean;
 
   @ApiProperty()
   @Field()
-  data: any;
+  data!: any;
 
   @ApiProperty()
   @Field()
-  message: string;
+  message!: string;
 }
 
 @ObjectType()
 export class RTOAnalysisResponseDto {
   @ApiProperty()
   @Field()
-  success: boolean;
+  success!: boolean;
 
   @ApiProperty()
   @Field()
-  data: any;
+  data!: any;
 
   @ApiProperty()
   @Field()
-  message: string;
+  message!: string;
 }
 
 @ObjectType()
 export class FailoverConfigResponseDto {
   @ApiProperty()
   @Field()
-  success: boolean;
+  success!: boolean;
 
   @ApiProperty()
   @Field()
-  data: any;
+  data!: any;
 
   @ApiProperty()
   @Field()
-  message: string;
+  message!: string;
 }
 
 @ObjectType()
 export class ReplicationStatusResponseDto {
   @ApiProperty()
   @Field()
-  success: boolean;
+  success!: boolean;
 
   @ApiProperty()
   @Field()
-  data: any;
+  data!: any;
 
   @ApiProperty()
   @Field()
-  message: string;
+  message!: string;
 }
 
 // Query DTOs
@@ -410,13 +410,13 @@ export class ListDRExecutionsQueryDto {
 export class ValidateDRPlanDto {
   @ApiProperty({ description: 'Plan ID to validate' })
   @IsString()
-  planId: string;
+  planId!: string;
 }
 
 export class GenerateReportDto {
   @ApiProperty({ description: 'Type of report to generate', enum: ['summary', 'detailed', 'compliance'] })
   @IsEnum(['summary', 'detailed', 'compliance'])
-  reportType: 'summary' | 'detailed' | 'compliance';
+  reportType!: 'summary' | 'detailed' | 'compliance';
 
   @ApiPropertyOptional({ description: 'Start date for report data' })
   @IsOptional()

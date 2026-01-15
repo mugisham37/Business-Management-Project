@@ -112,12 +112,14 @@ export class BackupProcessor {
       this.logger.log(`Backup ${backupId} completed successfully`);
 
     } catch (error) {
-      this.logger.error(`Backup ${backupId} failed: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Backup ${backupId} failed: ${errorMessage}`, errorStack);
 
       // Update backup status to failed
       await this.backupRepository.update(backupId, {
         status: BackupStatus.FAILED,
-        errorMessage: error.message,
+        errorMessage: errorMessage,
         completedAt: new Date(),
       });
 
@@ -126,7 +128,7 @@ export class BackupProcessor {
         tenantId: options.tenantId,
         backupId,
         type: options.type,
-        error: error.message,
+        error: errorMessage,
       });
 
       throw error;
@@ -204,14 +206,16 @@ export class BackupProcessor {
       this.logger.log(`Restore from backup ${backup.id} completed successfully`);
 
     } catch (error) {
-      this.logger.error(`Restore from backup ${backup.id} failed: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Restore from backup ${backup.id} failed: ${errorMessage}`, errorStack);
 
       // Emit restore failed event
       this.eventEmitter.emit('restore.failed', {
         tenantId: backup.tenantId,
         backupId: backup.id,
         restoreJobId: job.id,
-        error: error.message,
+        error: errorMessage,
       });
 
       throw error;
@@ -277,6 +281,9 @@ export class BackupProcessor {
 
       // Upload to storage
       const backup = await this.backupRepository.findById(backupId);
+      if (!backup) {
+        throw new Error(`Backup ${backupId} not found`);
+      }
       await this.storageService.uploadBackup(
         finalBackupPath,
         backup.storagePath,
@@ -302,7 +309,9 @@ export class BackupProcessor {
       };
 
     } catch (error) {
-      this.logger.error(`Failed to create full backup: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to create full backup: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -352,7 +361,9 @@ export class BackupProcessor {
       };
 
     } catch (error) {
-      this.logger.error(`Failed to create incremental backup: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to create incremental backup: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -380,7 +391,7 @@ export class BackupProcessor {
         throw new Error('No full backup found for differential backup');
       }
 
-      const sinceDate = lastFullBackup.completedAt;
+      const sinceDate = lastFullBackup.completedAt ?? new Date(0);
 
       // Create temporary directory
       const tempDir = '/tmp/backups';
@@ -406,7 +417,9 @@ export class BackupProcessor {
       };
 
     } catch (error) {
-      this.logger.error(`Failed to create differential backup: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to create differential backup: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -448,7 +461,9 @@ export class BackupProcessor {
       };
 
     } catch (error) {
-      this.logger.error(`Failed to create point-in-time backup: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to create point-in-time backup: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -497,6 +512,9 @@ export class BackupProcessor {
 
     // Upload to storage
     const backup = await this.backupRepository.findById(backupId);
+    if (!backup) {
+      throw new Error(`Backup ${backupId} not found`);
+    }
     await this.storageService.uploadBackup(
       finalBackupPath,
       backup.storagePath,
@@ -681,7 +699,8 @@ export class BackupProcessor {
           this.logger.log(`Cleaned up temporary file: ${filePath}`);
         }
       } catch (error) {
-        this.logger.warn(`Failed to clean up temporary file ${filePath}: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        this.logger.warn(`Failed to clean up temporary file ${filePath}: ${errorMessage}`);
       }
     }
   }

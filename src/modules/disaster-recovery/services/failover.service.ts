@@ -431,4 +431,37 @@ export class FailoverService {
     // Build endpoint URL based on service name and region
     return `https://${serviceName}.${region}.example.com`;
   }
+
+  /**
+   * Queue failover execution
+   */
+  async queueFailoverExecution(options: {
+    executionId: string;
+    configurationId: string;
+    targetRegion: string;
+    isAutomatic: boolean;
+    userId: string;
+  }): Promise<void> {
+    this.logger.log(`Queueing failover execution ${options.executionId}`);
+
+    await this.failoverQueue.add('execute-failover', options, {
+      priority: options.isAutomatic ? 1 : 2,
+      delay: 0,
+    });
+  }
+
+  /**
+   * Get failover metrics for tenant
+   */
+  async getFailoverMetrics(tenantId: string): Promise<{
+    totalConfigurations: number;
+    activeConfigurations: number;
+    totalExecutions: number;
+    successfulExecutions: number;
+    failedExecutions: number;
+    averageFailoverTime: number;
+    successRate: number;
+  }> {
+    return this.failoverRepository.getFailoverMetrics(tenantId);
+  }
 }

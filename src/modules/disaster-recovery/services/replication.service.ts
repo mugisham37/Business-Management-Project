@@ -483,4 +483,20 @@ export class ReplicationService {
       parallelWorkers: 4,
     };
   }
+
+  /**
+   * Get replication trends
+   */
+  async getReplicationTrends(tenantId: string, hours = 24): Promise<{
+    configurationId: string;
+    sourceRegion: string;
+    targetRegion: string;
+    trends: {
+      timestamp: Date;
+      lagSeconds: number;
+      bytesReplicated: number;
+    }[];
+  }[]> {
+    return this.replicationRepository.getLagTrends(tenantId, hours);
+  }
 }

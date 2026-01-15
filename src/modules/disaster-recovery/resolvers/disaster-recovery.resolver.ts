@@ -14,6 +14,7 @@ import {
   DisasterRecoveryPlan,
   DisasterRecoveryExecution,
   DisasterRecoveryMetrics,
+  FailoverType,
 } from '../entities/disaster-recovery.entity';
 
 import {
@@ -50,6 +51,7 @@ export class DisasterRecoveryResolver {
     return this.drService.createDRPlan({
       tenantId: context.req.tenantId,
       ...input,
+      configuration: input.configuration || {},
       userId: context.req.user.id,
     });
   }
@@ -197,7 +199,6 @@ export class DisasterRecoveryResolver {
     const config = await this.failoverService.createFailoverConfig({
       tenantId: context.req.tenantId,
       ...input,
-      userId: context.req.user.id,
     });
     return JSON.stringify(config);
   }
@@ -215,9 +216,19 @@ export class DisasterRecoveryResolver {
     @Args('input') input: ExecuteFailoverInput,
     @Context() context: any,
   ): Promise<string> {
+    // First, find the configuration by service name
+    const configs = await this.failoverService.listFailoverConfigs(context.req.tenantId);
+    const config = configs.find(c => c.serviceName === input.serviceName);
+    
+    if (!config) {
+      throw new Error(`Failover configuration not found for service ${input.serviceName}`);
+    }
+
     const execution = await this.failoverService.executeFailover({
       tenantId: context.req.tenantId,
-      ...input,
+      configId: config.id,
+      failoverType: FailoverType.MANUAL,
+      targetEndpoint: input.targetRegion,
       userId: context.req.user.id,
     });
     return JSON.stringify(execution);

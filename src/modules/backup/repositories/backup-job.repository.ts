@@ -47,7 +47,6 @@ export class BackupJobRepository {
         schedule: data.schedule,
         isEnabled: data.isEnabled,
         nextRunAt: data.nextRunAt,
-        lastRunAt: null,
         configuration: data.configuration,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -60,7 +59,9 @@ export class BackupJobRepository {
       return job;
 
     } catch (error) {
-      this.logger.error(`Failed to create backup job: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to create backup job: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -100,7 +101,9 @@ export class BackupJobRepository {
       return null;
 
     } catch (error) {
-      this.logger.error(`Failed to find backup job ${id}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find backup job ${id}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -160,7 +163,9 @@ export class BackupJobRepository {
       return mockJobs;
 
     } catch (error) {
-      this.logger.error(`Failed to find backup jobs for tenant ${tenantId}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find backup jobs for tenant ${tenantId}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -234,7 +239,9 @@ export class BackupJobRepository {
       return mockJobs;
 
     } catch (error) {
-      this.logger.error(`Failed to find active backup jobs: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find active backup jobs: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -270,7 +277,9 @@ export class BackupJobRepository {
       return updatedJob;
 
     } catch (error) {
-      this.logger.error(`Failed to update backup job ${id}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to update backup job ${id}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -290,7 +299,9 @@ export class BackupJobRepository {
       this.logger.log(`Backup job deleted: ${id}`);
 
     } catch (error) {
-      this.logger.error(`Failed to delete backup job ${id}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to delete backup job ${id}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -315,7 +326,7 @@ export class BackupJobRepository {
       return [];
 
     } catch (error) {
-      this.logger.error(`Failed to find due backup jobs: ${error.message}`, error.stack);
+      this.logger.error(`Failed to find due backup jobs: ${error instanceof Error ? error.message : String(error)}`, error instanceof Error ? error.stack : undefined);
       throw error;
     }
   }
@@ -335,7 +346,9 @@ export class BackupJobRepository {
       return [];
 
     } catch (error) {
-      this.logger.error(`Failed to find backup jobs by schedule: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find backup jobs by schedule: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -353,9 +366,10 @@ export class BackupJobRepository {
 
       // Mock count
       return 2; // Full and incremental jobs
-
     } catch (error) {
-      this.logger.error(`Failed to count backup jobs for tenant ${tenantId}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to count backup jobs for tenant ${tenantId}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -378,7 +392,9 @@ export class BackupJobRepository {
       return allJobs.filter(job => job.type === type);
 
     } catch (error) {
-      this.logger.error(`Failed to find backup jobs by type and tenant: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to find backup jobs by type and tenant: ${errorMessage}`, errorStack);
       throw error;
     }
   }

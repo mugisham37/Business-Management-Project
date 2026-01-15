@@ -64,7 +64,9 @@ export class BackupSchedulerService {
 
       this.logger.log(`Completed daily full backup job for ${activeJobs.length} tenants`);
     } catch (error) {
-      this.logger.error(`Daily full backup job failed: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Daily full backup job failed: ${errorMessage}`, errorStack);
     }
   }
 
@@ -87,7 +89,9 @@ export class BackupSchedulerService {
 
       this.logger.log(`Completed hourly incremental backup job for ${activeJobs.length} tenants`);
     } catch (error) {
-      this.logger.error(`Hourly incremental backup job failed: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Hourly incremental backup job failed: ${errorMessage}`, errorStack);
     }
   }
 
@@ -110,7 +114,9 @@ export class BackupSchedulerService {
 
       this.logger.log(`Completed weekly differential backup job for ${activeJobs.length} tenants`);
     } catch (error) {
-      this.logger.error(`Weekly differential backup job failed: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Weekly differential backup job failed: ${errorMessage}`, errorStack);
     }
   }
 
@@ -128,7 +134,9 @@ export class BackupSchedulerService {
       const deletedCount = await this.backupService.cleanupExpiredBackups();
       this.logger.log(`Backup cleanup completed: ${deletedCount} backups deleted`);
     } catch (error) {
-      this.logger.error(`Backup cleanup job failed: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Backup cleanup job failed: ${errorMessage}`, errorStack);
     }
   }
 
@@ -157,7 +165,9 @@ export class BackupSchedulerService {
       return job.id;
 
     } catch (error) {
-      this.logger.error(`Failed to create scheduled backup job: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to create scheduled backup job: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -196,7 +206,9 @@ export class BackupSchedulerService {
       this.logger.log(`Scheduled backup job ${jobId} updated`);
 
     } catch (error) {
-      this.logger.error(`Failed to update scheduled backup job ${jobId}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to update scheduled backup job ${jobId}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -217,7 +229,9 @@ export class BackupSchedulerService {
       this.logger.log(`Scheduled backup job ${jobId} deleted`);
 
     } catch (error) {
-      this.logger.error(`Failed to delete scheduled backup job ${jobId}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to delete scheduled backup job ${jobId}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -241,7 +255,9 @@ export class BackupSchedulerService {
       this.logger.log(`Scheduled backup job ${jobId} ${enabled ? 'enabled' : 'disabled'}`);
 
     } catch (error) {
-      this.logger.error(`Failed to toggle scheduled backup job ${jobId}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to toggle scheduled backup job ${jobId}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -266,7 +282,9 @@ export class BackupSchedulerService {
 
       this.logger.log(`Loaded ${activeJobs.length} scheduled backup jobs`);
     } catch (error) {
-      this.logger.error(`Failed to load scheduled jobs: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to load scheduled jobs: ${errorMessage}`, errorStack);
     }
   }
 
@@ -339,14 +357,16 @@ export class BackupSchedulerService {
       this.logger.log(`Scheduled backup executed successfully for tenant ${job.tenantId}`);
 
     } catch (error) {
-      this.logger.error(`Scheduled backup failed for tenant ${job.tenantId}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Scheduled backup failed for tenant ${job.tenantId}: ${errorMessage}`, errorStack);
 
       // Emit failure event
       this.eventEmitter.emit('backup.scheduled.failed', {
         tenantId: job.tenantId,
         jobId: job.id,
         type: job.type,
-        error: error.message,
+        error: errorMessage,
       });
     }
   }

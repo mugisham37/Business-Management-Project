@@ -98,8 +98,10 @@ export class PointInTimeRecoveryService {
       this.logger.log(`Recovery plan created: ${recoverySteps.length} steps, estimated duration: ${estimatedDuration} minutes`);
       return recoveryPlan;
 
-    } catch (error) {
-      this.logger.error(`Failed to create recovery plan: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to create recovery plan: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -148,13 +150,15 @@ export class PointInTimeRecoveryService {
         duration,
       };
 
-    } catch (error) {
-      this.logger.error(`Point-in-time recovery failed: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Point-in-time recovery failed: ${errorMessage}`, errorStack);
 
       // Emit recovery failed event
       this.eventEmitter.emit('recovery.failed', {
         tenantId: options.tenantId,
-        error: error.message,
+        error: errorMessage,
         userId: options.userId,
       });
 
@@ -163,7 +167,7 @@ export class PointInTimeRecoveryService {
         recoveredToDateTime: new Date(),
         actualDataLoss: 0,
         duration: Date.now() - startTime,
-        errors: [error.message],
+        errors: [errorMessage],
         warnings: [],
       };
     }
@@ -180,8 +184,8 @@ export class PointInTimeRecoveryService {
         tenantId,
         status: BackupStatus.COMPLETED,
         isVerified: true,
-        startDate,
-        endDate,
+        ...(startDate !== undefined && { startDate }),
+        ...(endDate !== undefined && { endDate }),
       });
 
       // Extract recovery points from backups
@@ -212,8 +216,10 @@ export class PointInTimeRecoveryService {
       this.logger.log(`Found ${uniquePoints.length} recovery points for tenant ${tenantId}`);
       return uniquePoints;
 
-    } catch (error) {
-      this.logger.error(`Failed to get recovery points: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to get recovery points: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -239,8 +245,9 @@ export class PointInTimeRecoveryService {
         requiredBackups: plan.requiredBackups.length,
       };
 
-    } catch (error) {
-      this.logger.error(`Failed to estimate recovery time: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to estimate recovery time: ${errorMessage}`);
       return {
         estimatedMinutes: 0,
         dataLossMinutes: 0,
@@ -285,8 +292,18 @@ export class PointInTimeRecoveryService {
     }
 
     // Get the most recent full backup
-    const baseFullBackup = fullBackups.backups
-      .sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime())[0];
+    const sortedFullBackups = fullBackups.backups
+      .filter(b => b.completedAt !== undefined)
+      .sort((a, b) => {
+        const aTime = a.completedAt?.getTime() ?? 0;
+        const bTime = b.completedAt?.getTime() ?? 0;
+        return bTime - aTime;
+      });
+    
+    const baseFullBackup = sortedFullBackups[0];
+    if (!baseFullBackup || !baseFullBackup.completedAt) {
+      return [];
+    }
 
     const backupChain: BackupEntity[] = [baseFullBackup];
 
@@ -296,13 +313,18 @@ export class PointInTimeRecoveryService {
       type: BackupType.INCREMENTAL,
       status: BackupStatus.COMPLETED,
       isVerified: true,
-      startDate: baseFullBackup.completedAt,
+      ...(baseFullBackup.completedAt !== undefined && { startDate: baseFullBackup.completedAt }),
       endDate: targetDateTime,
     });
 
     // Add incremental backups in chronological order
     const sortedIncrementals = incrementalBackups.backups
-      .sort((a, b) => a.completedAt.getTime() - b.completedAt.getTime());
+      .filter(b => b.completedAt !== undefined)
+      .sort((a, b) => {
+        const aTime = a.completedAt?.getTime() ?? 0;
+        const bTime = b.completedAt?.getTime() ?? 0;
+        return aTime - bTime;
+      });
 
     backupChain.push(...sortedIncrementals);
 
@@ -314,6 +336,10 @@ export class PointInTimeRecoveryService {
     let stepNumber = 1;
 
     for (const backup of backups) {
+      if (!backup.completedAt) {
+        continue;
+      }
+
       let stepType: RecoveryStep['type'];
       let description: string;
       let estimatedDuration: number;
@@ -350,15 +376,15 @@ export class PointInTimeRecoveryService {
     return steps;
   }
 
-  private estimateRestoreDuration(backup: BackupEntity, type: string): number {
+  private estimateRestoreDuration(backup: BackupEntity, type: 'full' | 'incremental' | 'differential'): number {
     // Base duration estimates in milliseconds
-    const baseDurations = {
+    const baseDurations: Record<'full' | 'incremental' | 'differential', number> = {
       full: 300000, // 5 minutes
       incremental: 60000, // 1 minute
       differential: 180000, // 3 minutes
     };
 
-    const baseDuration = baseDurations[type] || 60000;
+    const baseDuration = baseDurations[type];
     
     // Adjust based on backup size (rough estimate)
     const sizeMultiplier = Math.max(1, backup.sizeBytes / (100 * 1024 * 1024)); // 100MB baseline
@@ -373,10 +399,14 @@ export class PointInTimeRecoveryService {
 
     // Find the latest backup before target time
     const latestBackup = backups
-      .filter(b => b.completedAt <= targetDateTime)
-      .sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime())[0];
+      .filter(b => b.completedAt !== undefined && b.completedAt <= targetDateTime)
+      .sort((a, b) => {
+        const aTime = a.completedAt?.getTime() ?? 0;
+        const bTime = b.completedAt?.getTime() ?? 0;
+        return bTime - aTime;
+      })[0];
 
-    if (!latestBackup) {
+    if (!latestBackup || !latestBackup.completedAt) {
       return 0;
     }
 
@@ -389,8 +419,16 @@ export class PointInTimeRecoveryService {
     const warnings: string[] = [];
 
     // Check for old backups
-    const oldestBackup = backups.sort((a, b) => a.completedAt.getTime() - b.completedAt.getTime())[0];
-    if (oldestBackup) {
+    const sortedBackups = backups
+      .filter(b => b.completedAt !== undefined)
+      .sort((a, b) => {
+        const aTime = a.completedAt?.getTime() ?? 0;
+        const bTime = b.completedAt?.getTime() ?? 0;
+        return aTime - bTime;
+      });
+    
+    const oldestBackup = sortedBackups[0];
+    if (oldestBackup && oldestBackup.completedAt) {
       const ageInDays = (Date.now() - oldestBackup.completedAt.getTime()) / (1000 * 60 * 60 * 24);
       if (ageInDays > 30) {
         warnings.push(`Oldest backup is ${Math.ceil(ageInDays)} days old`);
@@ -480,8 +518,10 @@ export class PointInTimeRecoveryService {
 
         try {
           await this.executeRecoveryStep(step, plan, options);
-        } catch (stepError) {
-          const errorMsg = `Step ${step.stepNumber} failed: ${stepError.message}`;
+        } catch (stepError: unknown) {
+          const errorMsg = stepError instanceof Error 
+            ? `Step ${step.stepNumber} failed: ${stepError.message}`
+            : `Step ${step.stepNumber} failed: ${String(stepError)}`;
           errors.push(errorMsg);
           this.logger.error(errorMsg);
           
@@ -508,14 +548,16 @@ export class PointInTimeRecoveryService {
         warnings: [...plan.warnings, ...warnings],
       };
 
-    } catch (error) {
-      this.logger.error(`Recovery plan execution failed: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Recovery plan execution failed: ${errorMessage}`, errorStack);
       
       return {
         success: false,
         recoveredToDateTime: new Date(),
         actualDataLoss: 0,
-        errors: [error.message],
+        errors: [errorMessage],
         warnings: [...plan.warnings, ...warnings],
       };
     }

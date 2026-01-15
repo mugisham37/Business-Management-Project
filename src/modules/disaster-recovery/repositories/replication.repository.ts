@@ -4,11 +4,10 @@ import { eq, and, desc, count, sql, gte } from 'drizzle-orm';
 import { DatabaseService } from '../../database/database.service';
 import {
   replicationConfigurations,
-  replicationStatus,
+  replicationStatusTable,
   InsertReplicationConfiguration,
   InsertReplicationStatus,
   ReplicationConfiguration,
-  ReplicationStatus,
 } from '../entities/disaster-recovery.entity';
 
 @Injectable()
@@ -34,7 +33,7 @@ export class ReplicationRepository {
       })
       .returning();
 
-    return config;
+    return config as ReplicationConfiguration;
   }
 
   /**
@@ -49,7 +48,7 @@ export class ReplicationRepository {
       .where(eq(replicationConfigurations.id, configId))
       .limit(1);
 
-    return config || null;
+    return (config as ReplicationConfiguration) || null;
   }
 
   /**
@@ -58,11 +57,13 @@ export class ReplicationRepository {
   async findConfigurationsByTenant(tenantId: string): Promise<ReplicationConfiguration[]> {
     const db = this.databaseService.getDatabase();
     
-    return db
+    const configs = await db
       .select()
       .from(replicationConfigurations)
       .where(eq(replicationConfigurations.tenantId, tenantId))
       .orderBy(desc(replicationConfigurations.createdAt));
+
+    return configs as ReplicationConfiguration[];
   }
 
   /**
@@ -87,7 +88,7 @@ export class ReplicationRepository {
       )
       .limit(1);
 
-    return config || null;
+    return (config as ReplicationConfiguration) || null;
   }
 
   /**
@@ -110,7 +111,7 @@ export class ReplicationRepository {
       .where(eq(replicationConfigurations.id, configId))
       .returning();
 
-    return config;
+    return config as ReplicationConfiguration;
   }
 
   /**
@@ -123,8 +124,8 @@ export class ReplicationRepository {
     
     // Delete associated status records first
     await db
-      .delete(replicationStatus)
-      .where(eq(replicationStatus.configurationId, configId));
+      .delete(replicationStatusTable)
+      .where(eq(replicationStatusTable.configurationId, configId));
 
     // Delete the configuration
     await db
@@ -135,11 +136,11 @@ export class ReplicationRepository {
   /**
    * Create replication status record
    */
-  async createStatusRecord(data: InsertReplicationStatus): Promise<ReplicationStatus> {
+  async createStatusRecord(data: InsertReplicationStatus): Promise<any> {
     const db = this.databaseService.getDatabase();
     
     const [status] = await db
-      .insert(replicationStatus)
+      .insert(replicationStatusTable)
       .values({
         ...data,
         createdAt: new Date(),
@@ -152,14 +153,14 @@ export class ReplicationRepository {
   /**
    * Find latest replication status by configuration
    */
-  async findLatestStatusByConfiguration(configId: string): Promise<ReplicationStatus | null> {
+  async findLatestStatusByConfiguration(configId: string): Promise<any | null> {
     const db = this.databaseService.getDatabase();
     
     const [status] = await db
       .select()
-      .from(replicationStatus)
-      .where(eq(replicationStatus.configurationId, configId))
-      .orderBy(desc(replicationStatus.createdAt))
+      .from(replicationStatusTable)
+      .where(eq(replicationStatusTable.configurationId, configId))
+      .orderBy(desc(replicationStatusTable.createdAt))
       .limit(1);
 
     return status || null;
@@ -170,7 +171,7 @@ export class ReplicationRepository {
    */
   async findStatusByTenant(tenantId: string): Promise<{
     configuration: ReplicationConfiguration;
-    latestStatus: ReplicationStatus | null;
+    latestStatus: any | null;
   }[]> {
     const db = this.databaseService.getDatabase();
     
@@ -185,7 +186,7 @@ export class ReplicationRepository {
     for (const config of configurations) {
       const latestStatus = await this.findLatestStatusByConfiguration(config.id);
       results.push({
-        configuration: config,
+        configuration: config as ReplicationConfiguration,
         latestStatus,
       });
     }
@@ -201,7 +202,7 @@ export class ReplicationRepository {
     limit = 100,
     offset = 0
   ): Promise<{
-    statusRecords: ReplicationStatus[];
+    statusRecords: any[];
     total: number;
   }> {
     const db = this.databaseService.getDatabase();
@@ -209,16 +210,16 @@ export class ReplicationRepository {
     const [statusRecords, totalResult] = await Promise.all([
       db
         .select()
-        .from(replicationStatus)
-        .where(eq(replicationStatus.configurationId, configId))
-        .orderBy(desc(replicationStatus.createdAt))
+        .from(replicationStatusTable)
+        .where(eq(replicationStatusTable.configurationId, configId))
+        .orderBy(desc(replicationStatusTable.createdAt))
         .limit(limit)
         .offset(offset),
       
       db
         .select({ count: count() })
-        .from(replicationStatus)
-        .where(eq(replicationStatus.configurationId, configId))
+        .from(replicationStatusTable)
+        .where(eq(replicationStatusTable.configurationId, configId))
     ]);
 
     return {
@@ -280,8 +281,8 @@ export class ReplicationRepository {
       : 0;
 
     return {
-      totalConfigurations: configCounts.totalConfigurations || 0,
-      activeConfigurations: configCounts.activeConfigurations || 0,
+      totalConfigurations: configCounts?.totalConfigurations || 0,
+      activeConfigurations: configCounts?.activeConfigurations || 0,
       healthyReplications,
       averageLagSeconds: Math.round(averageLagSeconds * 100) / 100,
       totalBytesReplicated,
@@ -366,7 +367,7 @@ export class ReplicationRepository {
     const fiveMinutesAgo = new Date();
     fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
     
-    return db
+    const configs = await db
       .select()
       .from(replicationConfigurations)
       .where(
@@ -376,6 +377,8 @@ export class ReplicationRepository {
         )
       )
       .orderBy(replicationConfigurations.lastStatusUpdateAt);
+
+    return configs as ReplicationConfiguration[];
   }
 
   /**
@@ -420,18 +423,18 @@ export class ReplicationRepository {
     for (const config of configurations) {
       const trends = await db
         .select({
-          timestamp: replicationStatus.createdAt,
-          lagSeconds: replicationStatus.lagSeconds,
-          bytesReplicated: replicationStatus.bytesReplicated,
+          timestamp: replicationStatusTable.createdAt,
+          lagSeconds: replicationStatusTable.lagSeconds,
+          bytesReplicated: replicationStatusTable.bytesReplicated,
         })
-        .from(replicationStatus)
+        .from(replicationStatusTable)
         .where(
           and(
-            eq(replicationStatus.configurationId, config.id),
-            gte(replicationStatus.createdAt, startTime)
+            eq(replicationStatusTable.configurationId, config.id),
+            gte(replicationStatusTable.createdAt, startTime)
           )
         )
-        .orderBy(replicationStatus.createdAt);
+        .orderBy(replicationStatusTable.createdAt);
 
       results.push({
         configurationId: config.id,

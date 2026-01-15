@@ -7,7 +7,7 @@ import { BackupType, BackupStatus, BackupStorageLocation } from '../entities/bac
 export class CreateBackupInput {
   @Field(() => BackupType)
   @IsEnum(BackupType)
-  type: BackupType;
+  type!: BackupType;
 
   @Field(() => BackupStorageLocation, { nullable: true })
   @IsOptional()
@@ -93,17 +93,17 @@ export class BackupFilterInput {
 export class CreateScheduledBackupInput {
   @Field(() => BackupType)
   @IsEnum(BackupType)
-  type: BackupType;
+  type!: BackupType;
 
   @Field()
   @IsString()
-  schedule: string;
+  schedule!: string;
 
   @Field()
   @IsNumber()
   @Min(1)
   @Max(3650)
-  retentionDays: number;
+  retentionDays!: number;
 
   @Field(() => BackupStorageLocation, { nullable: true })
   @IsOptional()
@@ -199,7 +199,7 @@ export class UpdateScheduledBackupInput {
 export class RestoreBackupInput {
   @Field(() => ID)
   @IsString()
-  backupId: string;
+  backupId!: string;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -233,7 +233,7 @@ export class RestoreBackupInput {
 export class PointInTimeRecoveryInput {
   @Field()
   @IsDateString()
-  targetDateTime: Date;
+  targetDateTime!: Date;
 
   @Field(() => [String], { nullable: true })
   @IsOptional()
@@ -257,7 +257,7 @@ export class PointInTimeRecoveryInput {
 export class BackupVerificationInput {
   @Field(() => ID)
   @IsString()
-  backupId: string;
+  backupId!: string;
 
   @Field({ nullable: true, defaultValue: false })
   @IsOptional()

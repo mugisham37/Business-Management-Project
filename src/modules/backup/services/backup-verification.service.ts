@@ -66,7 +66,7 @@ export class BackupVerificationService {
       await this.backupRepository.update(backupId, {
         status: result.isValid ? BackupStatus.VERIFIED : BackupStatus.VERIFICATION_FAILED,
         isVerified: result.isValid,
-        verifiedAt: result.isValid ? new Date() : null,
+        verifiedAt: result.isValid ? new Date() : undefined,
       });
 
       this.logger.log(`Backup ${backupId} verification completed: ${result.isValid ? 'PASSED' : 'FAILED'}`);
@@ -76,8 +76,10 @@ export class BackupVerificationService {
         verificationDuration,
       };
 
-    } catch (error) {
-      this.logger.error(`Backup verification failed for ${backupId}: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Backup verification failed for ${backupId}: ${errorMessage}`, errorStack);
 
       // Update status to verification failed
       await this.backupRepository.update(backupId, {
@@ -91,7 +93,7 @@ export class BackupVerificationService {
         encryptionValid: false,
         structureValid: false,
         sizeMatch: false,
-        errors: [error.message],
+        errors: [errorMessage],
         verificationDuration: Date.now() - startTime,
       };
     }
@@ -170,8 +172,9 @@ export class BackupVerificationService {
         }
       }
 
-    } catch (error) {
-      errors.push(`Verification error: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      errors.push(`Verification error: ${errorMessage}`);
     }
 
     const isValid = checksumMatch && encryptionValid && structureValid && sizeMatch && errors.length === 0;
@@ -207,8 +210,9 @@ export class BackupVerificationService {
       const canDecrypt = await this.encryptionService.testDecryption(filePath, backup.encryptionKeyId);
       return canDecrypt;
 
-    } catch (error) {
-      this.logger.error(`Encryption verification failed: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Encryption verification failed: ${errorMessage}`);
       return false;
     }
   }
@@ -233,8 +237,9 @@ export class BackupVerificationService {
           return true; // Assume valid for unknown types
       }
 
-    } catch (error) {
-      this.logger.error(`Structure verification failed: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Structure verification failed: ${errorMessage}`);
       return false;
     }
   }
@@ -250,14 +255,15 @@ export class BackupVerificationService {
       try {
         const result = await this.verifyBackup(backupId);
         results.set(backupId, result);
-      } catch (error) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         results.set(backupId, {
           isValid: false,
           checksumMatch: false,
           encryptionValid: false,
           structureValid: false,
           sizeMatch: false,
-          errors: [error.message],
+          errors: [errorMessage],
           verificationDuration: 0,
         });
       }
@@ -280,7 +286,11 @@ export class BackupVerificationService {
       
       for (const backup of unverifiedBackups) {
         // Skip if backup is too recent (allow some time for upload to complete)
-        const backupAge = Date.now() - backup.completedAt?.getTime();
+        const completedAt = backup.completedAt;
+        if (!completedAt) {
+          continue;
+        }
+        const backupAge = Date.now() - completedAt.getTime();
         if (backupAge < 5 * 60 * 1000) { // 5 minutes
           continue;
         }
@@ -290,8 +300,10 @@ export class BackupVerificationService {
 
       this.logger.log(`Automatic verification completed for ${unverifiedBackups.length} backups`);
 
-    } catch (error) {
-      this.logger.error(`Automatic verification failed: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Automatic verification failed: ${errorMessage}`, errorStack);
     }
   }
 
@@ -303,8 +315,8 @@ export class BackupVerificationService {
 
     const backups = await this.backupRepository.findMany({
       tenantId,
-      startDate,
-      endDate,
+      ...(startDate !== undefined && { startDate }),
+      ...(endDate !== undefined && { endDate }),
     });
 
     const integrityChecks: BackupIntegrityCheck[] = [];
@@ -327,7 +339,8 @@ export class BackupVerificationService {
           errors: verification.errors,
         });
 
-      } catch (error) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         integrityChecks.push({
           backupId: backup.id,
           expectedChecksum: backup.checksum,
@@ -336,7 +349,7 @@ export class BackupVerificationService {
           actualSize: 0,
           encryptionKeyValid: false,
           structureValid: false,
-          errors: [error.message],
+          errors: [errorMessage],
         });
       }
     }

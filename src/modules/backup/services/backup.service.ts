@@ -89,7 +89,7 @@ export class BackupService {
         sizeBytes: 0,
         checksum: '',
         encryptionKeyId: await this.encryptionService.getBackupKeyId(options.tenantId),
-        compressionAlgorithm: options.compressionEnabled ? 'gzip' : null,
+        compressionAlgorithm: options.compressionEnabled ? 'gzip' : undefined,
         compressionRatio: 0,
         startedAt: new Date(),
         retentionDays: options.retentionDays || this.getDefaultRetentionDays(options.type),
@@ -105,7 +105,7 @@ export class BackupService {
         geographicRegions: await this.getTargetRegions(options),
         rtoMinutes: this.calculateRTO(options.type),
         rpoMinutes: this.calculateRPO(options.type),
-        createdBy: options.userId,
+        createdBy: options.userId !== undefined ? options.userId : undefined,
       });
 
       // Queue backup job
@@ -129,7 +129,9 @@ export class BackupService {
       return backup;
 
     } catch (error) {
-      this.logger.error(`Failed to create backup for tenant ${options.tenantId}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to create backup for tenant ${options.tenantId}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -186,7 +188,9 @@ export class BackupService {
       this.logger.log(`Backup ${backupId} deleted successfully`);
 
     } catch (error) {
-      this.logger.error(`Failed to delete backup ${backupId}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to delete backup ${backupId}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -223,8 +227,10 @@ export class BackupService {
       this.logger.log(`Restore job ${restoreJob.id} queued for backup ${options.backupId}`);
       return restoreJob.id.toString();
 
-    } catch (error) {
-      this.logger.error(`Failed to start restore from backup ${options.backupId}: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to start restore from backup ${options.backupId}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -269,8 +275,9 @@ export class BackupService {
       try {
         await this.deleteBackup(backup.id, backup.tenantId, 'system');
         deletedCount++;
-      } catch (error) {
-        this.logger.error(`Failed to delete expired backup ${backup.id}: ${error.message}`);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Failed to delete expired backup ${backup.id}: ${errorMessage}`);
       }
     }
 

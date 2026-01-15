@@ -481,11 +481,18 @@ export class FailoverProcessor {
       // Simulate occasional failures
       const isHealthy = Math.random() > 0.1; // 90% success rate
       
-      return {
-        isHealthy,
-        responseTime,
-        error: isHealthy ? undefined : 'Service unavailable',
-      };
+      if (isHealthy) {
+        return {
+          isHealthy,
+          responseTime,
+        };
+      } else {
+        return {
+          isHealthy,
+          responseTime,
+          error: 'Service unavailable',
+        };
+      }
 
     } catch (error) {
       return {
@@ -566,11 +573,18 @@ export class FailoverProcessor {
   }> {
     // Simulate service health validation
     const isHealthy = Math.random() > 0.1;
-    return {
-      isHealthy,
-      details: { responseTime: Math.random() * 1000, uptime: '99.9%' },
-      error: isHealthy ? undefined : 'Service degraded',
-    };
+    if (isHealthy) {
+      return {
+        isHealthy,
+        details: { responseTime: Math.random() * 1000, uptime: '99.9%' },
+      };
+    } else {
+      return {
+        isHealthy,
+        details: { responseTime: Math.random() * 1000, uptime: '99.9%' },
+        error: 'Service degraded',
+      };
+    }
   }
 
   private async validateDataConsistency(config: any, targetRegion: string): Promise<{

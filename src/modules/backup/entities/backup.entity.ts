@@ -45,187 +45,187 @@ registerEnumType(BackupStorageLocation, {
 export class BackupEntity {
   @Field(() => ID)
   @ApiProperty({ description: 'Unique identifier for the backup' })
-  id: string;
+  id!: string;
 
   @Field()
   @ApiProperty({ description: 'Tenant ID this backup belongs to' })
-  tenantId: string;
+  tenantId!: string;
 
   @Field(() => BackupType)
   @ApiProperty({ enum: BackupType, description: 'Type of backup' })
-  type: BackupType;
+  type!: BackupType;
 
   @Field(() => BackupStatus)
   @ApiProperty({ enum: BackupStatus, description: 'Current status of backup' })
-  status: BackupStatus;
+  status!: BackupStatus;
 
   @Field(() => BackupStorageLocation)
   @ApiProperty({ enum: BackupStorageLocation, description: 'Storage location' })
-  storageLocation: BackupStorageLocation;
+  storageLocation!: BackupStorageLocation;
 
   @Field()
   @ApiProperty({ description: 'Storage path or identifier' })
-  storagePath: string;
+  storagePath!: string;
 
   @Field()
   @ApiProperty({ description: 'Size of backup in bytes' })
-  sizeBytes: number;
+  sizeBytes!: number;
 
   @Field()
   @ApiProperty({ description: 'Checksum for integrity verification' })
-  checksum: string;
+  checksum!: string;
 
   @Field()
   @ApiProperty({ description: 'Encryption key ID used for backup' })
-  encryptionKeyId: string;
+  encryptionKeyId!: string;
 
   @Field({ nullable: true })
   @ApiProperty({ description: 'Compression algorithm used', required: false })
-  compressionAlgorithm?: string;
+  compressionAlgorithm?: string | undefined;
 
   @Field()
   @ApiProperty({ description: 'Compression ratio achieved' })
-  compressionRatio: number;
+  compressionRatio!: number;
 
   @Field()
   @ApiProperty({ description: 'Timestamp when backup started' })
-  startedAt: Date;
+  startedAt!: Date;
 
   @Field({ nullable: true })
   @ApiProperty({ description: 'Timestamp when backup completed', required: false })
-  completedAt?: Date;
+  completedAt?: Date | undefined;
 
   @Field({ nullable: true })
   @ApiProperty({ description: 'Error message if backup failed', required: false })
-  errorMessage?: string;
+  errorMessage?: string | undefined;
 
   @Field()
   @ApiProperty({ description: 'Retention period in days' })
-  retentionDays: number;
+  retentionDays!: number;
 
   @Field()
   @ApiProperty({ description: 'Expiration date for backup' })
-  expiresAt: Date;
+  expiresAt!: Date;
 
   @Field()
   @ApiProperty({ description: 'Whether backup has been verified' })
-  isVerified: boolean;
+  isVerified!: boolean;
 
   @Field({ nullable: true })
   @ApiProperty({ description: 'Verification timestamp', required: false })
-  verifiedAt?: Date;
+  verifiedAt?: Date | undefined;
 
   @Field()
   @ApiProperty({ description: 'Metadata about backup contents' })
-  metadata: Record<string, any>;
+  metadata!: Record<string, any>;
 
   @Field()
   @ApiProperty({ description: 'Geographic regions where backup is stored' })
-  geographicRegions: string[];
+  geographicRegions!: string[];
 
   @Field()
   @ApiProperty({ description: 'Recovery Time Objective in minutes' })
-  rtoMinutes: number;
+  rtoMinutes!: number;
 
   @Field()
   @ApiProperty({ description: 'Recovery Point Objective in minutes' })
-  rpoMinutes: number;
+  rpoMinutes!: number;
 
   @Field()
   @ApiProperty({ description: 'Creation timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @Field()
   @ApiProperty({ description: 'Last update timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @Field({ nullable: true })
   @ApiProperty({ description: 'User who initiated backup', required: false })
-  createdBy?: string;
+  createdBy?: string | undefined;
 }
 
 @ObjectType()
 export class BackupJob {
   @Field(() => ID)
   @ApiProperty({ description: 'Unique identifier for the backup job' })
-  id: string;
+  id!: string;
 
   @Field()
   @ApiProperty({ description: 'Tenant ID this job belongs to' })
-  tenantId: string;
+  tenantId!: string;
 
   @Field(() => BackupType)
   @ApiProperty({ enum: BackupType, description: 'Type of backup job' })
-  type: BackupType;
+  type!: BackupType;
 
   @Field(() => BackupStatus)
   @ApiProperty({ enum: BackupStatus, description: 'Current status of job' })
-  status: BackupStatus;
+  status!: BackupStatus;
 
   @Field()
   @ApiProperty({ description: 'Cron schedule for recurring backups' })
-  schedule: string;
+  schedule!: string;
 
   @Field()
   @ApiProperty({ description: 'Whether job is enabled' })
-  isEnabled: boolean;
+  isEnabled!: boolean;
 
   @Field()
   @ApiProperty({ description: 'Next scheduled execution time' })
-  nextRunAt: Date;
+  nextRunAt!: Date;
 
   @Field({ nullable: true })
   @ApiProperty({ description: 'Last execution time', required: false })
-  lastRunAt?: Date;
+  lastRunAt?: Date | undefined;
 
   @Field()
   @ApiProperty({ description: 'Job configuration parameters' })
-  configuration: Record<string, any>;
+  configuration!: Record<string, any>;
 
   @Field()
   @ApiProperty({ description: 'Creation timestamp' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @Field()
   @ApiProperty({ description: 'Last update timestamp' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 
 @ObjectType()
 export class BackupStatistics {
   @Field()
   @ApiProperty({ description: 'Total number of backups' })
-  totalBackups: number;
+  totalBackups!: number;
 
   @Field()
   @ApiProperty({ description: 'Number of successful backups' })
-  successfulBackups: number;
+  successfulBackups!: number;
 
   @Field()
   @ApiProperty({ description: 'Number of failed backups' })
-  failedBackups: number;
+  failedBackups!: number;
 
   @Field()
   @ApiProperty({ description: 'Total storage used in bytes' })
-  totalStorageBytes: number;
+  totalStorageBytes!: number;
 
   @Field()
   @ApiProperty({ description: 'Average backup size in bytes' })
-  averageBackupSize: number;
+  averageBackupSize!: number;
 
   @Field()
   @ApiProperty({ description: 'Average backup duration in minutes' })
-  averageBackupDuration: number;
+  averageBackupDuration!: number;
 
   @Field()
   @ApiProperty({ description: 'Success rate percentage' })
-  successRate: number;
+  successRate!: number;
 
   @Field()
   @ApiProperty({ description: 'Last successful backup timestamp' })
-  lastSuccessfulBackup: Date;
+  lastSuccessfulBackup!: Date;
 
   @Field()
   @ApiProperty({ description: 'Next scheduled backup timestamp' })
-  nextScheduledBackup: Date;
+  nextScheduledBackup!: Date;
 }

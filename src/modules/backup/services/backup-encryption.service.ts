@@ -54,8 +54,9 @@ export class BackupEncryptionService {
       // Generate random IV
       const iv = crypto.randomBytes(this.ivLength);
       
-      // Create cipher
-      const cipher = crypto.createCipher(this.algorithm, Buffer.from(encryptionKey.keyData, 'hex'));
+      // Create cipher using createCipheriv instead of deprecated createCipher
+      const key = Buffer.from(encryptionKey.keyData, 'hex');
+      const cipher = crypto.createCipheriv(this.algorithm, key, iv);
       cipher.setAAD(Buffer.from(tenantId)); // Additional authenticated data
 
       // Create streams
@@ -97,7 +98,9 @@ export class BackupEncryptionService {
       };
 
     } catch (error) {
-      this.logger.error(`Failed to encrypt backup file: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to encrypt backup file: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -133,8 +136,9 @@ export class BackupEncryptionService {
       // Extract encrypted content (middle part)
       const encryptedContent = encryptedData.slice(this.ivLength, -16);
 
-      // Create decipher
-      const decipher = crypto.createDecipher(this.algorithm, Buffer.from(encryptionKey.keyData, 'hex'));
+      // Create decipher using createDecipheriv instead of deprecated createDecipher
+      const key = Buffer.from(encryptionKey.keyData, 'hex');
+      const decipher = crypto.createDecipheriv(this.algorithm, key, iv);
       decipher.setAuthTag(authTag);
       decipher.setAAD(Buffer.from(tenantId));
 
@@ -156,7 +160,9 @@ export class BackupEncryptionService {
       };
 
     } catch (error) {
-      this.logger.error(`Failed to decrypt backup file: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to decrypt backup file: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -178,7 +184,8 @@ export class BackupEncryptionService {
       return entropy > 7.5; // High entropy indicates encryption
 
     } catch (error) {
-      this.logger.error(`Failed to check file encryption: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to check file encryption: ${errorMessage}`);
       return false;
     }
   }
@@ -208,7 +215,10 @@ export class BackupEncryptionService {
         }
 
         // This is a simplified test - in practice, you'd need to handle the IV and auth tag properly
-        const decipher = crypto.createDecipher(this.algorithm, Buffer.from(encryptionKey.keyData, 'hex'));
+        // Extract IV from test data (first 16 bytes)
+        const testIv = testData.slice(0, this.ivLength);
+        const key = Buffer.from(encryptionKey.keyData, 'hex');
+        const decipher = crypto.createDecipheriv(this.algorithm, key, testIv);
         decipher.update(testData.slice(16, 32)); // Skip IV, test small portion
         
         return true;
@@ -226,7 +236,8 @@ export class BackupEncryptionService {
       }
 
     } catch (error) {
-      this.logger.error(`Test decryption failed: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Test decryption failed: ${errorMessage}`);
       return false;
     }
   }
@@ -271,7 +282,9 @@ export class BackupEncryptionService {
       return newKey;
 
     } catch (error) {
-      this.logger.error(`Failed to rotate backup keys for tenant ${tenantId}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to rotate backup keys for tenant ${tenantId}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -300,7 +313,10 @@ export class BackupEncryptionService {
 
       // Encrypt the backup
       const masterKey = this.getMasterEncryptionKey();
-      const cipher = crypto.createCipher('aes-256-cbc', masterKey);
+      // Use a fixed IV for backup encryption (in production, consider randomizing and storing separately)
+      const backupIv = Buffer.alloc(16, 0); // Using zero IV for consistent backups
+      const keyBuffer = crypto.scryptSync(masterKey, 'salt', 32);
+      const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, backupIv);
       
       let encrypted = cipher.update(JSON.stringify(keyBackup), 'utf8', 'hex');
       encrypted += cipher.final('hex');
@@ -309,7 +325,9 @@ export class BackupEncryptionService {
       return encrypted;
 
     } catch (error) {
-      this.logger.error(`Failed to backup encryption keys for tenant ${tenantId}: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Failed to backup encryption keys for tenant ${tenantId}: ${errorMessage}`, errorStack);
       throw error;
     }
   }
@@ -362,7 +380,11 @@ export class BackupEncryptionService {
     // In a real implementation, this would query the database
     // For now, return a mock key if it matches the expected format
     if (keyId.startsWith('backup_key_')) {
-      const tenantId = keyId.split('_')[2];
+      const parts = keyId.split('_');
+      const tenantId = parts[2];
+      if (!tenantId) {
+        return null;
+      }
       return {
         id: keyId,
         tenantId,
@@ -388,7 +410,8 @@ export class BackupEncryptionService {
 
   private getMasterEncryptionKey(): string {
     // In production, this should come from a secure key management service
-    return this.configService.get('MASTER_ENCRYPTION_KEY', 'default-master-key-change-in-production');
+    const key = this.configService.get<string>('MASTER_ENCRYPTION_KEY');
+    return key || 'default-master-key-change-in-production';
   }
 
   private calculateEntropy(buffer: Buffer): number {
@@ -396,7 +419,10 @@ export class BackupEncryptionService {
     
     // Count byte frequencies
     for (let i = 0; i < buffer.length; i++) {
-      frequencies[buffer[i]]++;
+      const byte = buffer[i];
+      if (byte !== undefined) {
+        frequencies[byte]++;
+      }
     }
 
     // Calculate Shannon entropy

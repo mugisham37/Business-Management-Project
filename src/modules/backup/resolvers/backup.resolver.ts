@@ -1,17 +1,16 @@
 import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 
-import { AuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
-import { RequireFeature } from '../../tenant/decorators/require-feature.decorator';
 import { RequirePermission } from '../../auth/decorators/require-permission.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../../tenant/decorators/current-tenant.decorator';
 
 import { BackupService, CreateBackupOptions } from '../services/backup.service';
 import { BackupSchedulerService } from '../services/backup-scheduler.service';
-import { PointInTimeRecoveryService } from '../services/point-in-time-recovery.service';
+import { PointInTimeRecoveryService, PointInTimeRecoveryOptions } from '../services/point-in-time-recovery.service';
 
 import {
   BackupEntity,
@@ -26,10 +25,10 @@ import {
   CreateScheduledBackupInput,
   PointInTimeRecoveryInput,
 } from '../inputs/backup.input';
+import { BackupFilter } from '../services/backup.service';
 
 @Resolver(() => BackupEntity)
-@UseGuards(AuthGuard, TenantGuard, FeatureGuard)
-@RequireFeature('backup-recovery')
+@UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 export class BackupResolver {
   constructor(
     private readonly backupService: BackupService,
@@ -50,14 +49,14 @@ export class BackupResolver {
     const options: CreateBackupOptions = {
       tenantId,
       type: input.type,
-      storageLocation: input.storageLocation,
-      retentionDays: input.retentionDays,
-      includeData: input.includeData,
-      excludeData: input.excludeData,
-      compressionEnabled: input.compressionEnabled,
-      encryptionEnabled: input.encryptionEnabled,
-      geographicReplication: input.geographicReplication,
-      priority: input.priority,
+      ...(input.storageLocation && { storageLocation: input.storageLocation }),
+      ...(input.retentionDays && { retentionDays: input.retentionDays }),
+      ...(input.includeData && { includeData: input.includeData }),
+      ...(input.excludeData && { excludeData: input.excludeData }),
+      ...(input.compressionEnabled !== undefined && { compressionEnabled: input.compressionEnabled }),
+      ...(input.encryptionEnabled !== undefined && { encryptionEnabled: input.encryptionEnabled }),
+      ...(input.geographicReplication !== undefined && { geographicReplication: input.geographicReplication }),
+      ...(input.priority !== undefined && { priority: input.priority }),
       userId: user.id,
     };
 
@@ -91,17 +90,30 @@ export class BackupResolver {
     @Args('offset', { nullable: true }) offset = 0,
     @CurrentTenant() tenantId?: string,
   ): Promise<BackupEntity[]> {
-    const backupFilter = {
-      tenantId,
-      type: filter?.type,
-      status: filter?.status,
-      storageLocation: filter?.storageLocation,
-      startDate: filter?.startDate,
-      endDate: filter?.endDate,
-      isVerified: filter?.isVerified,
-    };
+    const backupFilter: Partial<BackupFilter> = {};
+    if (tenantId) {
+      backupFilter.tenantId = tenantId;
+    }
+    if (filter?.type) {
+      backupFilter.type = filter.type;
+    }
+    if (filter?.status) {
+      backupFilter.status = filter.status;
+    }
+    if (filter?.storageLocation) {
+      backupFilter.storageLocation = filter.storageLocation;
+    }
+    if (filter?.startDate) {
+      backupFilter.startDate = filter.startDate;
+    }
+    if (filter?.endDate) {
+      backupFilter.endDate = filter.endDate;
+    }
+    if (filter?.isVerified !== undefined) {
+      backupFilter.isVerified = filter.isVerified;
+    }
 
-    const result = await this.backupService.listBackups(backupFilter, limit, offset);
+    const result = await this.backupService.listBackups(backupFilter as BackupFilter, limit, offset);
     return result.backups;
   }
 
@@ -165,14 +177,14 @@ export class BackupResolver {
       type: input.type,
       schedule: input.schedule,
       retentionDays: input.retentionDays,
-      storageLocation: input.storageLocation || BackupStorageLocation.S3,
+      storageLocation: input.storageLocation ?? BackupStorageLocation.S3,
       isEnabled: input.isEnabled ?? true,
       configuration: {
         compressionEnabled: input.compressionEnabled ?? true,
         encryptionEnabled: input.encryptionEnabled ?? true,
         geographicReplication: input.geographicReplication ?? false,
-        includeData: input.includeData,
-        excludeData: input.excludeData,
+        includeData: input.includeData ?? [],
+        excludeData: input.excludeData ?? [],
       },
     };
 
@@ -216,6 +228,9 @@ export class BackupResolver {
     @Args('endDate', { nullable: true }) endDate?: Date,
     @CurrentTenant() tenantId?: string,
   ): Promise<Date[]> {
+    if (!tenantId) {
+      throw new Error('Tenant ID is required');
+    }
     return this.recoveryService.getAvailableRecoveryPoints(tenantId, startDate, endDate);
   }
 
@@ -232,8 +247,8 @@ export class BackupResolver {
     const options = {
       tenantId,
       targetDateTime: input.targetDateTime,
-      includeData: input.includeData,
-      excludeData: input.excludeData,
+      includeData: input.includeData ?? [],
+      excludeData: input.excludeData ?? [],
       userId: user.id,
     };
 
@@ -251,16 +266,18 @@ export class BackupResolver {
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<string> {
-    const options = {
+    const options: Partial<PointInTimeRecoveryOptions> = {
       tenantId,
       targetDateTime: input.targetDateTime,
-      includeData: input.includeData,
-      excludeData: input.excludeData,
-      dryRun: input.dryRun,
+      includeData: input.includeData ?? [],
+      excludeData: input.excludeData ?? [],
       userId: user.id,
     };
+    if (input.dryRun !== undefined) {
+      options.dryRun = input.dryRun;
+    }
 
-    const result = await this.recoveryService.executeRecovery(options);
+    const result = await this.recoveryService.executeRecovery(options as PointInTimeRecoveryOptions);
     return JSON.stringify(result);
   }
 

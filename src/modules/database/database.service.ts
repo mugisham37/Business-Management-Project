@@ -13,6 +13,16 @@ export class DatabaseService {
     this.customLogger.setContext('DatabaseService');
   }
 
+  // Get Drizzle database instance for ORM operations
+  getDatabase() {
+    return this.drizzleService.getDb();
+  }
+
+  // Get read replica database instance for read operations
+  getReadDatabase() {
+    return this.drizzleService.getReadReplicaDb();
+  }
+
   async executeTransaction<T>(
     callback: (tx: any) => Promise<T>,
     tenantId?: string,
