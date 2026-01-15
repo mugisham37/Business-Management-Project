@@ -18,6 +18,15 @@ import { LocationReportingService } from './services/location-reporting.service'
 import { FranchiseService } from './services/franchise.service';
 import { LocationRepository } from './repositories/location.repository';
 import { FranchiseRepository } from './repositories/franchise.repository';
+import { LocationResolver } from './resolvers/location.resolver';
+import { DealerPortalResolver } from './resolvers/dealer-portal.resolver';
+import { FranchiseResolver } from './resolvers/franchise.resolver';
+import { LocationInventoryPolicyResolver } from './resolvers/location-inventory-policy.resolver';
+import { LocationPricingResolver } from './resolvers/location-pricing.resolver';
+import { LocationPromotionResolver } from './resolvers/location-promotion.resolver';
+import { LocationReportingResolver } from './resolvers/location-reporting.resolver';
+import { LocationSyncResolver } from './resolvers/location-sync.resolver';
+import { TerritoryResolver } from './resolvers/territory.resolver';
 import { DatabaseModule } from '../database/database.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantModule } from '../tenant/tenant.module';
@@ -26,6 +35,7 @@ import { InventoryModule } from '../inventory/inventory.module';
 import { CrmModule } from '../crm/crm.module';
 import { SupplierModule } from '../supplier/supplier.module';
 import { POSModule } from '../pos/pos.module';
+import { GraphQLCommonModule } from '../../common/graphql/graphql-common.module';
 
 @Module({
   imports: [
@@ -37,6 +47,7 @@ import { POSModule } from '../pos/pos.module';
     CrmModule,
     SupplierModule,
     POSModule,
+    GraphQLCommonModule,
   ],
   controllers: [
     LocationController,
@@ -60,6 +71,16 @@ import { POSModule } from '../pos/pos.module';
     FranchiseService,
     LocationRepository,
     FranchiseRepository,
+    // GraphQL Resolvers
+    LocationResolver,
+    DealerPortalResolver,
+    FranchiseResolver,
+    LocationInventoryPolicyResolver,
+    LocationPricingResolver,
+    LocationPromotionResolver,
+    LocationReportingResolver,
+    LocationSyncResolver,
+    TerritoryResolver,
   ],
   exports: [
     LocationService,

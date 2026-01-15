@@ -417,15 +417,15 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - **Property 21: Async Operation Job Enqueueing** - Test assembly operations enqueue jobs
     - **Validates: Requirements 2.3, 12.1**
 
-- [ ] 7.2 Implement Location module resolvers (9 resolvers)
-  - [ ] 7.2.1 Create location.resolver.ts for core location operations
+- [x] 7.2 Implement Location module resolvers (9 resolvers)
+  - [x] 7.2.1 Create location.resolver.ts for core location operations
     - Implement location CRUD operations
     - Implement closeLocation mutation
     - Add field resolvers (parentLocation, childLocations, employees, inventory)
     - Implement locationStatusChanged subscription
     - _Requirements: 18.1-18.6_
   
-  - [ ] 7.2.2 Create dealer-portal.resolver.ts for dealer portal
+  - [x] 7.2.2 Create dealer-portal.resolver.ts for dealer portal
     - Implement getDealerDashboard query
     - Implement getDealerOrders query
     - Implement getDealerInventory query
@@ -433,13 +433,13 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - Apply dealer-specific permissions
     - _Requirements: 18.1-18.6_
   
-  - [ ] 7.2.3 Create franchise.resolver.ts for franchise management
+  - [x] 7.2.3 Create franchise.resolver.ts for franchise management
     - Implement franchise CRUD operations
     - Implement getFranchisePerformance query
     - Add field resolvers (locations, franchisee)
     - _Requirements: 18.1-18.6_
   
-  - [ ] 7.2.4 Create location-inventory-policy.resolver.ts
+  - [x] 7.2.4 Create location-inventory-policy.resolver.ts
     - Implement getInventoryPolicy query
     - Implement updateInventoryPolicy mutation
     - Implement getReorderRules query
@@ -447,7 +447,7 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - Validate policy constraints
     - _Requirements: 18.1-18.6_
   
-  - [ ] 7.2.5 Create location-pricing.resolver.ts for location pricing
+  - [x] 7.2.5 Create location-pricing.resolver.ts for location pricing
     - Implement getLocationPricing query
     - Implement updateLocationPricing mutation
     - Implement getPricingRules query
@@ -455,14 +455,14 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - Add field resolvers (product, basePrice)
     - _Requirements: 18.1-18.6_
   
-  - [ ] 7.2.6 Create location-promotion.resolver.ts for promotions
+  - [x] 7.2.6 Create location-promotion.resolver.ts for promotions
     - Implement location promotion CRUD operations
     - Implement activatePromotion mutation
     - Implement deactivatePromotion mutation
     - Implement promotionActivated subscription
     - _Requirements: 18.1-18.6_
   
-  - [ ] 7.2.7 Create location-reporting.resolver.ts for location reports
+  - [x] 7.2.7 Create location-reporting.resolver.ts for location reports
     - Implement getLocationSalesReport query
     - Implement getLocationInventoryReport query
     - Implement getLocationPerformanceReport query
@@ -470,7 +470,7 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - Add caching with 30-minute TTL
     - _Requirements: 18.1-18.6_
   
-  - [ ] 7.2.8 Create location-sync.resolver.ts for location sync
+  - [x] 7.2.8 Create location-sync.resolver.ts for location sync
     - Implement getSyncStatus query
     - Implement triggerSync mutation
     - Implement getSyncHistory query
@@ -478,7 +478,7 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - Implement syncStatusChanged subscription
     - _Requirements: 18.1-18.6_
   
-  - [ ] 7.2.9 Create territory.resolver.ts for territory management
+  - [x] 7.2.9 Create territory.resolver.ts for territory management
     - Implement territory CRUD operations
     - Implement assignLocationToTerritory mutation
     - Add field resolvers (locations, manager)
