@@ -170,7 +170,6 @@ export function createSuccessResponse(message?: string): MutationResponse {
   return {
     success: true,
     message: message || 'Operation completed successfully',
-    errors: undefined,
   };
 }
 
@@ -181,14 +180,19 @@ export function createErrorResponse(
   message: string,
   errors?: Array<{ message: string; code?: string; path?: string[] }>,
 ): MutationResponse {
-  return {
+  const response: MutationResponse = {
     success: false,
     message,
-    errors: errors?.map(error => ({
+  };
+  
+  if (errors) {
+    response.errors = errors.map(error => ({
       ...error,
       timestamp: new Date(),
-    })),
-  };
+    }));
+  }
+  
+  return response;
 }
 
 /**
@@ -199,14 +203,18 @@ export function createAsyncOperationResponse(
   message?: string,
   estimatedCompletionTime?: Date,
 ): AsyncOperationResponse {
-  return {
+  const response: AsyncOperationResponse = {
     success: true,
     message: message || 'Operation queued successfully',
-    errors: undefined,
     jobId,
-    estimatedCompletionTime,
     statusUrl: `/api/jobs/${jobId}/status`,
   };
+  
+  if (estimatedCompletionTime !== undefined) {
+    response.estimatedCompletionTime = estimatedCompletionTime;
+  }
+  
+  return response;
 }
 
 /**
@@ -220,17 +228,28 @@ export function createBatchMutationResponse(
   failureIds?: string[],
   errors?: Array<{ message: string; code?: string; path?: string[] }>,
 ): BatchMutationResponse {
-  return {
+  const response: BatchMutationResponse = {
     success: failureCount === 0,
     message: `Processed ${processedCount} items: ${successCount} succeeded, ${failureCount} failed`,
-    errors: errors?.map(error => ({
-      ...error,
-      timestamp: new Date(),
-    })),
     processedCount,
     successCount,
     failureCount,
-    successIds,
-    failureIds,
   };
+  
+  if (errors) {
+    response.errors = errors.map(error => ({
+      ...error,
+      timestamp: new Date(),
+    }));
+  }
+  
+  if (successIds !== undefined) {
+    response.successIds = successIds;
+  }
+  
+  if (failureIds !== undefined) {
+    response.failureIds = failureIds;
+  }
+  
+  return response;
 }

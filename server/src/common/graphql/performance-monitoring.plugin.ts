@@ -69,11 +69,11 @@ export class PerformanceMonitoringPlugin implements ApolloServerPlugin {
         console.error('GraphQL Query Errors:', {
           operationName: operationName || 'anonymous',
           duration: `${duration}ms`,
-          errors: errors.map(error => ({
+          errors: errors?.map(error => ({
             message: error.message,
             code: error.extensions?.code,
             path: error.path,
-          })),
+          })) || [],
           timestamp: new Date().toISOString(),
         });
       },

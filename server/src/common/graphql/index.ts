@@ -1,6 +1,12 @@
 // Base types and classes
-export * from './base.types';
 export * from './base.resolver';
+export {
+  BaseEntity,
+  PageInfo,
+  Edge,
+  Connection,
+  GraphQLError,
+} from './base.types';
 
 // Scalars
 export * from './scalars';
@@ -15,7 +21,7 @@ export * from './pagination.args';
 export * from './filter.input';
 export * from './sort.input';
 
-// Mutation responses
+// Mutation responses (includes MutationResponse and other response types)
 export * from './mutation-response.types';
 
 // Error handling

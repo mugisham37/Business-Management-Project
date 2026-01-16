@@ -1,5 +1,14 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { PubSub } from 'graphql-subscriptions';
+
+/**
+ * Interface for PubSub engine
+ */
+interface PubSubEngine {
+  publish(triggerName: string, payload: any): Promise<void>;
+  subscribe(triggerName: string, onMessage: Function, options?: Object): Promise<number>;
+  unsubscribe(subId: number): void;
+  asyncIterator<T>(triggers: string | string[]): AsyncIterator<T>;
+}
 
 /**
  * PubSub service with tenant filtering support
@@ -8,7 +17,7 @@ import { PubSub } from 'graphql-subscriptions';
 @Injectable()
 export class PubSubService {
   constructor(
-    @Inject('PUB_SUB') private readonly pubSub: PubSub,
+    @Inject('PUB_SUB') private readonly pubSub: PubSubEngine,
   ) {}
 
   /**
@@ -29,11 +38,11 @@ export class PubSubService {
   asyncIterator<T>(
     triggers: string | string[],
     tenantId: string,
-  ): AsyncIterator<T> {
-    const iterator = this.pubSub.asyncIterator(triggers);
+  ): AsyncIterableIterator<T> {
+    const iterator = this.pubSub.asyncIterator<T>(triggers);
     
     // Wrap the iterator to filter by tenant
-    return this.filterByTenant(iterator, tenantId);
+    return this.filterByTenant<T>(iterator, tenantId);
   }
 
   /**
@@ -43,8 +52,15 @@ export class PubSubService {
   private async *filterByTenant<T>(
     iterator: AsyncIterator<T>,
     tenantId: string,
-  ): AsyncIterator<T> {
-    for await (const value of iterator) {
+  ): AsyncIterableIterator<T> {
+    // Create an async iterable from the iterator
+    const iterable: AsyncIterable<T> = {
+      [Symbol.asyncIterator]() {
+        return iterator;
+      },
+    };
+    
+    for await (const value of iterable) {
       // Check if the event has a tenantId and it matches
       if (this.matchesTenant(value, tenantId)) {
         yield value;

@@ -110,21 +110,3 @@ export class GraphQLError {
   @ApiProperty({ description: 'Error timestamp', required: false })
   timestamp?: Date;
 }
-
-/**
- * Mutation response wrapper with error handling
- */
-@ObjectType({ isAbstract: true })
-export abstract class MutationResponse {
-  @Field()
-  @ApiProperty({ description: 'Whether the mutation was successful' })
-  success!: boolean;
-
-  @Field({ nullable: true })
-  @ApiProperty({ description: 'Success message', required: false })
-  message?: string;
-
-  @Field(() => [GraphQLError], { nullable: true })
-  @ApiProperty({ type: [GraphQLError], description: 'List of errors', required: false })
-  errors?: GraphQLError[];
-}

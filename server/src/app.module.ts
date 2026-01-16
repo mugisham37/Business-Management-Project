@@ -7,9 +7,7 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { APP_GUARD } from '@nestjs/core';
 
-import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ApiController } from './common/rest/controllers/api.controller';
 import { DatabaseModule } from './modules/database/database.module';
 import { HealthModule } from './modules/health/health.module';
 import { LoggerModule } from './modules/logger/logger.module';
@@ -23,9 +21,8 @@ import { FinancialModule } from './modules/financial/financial.module';
 import { SupplierModule } from './modules/supplier/supplier.module';
 import { LocationModule } from './modules/location/location.module';
 import { IntegrationModule } from './modules/integration/integration.module';
-import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { GraphQLJwtAuthGuard } from './modules/auth/guards/graphql-jwt-auth.guard';
 import { GraphQLCommonModule } from './common/graphql/graphql-common.module';
-import { RestCommonModule } from './common/rest/rest-common.module';
 import { ValidationModule } from './common/validation/validation.module';
 import { GraphQLConfigService } from './config/graphql.config';
 import { configValidationSchema } from './config/config.validation';
@@ -83,16 +80,14 @@ import { appConfig } from './config/app.config';
     IntegrationModule,
     ValidationModule,
     GraphQLCommonModule,
-    RestCommonModule,
   ],
-  controllers: [AppController, ApiController],
   providers: [
     AppService,
     GraphQLConfigService,
-    // Global JWT authentication guard
+    // Global JWT authentication guard for GraphQL
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard,
+      useClass: GraphQLJwtAuthGuard,
     },
   ],
 })

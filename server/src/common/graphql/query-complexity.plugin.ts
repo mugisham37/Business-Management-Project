@@ -28,21 +28,32 @@ export class QueryComplexityPlugin implements ApolloServerPlugin {
   async requestDidStart(): Promise<GraphQLRequestListener<any>> {
     const maxComplexity = this.maxComplexity;
     const maxDepth = this.maxDepth;
+    const self = this;
 
     return {
       async didResolveOperation(requestContext: GraphQLRequestContext<any>) {
         const { schema, document, operationName } = requestContext;
 
+        // Ensure document exists
+        if (!document) {
+          return;
+        }
+
         // Calculate query complexity
-        const complexity = getComplexity({
+        const complexityOptions: any = {
           schema,
           query: document,
-          operationName: operationName || undefined,
           estimators: [
             fieldExtensionsEstimator(),
             simpleEstimator({ defaultComplexity: 1 }),
           ],
-        });
+        };
+        
+        if (operationName) {
+          complexityOptions.operationName = operationName;
+        }
+        
+        const complexity = getComplexity(complexityOptions);
 
         // Check if complexity exceeds limit
         if (complexity > maxComplexity) {
@@ -60,7 +71,7 @@ export class QueryComplexityPlugin implements ApolloServerPlugin {
         }
 
         // Calculate query depth
-        const depth = this.calculateQueryDepth(document);
+        const depth = self.calculateQueryDepth(document);
         if (depth > maxDepth) {
           throw new GraphQLError(
             `Query is too deep: ${depth}. Maximum allowed depth: ${maxDepth}`,

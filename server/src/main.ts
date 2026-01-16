@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
-import { setupSwagger } from './config/swagger.config';
+
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
@@ -39,9 +39,6 @@ async function bootstrap(): Promise<void> {
       origin: corsOrigin.split(','),
       credentials: corsCredentials,
     });
-
-    // Setup Swagger documentation
-    setupSwagger(app);
 
     await app.listen(port);
     
