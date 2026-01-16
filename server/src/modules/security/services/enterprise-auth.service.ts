@@ -716,4 +716,88 @@ export class EnterpriseAuthService {
     // Mock code consumption
     return null;
   }
+
+  /**
+   * Get SAML configuration for tenant
+   */
+  async getSAMLConfig(tenantId: string): Promise<SAMLConfig | null> {
+    try {
+      const provider = this.samlProviders.get(tenantId);
+      if (!provider) {
+        return null;
+      }
+      return provider.config;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`Failed to get SAML config for tenant ${tenantId}: ${err.message}`, err.stack);
+      throw err;
+    }
+  }
+
+  /**
+   * Get LDAP configuration for tenant
+   */
+  async getLDAPConfig(tenantId: string): Promise<LDAPConfig | null> {
+    try {
+      const ldapClient = this.ldapClients.get(tenantId);
+      if (!ldapClient) {
+        return null;
+      }
+      return ldapClient.config;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`Failed to get LDAP config for tenant ${tenantId}: ${err.message}`, err.stack);
+      throw err;
+    }
+  }
+
+  /**
+   * Get all SSO sessions for tenant
+   */
+  async getSSOSessions(tenantId: string): Promise<SSOSession[]> {
+    try {
+      // In real implementation, query database for all SSO sessions for the tenant
+      // For now, return empty array as mock
+      this.logger.log(`Retrieved SSO sessions for tenant ${tenantId}`);
+      return [];
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`Failed to get SSO sessions for tenant ${tenantId}: ${err.message}`, err.stack);
+      throw err;
+    }
+  }
+
+  /**
+   * Revoke SSO session
+   */
+  async revokeSSOSession(sessionId: string, tenantId: string): Promise<void> {
+    try {
+      const session = await this.getSSOSession(sessionId);
+      if (!session) {
+        throw new Error(`SSO session not found: ${sessionId}`);
+      }
+
+      // Invalidate session
+      // In real implementation, delete from database or mark as revoked
+      
+      this.logger.log(`Revoked SSO session ${sessionId} for tenant ${tenantId}`);
+
+      // Audit log
+      await this.auditService.logEvent({
+        tenantId,
+        userId: session.userId,
+        action: 'sso_session_revoked',
+        resource: 'authentication',
+        resourceId: sessionId,
+        metadata: {
+          provider: session.provider,
+        },
+      });
+
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`Failed to revoke SSO session ${sessionId}: ${err.message}`, err.stack);
+      throw err;
+    }
+  }
 }

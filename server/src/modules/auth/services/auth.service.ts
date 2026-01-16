@@ -147,7 +147,6 @@ export class AuthService {
     // Check if MFA is enabled
     if (user.mfaEnabled) {
       // For MFA-enabled users, we need a separate login flow
-      // This method should not be used directly for MFA users
       throw new UnauthorizedException('MFA required. Use MFA login endpoint.');
     }
 
@@ -175,7 +174,8 @@ export class AuthService {
     });
 
     // Create session and return login response
-    return this.createUserSession(user, ipAddress, userAgent);
+    // Pass rememberMe flag to extend token expiration
+    return this.createUserSession(user, ipAddress, userAgent, loginDto.rememberMe);
   }
 
   /**
@@ -263,7 +263,7 @@ export class AuthService {
     });
 
     // Create session and return login response
-    return this.createUserSession(user, ipAddress, userAgent);
+    return this.createUserSession(user, ipAddress, userAgent, true);
   }
 
   /**
@@ -601,17 +601,21 @@ export class AuthService {
   private async createUserSession(
     user: any,
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
+    rememberMe: boolean = false
   ): Promise<LoginResponse> {
     const db = this.drizzleService.getDb();
 
     // Create session
     const sessionId = uuidv4();
     const sessionToken = uuidv4();
-    const expiresAt = new Date(Date.now() + this.getTokenExpirationTime(this.authConfig.jwtRefreshExpiresIn));
+    
+    // Use extended expiration if rememberMe is enabled (30 days instead of 7 days)
+    const refreshExpiresIn = rememberMe ? '30d' : this.authConfig.jwtRefreshExpiresIn;
+    const expiresAt = new Date(Date.now() + this.getTokenExpirationTime(refreshExpiresIn));
 
     const accessToken = await this.generateAccessToken(user, sessionId);
-    const refreshToken = await this.generateRefreshToken(user, sessionId);
+    const refreshToken = await this.generateRefreshToken(user, sessionId, rememberMe);
 
     // Store session in database
     await db
@@ -624,7 +628,7 @@ export class AuthService {
         refreshToken,
         ipAddress,
         userAgent,
-        deviceInfo: {},
+        deviceInfo: { rememberMe },
         expiresAt,
         lastAccessedAt: new Date(),
         createdBy: user.id,
@@ -655,7 +659,7 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 
-  private async generateRefreshToken(user: any, sessionId: string): Promise<string> {
+  private async generateRefreshToken(user: any, sessionId: string, rememberMe: boolean = false): Promise<string> {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -663,15 +667,17 @@ export class AuthService {
       role: user.role,
       permissions: user.permissions || [],
       sessionId,
+      rememberMe,
     };
 
     // For refresh tokens, we need to use a different secret
     // Since JwtService is configured with the access token secret,
     // we'll use the jwt library directly for refresh tokens
+    const expiresIn = rememberMe ? '30d' : '7d';
     return jwt.sign(
       payload, 
       this.authConfig.jwtRefreshSecret, 
-      { expiresIn: '7d' } // Use a fixed value to avoid type issues
+      { expiresIn }
     );
   }
 

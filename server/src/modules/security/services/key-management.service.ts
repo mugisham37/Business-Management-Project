@@ -177,6 +177,62 @@ export class KeyManagementService {
   }
 
   /**
+   * Get key history for tenant
+   */
+  async getKeyHistory(tenantId: string, keyType?: string): Promise<EncryptionKey[]> {
+    try {
+      const keys = await this.getTenantKeys(tenantId, keyType);
+      // Sort by creation date, most recent first
+      return keys.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`Failed to get key history for tenant ${tenantId}: ${err.message}`, err.stack);
+      throw err;
+    }
+  }
+
+  /**
+   * Get all active keys for tenant
+   */
+  async getActiveKeys(tenantId: string): Promise<EncryptionKey[]> {
+    try {
+      const keys = await this.getTenantKeys(tenantId);
+      return keys.filter(key => key.status === 'active');
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`Failed to get active keys for tenant ${tenantId}: ${err.message}`, err.stack);
+      throw err;
+    }
+  }
+
+  /**
+   * Revoke a specific key
+   */
+  async revokeKey(keyId: string): Promise<void> {
+    try {
+      const keyRecord = await this.getKeyById(keyId);
+      if (!keyRecord) {
+        throw new Error(`Key not found: ${keyId}`);
+      }
+
+      // Mark key as revoked
+      keyRecord.status = 'revoked';
+      keyRecord.metadata.revokedAt = new Date();
+
+      await this.updateKey(keyRecord);
+
+      // Remove from cache
+      this.clearKeyFromCache(keyRecord.tenantId, keyRecord.keyType);
+
+      this.logger.log(`Revoked key ${keyId} for tenant ${keyRecord.tenantId}`);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`Failed to revoke key ${keyId}: ${err.message}`, err.stack);
+      throw err;
+    }
+  }
+
+  /**
    * Get key rotation status for tenant
    */
   async getKeyRotationStatus(tenantId: string): Promise<any> {

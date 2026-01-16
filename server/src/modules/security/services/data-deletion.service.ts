@@ -264,9 +264,25 @@ export class DataDeletionService {
   }
 
   /**
+   * Get deletion history for tenant
+   */
+  async getDeletionHistory(tenantId: string, limit?: number): Promise<DeletionResult[]> {
+    try {
+      // In real implementation, query database for deletion history
+      // For now, return empty array as mock
+      this.logger.log(`Retrieved deletion history for tenant ${tenantId}`);
+      return [];
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`Failed to get deletion history for tenant ${tenantId}: ${err.message}`, err.stack);
+      throw err;
+    }
+  }
+
+  /**
    * Cancel scheduled deletion
    */
-  async cancelDeletion(requestId: string, cancelledBy: string): Promise<void> {
+  async cancelDeletion(requestId: string, cancelledBy?: string): Promise<void> {
     const request = this.deletionQueue.get(requestId);
     if (!request) {
       throw new Error(`Deletion request not found: ${requestId}`);
@@ -278,7 +294,7 @@ export class DataDeletionService {
     if (this.config.auditRequired) {
       await this.auditService.logEvent({
         tenantId: request.tenantId,
-        userId: cancelledBy,
+        userId: cancelledBy || 'system',
         action: 'data_deletion_cancelled',
         resource: 'data_deletion',
         resourceId: requestId,

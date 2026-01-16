@@ -1,9 +1,10 @@
 import { InputType, Field } from '@nestjs/graphql';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength, MaxLength, IsOptional, IsBoolean } from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength, IsOptional, IsBoolean, IsUUID } from 'class-validator';
 
 /**
  * Login input for GraphQL
+ * Supports session persistence with rememberMe flag
  */
 @InputType()
 export class LoginInput {
@@ -19,7 +20,7 @@ export class LoginInput {
   password!: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Remember me for extended session', required: false })
+  @ApiProperty({ description: 'Remember me for extended session (30 days instead of 15 minutes)', required: false })
   @IsOptional()
   @IsBoolean()
   rememberMe?: boolean;
@@ -27,6 +28,7 @@ export class LoginInput {
 
 /**
  * Login with MFA input
+ * Used when user has MFA enabled
  */
 @InputType()
 export class LoginWithMfaInput {
@@ -42,13 +44,14 @@ export class LoginWithMfaInput {
   password!: string;
 
   @Field()
-  @ApiProperty({ description: 'MFA token (6-digit code or backup code)' })
+  @ApiProperty({ description: 'MFA token (6-digit TOTP code or backup code)' })
   @IsString()
   mfaToken!: string;
 }
 
 /**
  * Register input for GraphQL
+ * Creates new user account
  */
 @InputType()
 export class RegisterInput {
@@ -77,8 +80,9 @@ export class RegisterInput {
   lastName!: string;
 
   @Field()
-  @ApiProperty({ description: 'Tenant ID for multi-tenant registration' })
+  @ApiProperty({ description: 'Tenant ID for multi-tenant registration', type: 'string' })
   @IsString()
+  @IsUUID()
   tenantId!: string;
 
   @Field({ nullable: true })
@@ -91,23 +95,26 @@ export class RegisterInput {
 
 /**
  * Refresh token input
+ * Generates new access and refresh tokens
  */
 @InputType()
 export class RefreshTokenInput {
   @Field()
-  @ApiProperty({ description: 'Refresh token' })
+  @ApiProperty({ description: 'Valid refresh token' })
   @IsString()
   refreshToken!: string;
 }
 
 /**
  * Change password input
+ * Updates user password (requires current password verification)
  */
 @InputType()
 export class ChangePasswordInput {
   @Field()
-  @ApiProperty({ description: 'Current password' })
+  @ApiProperty({ description: 'Current password for verification' })
   @IsString()
+  @MinLength(8)
   currentPassword!: string;
 
   @Field()
@@ -120,22 +127,24 @@ export class ChangePasswordInput {
 
 /**
  * Forgot password input
+ * Initiates password reset process
  */
 @InputType()
 export class ForgotPasswordInput {
   @Field()
-  @ApiProperty({ description: 'User email address' })
+  @ApiProperty({ description: 'Registered email address' })
   @IsEmail()
   email!: string;
 }
 
 /**
  * Reset password input
+ * Completes password reset using token from email
  */
 @InputType()
 export class ResetPasswordInput {
   @Field()
-  @ApiProperty({ description: 'Password reset token' })
+  @ApiProperty({ description: 'Password reset token sent via email' })
   @IsString()
   token!: string;
 

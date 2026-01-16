@@ -5,7 +5,8 @@ import { GqlExecutionContext } from '@nestjs/graphql';
 /**
  * Roles Guard
  * Validates that user has required role(s)
- * Used with @Roles() decorator to protect endpoints
+ * Used with @Roles() decorator to protect GraphQL resolvers
+ * GraphQL-only implementation
  */
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -21,18 +22,9 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    // Handle both REST and GraphQL contexts
-    const ctx = context.getType<string>();
-    let user: any;
-
-    if (ctx === 'graphql') {
-      const gqlContext = GqlExecutionContext.create(context);
-      user = gqlContext.getContext().req.user;
-    } else {
-      // For REST
-      const request = context.switchToHttp().getRequest();
-      user = request.user;
-    }
+    // GraphQL-only: Extract user from GraphQL context
+    const gqlContext = GqlExecutionContext.create(context);
+    const user = gqlContext.getContext().req.user;
 
     if (!user) {
       throw new ForbiddenException('User not authenticated');

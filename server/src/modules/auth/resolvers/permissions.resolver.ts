@@ -5,8 +5,10 @@ import { CacheService } from '../../cache/cache.service';
 import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 import { BaseResolver } from '../../../common/graphql/base.resolver';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { RolesGuard } from '../guards/roles.guard';
 import { PermissionsGuard } from '../guards/permissions.guard';
 import { Permissions } from '../decorators/permission.decorator';
+import { Roles } from '../decorators/roles.decorator';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { AuthenticatedUser } from '../interfaces/auth.interface';
 import { MutationResponse } from '../../../common/graphql/mutation-response.types';
@@ -27,6 +29,7 @@ import {
  * Permissions resolver for permission and role management
  * Handles permission queries, role assignment, and permission grants/revokes
  * Implements caching for user permissions with 15-minute TTL
+ * All mutations require admin or tenant_admin role
  */
 @Resolver()
 @UseGuards(JwtAuthGuard)
@@ -183,7 +186,7 @@ export class PermissionsResolver extends BaseResolver {
         {
           ...(input.resource && { resource: input.resource }),
           ...(input.resourceId && { resourceId: input.resourceId }),
-          ...(input.expiresAt && { expiresAt: input.expiresAt }),
+          ...(input.expiresAt && { expiresAt: new Date(input.expiresAt) }),
         },
       );
 
@@ -256,13 +259,14 @@ export class PermissionsResolver extends BaseResolver {
 
   /**
    * Assign a role to a user
-   * Requires roles:manage permission
+   * Requires roles:manage permission AND admin/tenant_admin role
    * Invalidates permission cache
    */
   @Mutation(() => MutationResponse, {
     description: 'Assign a role to a user',
   })
-  @UseGuards(PermissionsGuard)
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('super_admin', 'tenant_admin')
   @Permissions('roles:manage')
   async assignRole(
     @Args('input') input: AssignRoleInput,

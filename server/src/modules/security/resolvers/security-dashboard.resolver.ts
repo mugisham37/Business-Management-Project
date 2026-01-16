@@ -1,6 +1,6 @@
 import { Resolver, Query, Args } from '@nestjs/graphql';
 import { UseGuards, UseInterceptors } from '@nestjs/common';
-import { JwtAuthGuard } from '../../auth/guards/graphql-jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';

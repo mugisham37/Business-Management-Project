@@ -19,6 +19,11 @@ import { DrizzleService } from '../database/drizzle.service';
 import { DataLoaderService } from '../../common/graphql/dataloader.service';
 import { CacheModule } from '../cache/cache.module';
 
+/**
+ * Auth Module
+ * Provides authentication, authorization, and MFA services
+ * GraphQL-only implementation with no REST endpoints
+ */
 @Module({
   imports: [
     PassportModule.register({ 
@@ -38,7 +43,7 @@ import { CacheModule } from '../cache/cache.module';
         return {
           secret,
           signOptions: {
-            expiresIn: expiresIn as any, // Cast to satisfy the type requirement
+            expiresIn: expiresIn as any,
           },
         };
       },

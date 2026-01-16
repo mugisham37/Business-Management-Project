@@ -4,9 +4,10 @@ import { GqlExecutionContext } from '@nestjs/graphql';
 import { Reflector } from '@nestjs/core';
 
 /**
- * JWT Authentication Guard for REST endpoints
+ * JWT Authentication Guard for GraphQL
  * Validates JWT tokens in Authorization header
  * Can be bypassed with @Public() decorator
+ * GraphQL-only implementation
  */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -15,16 +16,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   }
 
   override getRequest(context: ExecutionContext) {
-    // Handle both REST and GraphQL contexts
-    const ctx = context.getType<string>();
-    
-    if (ctx === 'graphql') {
-      const gqlContext = GqlExecutionContext.create(context);
-      return gqlContext.getContext().req;
-    }
-    
-    // For REST
-    return context.switchToHttp().getRequest();
+    // GraphQL-only: Extract request from GraphQL context
+    const gqlContext = GqlExecutionContext.create(context);
+    return gqlContext.getContext().req;
   }
 
   override canActivate(context: ExecutionContext) {

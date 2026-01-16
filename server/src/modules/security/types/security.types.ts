@@ -1,6 +1,10 @@
 import { ObjectType, Field, ID, registerEnumType } from '@nestjs/graphql';
 import { GraphQLJSON } from 'graphql-scalars';
 
+// ============================================================================
+// SECURITY EVENT & SETTINGS TYPES
+// ============================================================================
+
 // Enums
 export enum SecurityEventType {
   LOGIN_ATTEMPT = 'LOGIN_ATTEMPT',
