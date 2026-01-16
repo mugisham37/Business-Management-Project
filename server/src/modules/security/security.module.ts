@@ -20,9 +20,19 @@ import { SecurityInterceptor } from './interceptors/security.interceptor';
 import { AuditInterceptor } from './interceptors/audit.interceptor';
 import { DrizzleService } from '../database/drizzle.service';
 import { CustomLoggerService } from '../logger/logger.service';
+import { GraphQLCommonModule } from '../../common/graphql/graphql-common.module';
+import { QueueModule } from '../queue/queue.module';
+import { SecurityResolver } from './resolvers/security.resolver';
+import { AuditResolver } from './resolvers/audit.resolver';
+import { ComplianceResolver } from './resolvers/compliance.resolver';
+import { SecurityDashboardResolver } from './resolvers/security-dashboard.resolver';
 
 @Module({
-  imports: [ConfigModule],
+  imports: [
+    ConfigModule,
+    GraphQLCommonModule,
+    QueueModule,
+  ],
   controllers: [
     SecurityController, 
     AuditController, 
@@ -45,6 +55,11 @@ import { CustomLoggerService } from '../logger/logger.service';
     ThreatDetectionGuard,
     SecurityInterceptor,
     AuditInterceptor,
+    // GraphQL Resolvers
+    SecurityResolver,
+    AuditResolver,
+    ComplianceResolver,
+    SecurityDashboardResolver,
   ],
   exports: [
     EncryptionService,

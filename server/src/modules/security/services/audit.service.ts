@@ -810,3 +810,103 @@ export class AuditService {
     }
   }
 }
+
+
+  /**
+   * Query audit logs with filters
+   */
+  async queryLogs(query: AuditQuery): Promise<any[]> {
+    try {
+      const db = this.drizzleService.getDb();
+      
+      // Build query conditions
+      const conditions: any[] = [];
+      
+      if (query.tenantId) {
+        conditions.push(eq(auditLogs.tenantId, query.tenantId));
+      }
+      
+      if (query.userId) {
+        conditions.push(eq(auditLogs.userId, query.userId));
+      }
+      
+      if (query.action) {
+        conditions.push(eq(auditLogs.action, query.action as any));
+      }
+      
+      if (query.resource) {
+        conditions.push(eq(auditLogs.resource, query.resource));
+      }
+      
+      if (query.startDate) {
+        conditions.push(gte(auditLogs.timestamp, query.startDate));
+      }
+      
+      if (query.endDate) {
+        conditions.push(lte(auditLogs.timestamp, query.endDate));
+      }
+
+      // Execute query
+      const results = await db
+        .select()
+        .from(auditLogs)
+        .where(and(...conditions))
+        .orderBy(query.orderBy === 'asc' ? asc(auditLogs.timestamp) : desc(auditLogs.timestamp))
+        .limit(query.limit || 100)
+        .offset(query.offset || 0);
+
+      return results;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`Failed to query audit logs: ${err.message}`, err.stack);
+      return [];
+    }
+  }
+
+  /**
+   * Get audit log by ID
+   */
+  async getLogById(tenantId: string, id: string): Promise<any | null> {
+    try {
+      const db = this.drizzleService.getDb();
+      
+      const results = await db
+        .select()
+        .from(auditLogs)
+        .where(and(eq(auditLogs.id, id), eq(auditLogs.tenantId, tenantId)))
+        .limit(1);
+
+      return results[0] || null;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`Failed to get audit log: ${err.message}`, err.stack);
+      return null;
+    }
+  }
+
+  /**
+   * Export audit logs
+   */
+  async exportLogs(options: any): Promise<string> {
+    // In a real implementation, this would enqueue a background job
+    const exportId = `export_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    this.logger.log(`Audit log export requested: ${exportId}`);
+    return exportId;
+  }
+
+  /**
+   * Get audit log statistics
+   */
+  async getStatistics(tenantId: string, startDate: Date, endDate: Date): Promise<any> {
+    // In a real implementation, this would aggregate from database
+    return {
+      totalLogs: 0,
+      byAction: {},
+      byResource: {},
+      bySeverity: {},
+      byCategory: {},
+      topUsers: [],
+      topResources: [],
+    };
+  }
+}

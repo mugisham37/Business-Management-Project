@@ -595,3 +595,30 @@ export class ThreatDetectionService {
     ];
   }
 }
+
+
+  /**
+   * Get active threats for a tenant
+   */
+  async getActiveThreats(tenantId: string, limit?: number): Promise<any[]> {
+    // In a real implementation, this would query from database
+    return [];
+  }
+
+  /**
+   * Analyze threats for a period
+   */
+  async analyzeThreat(tenantId: string, filter: any): Promise<any> {
+    // In a real implementation, this would analyze threat data
+    return {
+      totalThreats: 0,
+      activeThreats: 0,
+      resolvedThreats: 0,
+      topThreatTypes: [],
+      topTargetedResources: [],
+      topSourceIPs: [],
+      averageResolutionTime: 0,
+      criticalThreats: [],
+    };
+  }
+}

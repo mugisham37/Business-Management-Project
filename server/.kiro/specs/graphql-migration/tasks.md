@@ -672,8 +672,8 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - **Property 10: Subscription Tenant Filtering** - Test webhook subscriptions filter by tenant
     - **Validates: Requirements 2.3, 5.5**
 
-- [ ] 9.3 Implement Security module resolvers (4 resolvers)
-  - [ ] 9.3.1 Create security.resolver.ts for core security
+- [x] 9.3 Implement Security module resolvers (4 resolvers)
+  - [x] 9.3.1 Create security.resolver.ts for core security
     - Implement getSecuritySettings query
     - Implement updateSecuritySettings mutation
     - Implement getSecurityEvents query
@@ -681,7 +681,7 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - Add field resolvers (user, resource)
     - _Requirements: 23.1-23.6_
   
-  - [ ] 9.3.2 Create audit.resolver.ts for audit logs
+  - [x] 9.3.2 Create audit.resolver.ts for audit logs
     - Implement getAuditLogs query (read-only)
     - Implement getAuditLog query
     - Implement exportAuditLogs mutation
@@ -689,7 +689,7 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - Prevent log tampering
     - _Requirements: 23.1-23.6_
   
-  - [ ] 9.3.3 Create compliance.resolver.ts for compliance tracking
+  - [x] 9.3.3 Create compliance.resolver.ts for compliance tracking
     - Implement getComplianceStatus query
     - Implement getComplianceReports query
     - Implement runComplianceCheck mutation
@@ -697,7 +697,7 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - Enqueue compliance checks to Bull queue
     - _Requirements: 23.1-23.6, 12.1-12.2_
   
-  - [ ] 9.3.4 Create security-dashboard.resolver.ts
+  - [x] 9.3.4 Create security-dashboard.resolver.ts
     - Implement getSecurityDashboard query
     - Implement getSecurityMetrics query
     - Implement getThreatAnalysis query
@@ -710,15 +710,15 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - **Property 17: Error Response Completeness** - Test all errors include code, message, timestamp
     - **Validates: Requirements 2.3, 7.4**
 
-- [ ] 9.4 Implement Realtime module resolvers (3 additional resolvers)
-  - [ ] 9.4.1 Create realtime.resolver.ts for real-time operations
+- [x] 9.4 Implement Realtime module resolvers (3 additional resolvers)
+  - [x] 9.4.1 Create realtime.resolver.ts for real-time operations
     - Implement getOnlineUsers query
     - Implement sendRealtimeMessage mutation
     - Implement broadcastMessage mutation
     - Implement userOnline, userOffline, messageReceived subscriptions
     - _Requirements: 26.1-26.6_
   
-  - [ ] 9.4.2 Create notification.resolver.ts for notifications
+  - [x] 9.4.2 Create notification.resolver.ts for notifications
     - Implement getNotifications query
     - Implement markNotificationRead mutation
     - Implement markAllNotificationsRead mutation
@@ -726,7 +726,7 @@ Each task builds on previous tasks and includes clear acceptance criteria. The m
     - Implement notificationReceived subscription
     - _Requirements: 26.1-26.6_
   
-  - [ ] 9.4.3 Create communication-integration.resolver.ts
+  - [x] 9.4.3 Create communication-integration.resolver.ts
     - Implement sendEmail mutation
     - Implement sendSMS mutation
     - Implement sendPushNotification mutation

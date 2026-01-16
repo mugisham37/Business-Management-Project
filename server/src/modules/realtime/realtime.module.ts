@@ -21,6 +21,9 @@ import { NotificationController } from './controllers/notification.controller';
 import { LiveDataController } from './controllers/live-data.controller';
 import { CommunicationIntegrationController } from './controllers/communication-integration.controller';
 import { LiveDataResolver } from './resolvers/live-data.resolver';
+import { RealtimeResolver } from './resolvers/realtime.resolver';
+import { NotificationResolver } from './resolvers/notification.resolver';
+import { CommunicationIntegrationResolver } from './resolvers/communication-integration.resolver';
 import { CommunicationModule } from '../communication/communication.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantModule } from '../tenant/tenant.module';
@@ -70,6 +73,9 @@ import { CacheModule } from '../cache/cache.module';
     LiveCustomerActivityService,
     LiveAnalyticsService,
     LiveDataResolver,
+    RealtimeResolver,
+    NotificationResolver,
+    CommunicationIntegrationResolver,
   ],
   exports: [
     RealtimeService,
