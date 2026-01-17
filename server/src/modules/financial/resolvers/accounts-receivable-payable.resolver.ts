@@ -136,9 +136,9 @@ export class AccountsReceivablePayableResolver extends BaseResolver {
   @RequirePermission('financial:manage')
   async sendPaymentReminder(
     @Args('invoiceId', { type: () => ID }) invoiceId: string,
+    @CurrentTenant() tenantId: string,
     @Args('reminderType', { nullable: true }) reminderType?: string,
     @Args('customMessage', { nullable: true }) customMessage?: string,
-    @CurrentTenant() tenantId: string,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<boolean> {
     // Get invoice details

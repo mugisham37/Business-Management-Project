@@ -201,6 +201,32 @@ export class TaxService {
     return jurisdiction;
   }
 
+  async getJurisdictionById(tenantId: string, jurisdictionId: string): Promise<TaxJurisdiction | null> {
+    const cacheKey = `tax:jurisdiction:${tenantId}:${jurisdictionId}`;
+    let jurisdiction = await this.cacheService.get<TaxJurisdiction>(cacheKey);
+
+    if (!jurisdiction) {
+      const result = await this.drizzle.getDb()
+        .select()
+        .from(taxJurisdictions)
+        .where(
+          and(
+            eq(taxJurisdictions.tenantId, tenantId),
+            eq(taxJurisdictions.id, jurisdictionId),
+            eq(taxJurisdictions.isActive, true)
+          )
+        )
+        .limit(1);
+
+      jurisdiction = result[0] as TaxJurisdiction || null;
+      if (jurisdiction) {
+        await this.cacheService.set(cacheKey, jurisdiction, { ttl: 300 });
+      }
+    }
+
+    return jurisdiction;
+  }
+
   // Tax Rate Management
   async createTaxRate(tenantId: string, data: Partial<TaxRate>): Promise<TaxRate> {
     const taxRate = await this.drizzle.getDb()
@@ -243,9 +269,17 @@ export class TaxService {
 
   async getTaxRates(
     tenantId: string, 
-    jurisdictionId?: string, 
+    options?: { jurisdictionId?: string } | string, 
     activeOnly: boolean = true
   ): Promise<TaxRate[]> {
+    // Handle both old and new parameter formats
+    let jurisdictionId: string | undefined;
+    if (typeof options === 'string') {
+      jurisdictionId = options;
+    } else if (options && typeof options === 'object') {
+      jurisdictionId = options.jurisdictionId;
+    }
+
     const cacheKey = `tax:rates:${tenantId}:${jurisdictionId || 'all'}:${activeOnly}`;
     let rates = await this.cacheService.get<TaxRate[]>(cacheKey);
 

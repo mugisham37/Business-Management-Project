@@ -1,6 +1,18 @@
 import { Injectable, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { ChartOfAccountsRepository } from '../repositories/chart-of-accounts.repository';
-import { CreateChartOfAccountDto, UpdateChartOfAccountDto, AccountType, AccountSubType, NormalBalance, ChartOfAccountResponseDto, AccountHierarchyDto } from '../dto/chart-of-accounts.dto';
+import { 
+  CreateChartOfAccountInput, 
+  UpdateChartOfAccountInput 
+} from '../graphql/inputs';
+import { 
+  ChartOfAccount, 
+  AccountHierarchy 
+} from '../graphql/types';
+import { 
+  AccountType, 
+  AccountSubType, 
+  NormalBalance 
+} from '../graphql/enums';
 import { IntelligentCacheService } from '../../cache/intelligent-cache.service';
 
 @Injectable()
@@ -10,39 +22,39 @@ export class ChartOfAccountsService {
     private readonly cacheService: IntelligentCacheService,
   ) {}
 
-  async createAccount(tenantId: string, dto: CreateChartOfAccountDto, userId: string): Promise<ChartOfAccountResponseDto> {
+  async createAccount(tenantId: string, input: CreateChartOfAccountInput, userId: string): Promise<ChartOfAccount> {
     // Validate account number uniqueness
     const isAccountNumberAvailable = await this.chartOfAccountsRepository.validateAccountNumber(
       tenantId,
-      dto.accountNumber
+      input.accountNumber
     );
 
     if (!isAccountNumberAvailable) {
-      throw new ConflictException(`Account number ${dto.accountNumber} already exists`);
+      throw new ConflictException(`Account number ${input.accountNumber} already exists`);
     }
 
     // Validate parent account if provided
-    if (dto.parentAccountId) {
-      const parentAccount = await this.chartOfAccountsRepository.findById(tenantId, dto.parentAccountId);
+    if (input.parentAccountId) {
+      const parentAccount = await this.chartOfAccountsRepository.findById(tenantId, input.parentAccountId);
       if (!parentAccount) {
         throw new BadRequestException('Parent account not found');
       }
 
       // Validate that parent account type is compatible
-      if (!this.isCompatibleAccountType(dto.accountType, parentAccount.accountType)) {
+      if (!this.isCompatibleAccountType(input.accountType, parentAccount.accountType)) {
         throw new BadRequestException('Account type is not compatible with parent account type');
       }
     }
 
     // Validate normal balance based on account type
-    const expectedNormalBalance = this.getExpectedNormalBalance(dto.accountType);
-    if (dto.normalBalance !== expectedNormalBalance) {
+    const expectedNormalBalance = this.getExpectedNormalBalance(input.accountType);
+    if (input.normalBalance !== expectedNormalBalance) {
       throw new BadRequestException(
-        `Account type ${dto.accountType} should have normal balance of ${expectedNormalBalance}`
+        `Account type ${input.accountType} should have normal balance of ${expectedNormalBalance}`
       );
     }
 
-    const account = await this.chartOfAccountsRepository.create(tenantId, dto, userId);
+    const account = await this.chartOfAccountsRepository.create(tenantId, input, userId);
 
     if (!account) {
       throw new BadRequestException('Failed to create account');
@@ -51,10 +63,10 @@ export class ChartOfAccountsService {
     // Clear cache
     await this.invalidateAccountCache(tenantId);
 
-    return this.transformToResponseDto(account);
+    return account;
   }
 
-  async findAccountById(tenantId: string, id: string): Promise<ChartOfAccountResponseDto> {
+  async findAccountById(tenantId: string, id: string): Promise<ChartOfAccount> {
     const cacheKey = `account:${tenantId}:${id}`;
     let account = await this.cacheService.get(cacheKey);
 
@@ -69,7 +81,7 @@ export class ChartOfAccountsService {
       throw new NotFoundException('Account not found');
     }
 
-    return this.transformToResponseDto(account);
+    return account;
   }
 
   async findAccountByNumber(tenantId: string, accountNumber: string) {
@@ -91,7 +103,7 @@ export class ChartOfAccountsService {
     isActive?: boolean;
     parentAccountId?: string;
     includeInactive?: boolean;
-  }): Promise<ChartOfAccountResponseDto[]> {
+  }): Promise<ChartOfAccount[]> {
     const cacheKey = `accounts:${tenantId}:${JSON.stringify(options || {})}`;
     let accounts = await this.cacheService.get(cacheKey);
 
@@ -101,10 +113,10 @@ export class ChartOfAccountsService {
     }
 
     const accountsArray = Array.isArray(accounts) ? accounts : [];
-    return accountsArray.map((account: any) => this.transformToResponseDto(account));
+    return accountsArray;
   }
 
-  async getAccountHierarchy(tenantId: string, rootAccountId?: string): Promise<AccountHierarchyDto[]> {
+  async getAccountHierarchy(tenantId: string, rootAccountId?: string): Promise<AccountHierarchy[]> {
     const cacheKey = `account-hierarchy:${tenantId}:${rootAccountId || 'root'}`;
     let hierarchy = await this.cacheService.get(cacheKey);
 
@@ -113,12 +125,12 @@ export class ChartOfAccountsService {
       await this.cacheService.set(cacheKey, hierarchy, { ttl: 300 }); // 5 minutes
     }
 
-    // Transform the hierarchy to match AccountHierarchyDto structure
+    // Transform the hierarchy to match AccountHierarchy structure
     const hierarchyArray = Array.isArray(hierarchy) ? hierarchy : [];
-    return this.transformHierarchyToDto(hierarchyArray);
+    return hierarchyArray;
   }
 
-  async updateAccount(tenantId: string, id: string, dto: UpdateChartOfAccountDto, userId: string): Promise<ChartOfAccountResponseDto> {
+  async updateAccount(tenantId: string, id: string, input: UpdateChartOfAccountInput, userId: string): Promise<ChartOfAccount> {
     const existingAccount = await this.findAccountById(tenantId, id);
 
     // Check if account is a system account
@@ -126,7 +138,7 @@ export class ChartOfAccountsService {
       throw new BadRequestException('System accounts cannot be modified');
     }
 
-    const updatedAccount = await this.chartOfAccountsRepository.update(tenantId, id, dto, userId);
+    const updatedAccount = await this.chartOfAccountsRepository.update(tenantId, id, input, userId);
 
     if (!updatedAccount) {
       throw new NotFoundException('Account not found or could not be updated');
@@ -135,7 +147,7 @@ export class ChartOfAccountsService {
     // Clear cache
     await this.invalidateAccountCache(tenantId);
 
-    return this.transformToResponseDto(updatedAccount);
+    return updatedAccount;
   }
 
   async deleteAccount(tenantId: string, id: string, userId: string) {
@@ -159,7 +171,7 @@ export class ChartOfAccountsService {
     return deletedAccount;
   }
 
-  async getAccountsByType(tenantId: string, accountTypes: AccountType[]): Promise<ChartOfAccountResponseDto[]> {
+  async getAccountsByType(tenantId: string, accountTypes: AccountType[]): Promise<ChartOfAccount[]> {
     const cacheKey = `accounts-by-type:${tenantId}:${accountTypes.join(',')}`;
     let accounts = await this.cacheService.get(cacheKey);
 
@@ -169,17 +181,17 @@ export class ChartOfAccountsService {
     }
 
     const accountsArray = Array.isArray(accounts) ? accounts : [];
-    return accountsArray.map((account: any) => this.transformToResponseDto(account));
+    return accountsArray;
   }
 
-  async searchAccounts(tenantId: string, searchTerm: string, limit = 20): Promise<ChartOfAccountResponseDto[]> {
+  async searchAccounts(tenantId: string, searchTerm: string, limit = 20): Promise<ChartOfAccount[]> {
     if (!searchTerm || searchTerm.length < 2) {
       throw new BadRequestException('Search term must be at least 2 characters');
     }
 
     const results = await this.chartOfAccountsRepository.searchAccounts(tenantId, searchTerm, limit);
     const resultsArray = Array.isArray(results) ? results : [];
-    return resultsArray.map((account: any) => this.transformToResponseDto(account));
+    return resultsArray;
   }
 
   async updateAccountBalance(tenantId: string, accountId: string, newBalance: string) {
@@ -195,10 +207,10 @@ export class ChartOfAccountsService {
     return await this.chartOfAccountsRepository.getAccountBalance(tenantId, accountId);
   }
 
-  async initializeDefaultChartOfAccounts(tenantId: string, userId: string): Promise<ChartOfAccountResponseDto[]> {
+  async initializeDefaultChartOfAccounts(tenantId: string, userId: string): Promise<ChartOfAccount[]> {
     const defaultAccounts = this.getDefaultAccountStructure();
 
-    const createdAccounts: ChartOfAccountResponseDto[] = [];
+    const createdAccounts: ChartOfAccount[] = [];
     
     // Create accounts in order (parents first)
     for (const accountData of defaultAccounts) {
@@ -326,63 +338,4 @@ export class ChartOfAccountsService {
     ];
   }
 
-  private transformToResponseDto(account: any): ChartOfAccountResponseDto {
-    return {
-      id: account.id,
-      tenantId: account.tenantId,
-      accountNumber: account.accountNumber,
-      accountName: account.accountName,
-      accountType: account.accountType,
-      accountSubType: account.accountSubType,
-      parentAccountId: account.parentAccountId,
-      accountLevel: account.accountLevel || 1,
-      accountPath: account.accountPath,
-      isActive: account.isActive,
-      isSystemAccount: account.isSystemAccount || false,
-      allowManualEntries: account.allowManualEntries,
-      requireDepartment: account.requireDepartment,
-      requireProject: account.requireProject,
-      currentBalance: account.currentBalance || '0.00',
-      normalBalance: account.normalBalance,
-      description: account.description,
-      taxReportingCategory: account.taxReportingCategory,
-      externalAccountId: account.externalAccountId,
-      settings: account.settings || {},
-      createdAt: account.createdAt,
-      updatedAt: account.updatedAt,
-      version: account.version || 1,
-      createdBy: account.createdBy,
-      updatedBy: account.updatedBy,
-    };
-  }
-
-  private transformHierarchyToDto(hierarchyData: any[]): AccountHierarchyDto[] {
-    if (!Array.isArray(hierarchyData)) {
-      return [];
-    }
-
-    return hierarchyData.map((item: any) => {
-      const account = this.transformToResponseDto(item);
-      const children = Array.isArray(item.children) ? this.transformHierarchyToDto(item.children) : [];
-      
-      // Calculate total balance including children
-      const totalBalance = this.calculateTotalBalance(account, children);
-
-      return {
-        account,
-        children,
-        totalBalance,
-      };
-    });
-  }
-
-  private calculateTotalBalance(account: ChartOfAccountResponseDto, children: AccountHierarchyDto[]): string {
-    let total = parseFloat(account.currentBalance || '0');
-    
-    for (const child of children) {
-      total += parseFloat(child.totalBalance || '0');
-    }
-    
-    return total.toFixed(2);
-  }
 }

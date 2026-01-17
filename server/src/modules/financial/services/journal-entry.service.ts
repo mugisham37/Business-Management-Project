@@ -2,7 +2,13 @@ import { Injectable, BadRequestException, NotFoundException, ForbiddenException 
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JournalEntryRepository } from '../repositories/journal-entry.repository';
 import { ChartOfAccountsService } from './chart-of-accounts.service';
-import { CreateJournalEntryDto, UpdateJournalEntryDto, JournalEntryStatus, JournalEntryQueryDto, JournalEntryResponseDto } from '../dto/journal-entry.dto';
+import { 
+  CreateJournalEntryInput, 
+  UpdateJournalEntryInput, 
+  JournalEntryQueryInput 
+} from '../graphql/inputs';
+import { JournalEntry } from '../graphql/types';
+import { JournalEntryStatus } from '../graphql/enums';
 import { AccountingService } from './accounting.service';
 import { isDebitAccount } from '../utils/type-transformers';
 
@@ -15,11 +21,11 @@ export class JournalEntryService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async createJournalEntry(tenantId: string, dto: CreateJournalEntryDto, userId: string) {
+  async createJournalEntry(tenantId: string, input: CreateJournalEntryInput, userId: string) {
     // Validate journal entry
-    await this.validateJournalEntry(tenantId, dto);
+    await this.validateJournalEntry(tenantId, input);
 
-    const journalEntry = await this.journalEntryRepository.create(tenantId, dto, userId);
+    const journalEntry = await this.journalEntryRepository.create(tenantId, input, userId);
 
     // Emit event
     this.eventEmitter.emit('journal-entry.created', {
@@ -41,10 +47,10 @@ export class JournalEntryService {
     return journalEntry;
   }
 
-  async findAllJournalEntries(tenantId: string, query: JournalEntryQueryDto = {}): Promise<JournalEntryResponseDto[]> {
+  async findAllJournalEntries(tenantId: string, query: JournalEntryQueryInput = {}): Promise<any[]> {
     const results = await this.journalEntryRepository.findAll(tenantId, query);
     
-    // Transform the results to match JournalEntryResponseDto structure
+    // Transform the results to match JournalEntry structure
     // The repository returns objects with nested lines, but we need to ensure all required properties are present
     return results.map((result: any) => {
       // Create a safe transformation with defaults for missing properties
@@ -73,7 +79,7 @@ export class JournalEntryService {
         createdAt: result.createdAt || new Date(),
         updatedAt: result.updatedAt || new Date(),
         lines: result.lines || [],
-      } as JournalEntryResponseDto;
+      };
     });
   }
 
@@ -89,13 +95,13 @@ export class JournalEntryService {
     return await this.journalEntryRepository.findByAccount(tenantId, accountId, options);
   }
 
-  async updateJournalEntry(tenantId: string, id: string, dto: UpdateJournalEntryDto, userId: string) {
+  async updateJournalEntry(tenantId: string, id: string, input: UpdateJournalEntryInput, userId: string) {
     // Validate update data if lines are provided
-    if (dto.lines) {
-      await this.validateJournalEntry(tenantId, dto as CreateJournalEntryDto);
+    if (input.lines) {
+      await this.validateJournalEntry(tenantId, input as any);
     }
 
-    const updatedEntry = await this.journalEntryRepository.update(tenantId, id, dto, userId);
+    const updatedEntry = await this.journalEntryRepository.update(tenantId, id, input, userId);
 
     if (!updatedEntry) {
       throw new NotFoundException('Journal entry not found or cannot be updated');
@@ -224,6 +230,11 @@ export class JournalEntryService {
     return ledgerWithBalance;
   }
 
+  async getJournalEntryLines(tenantId: string, journalEntryId: string) {
+    const journalEntry = await this.findJournalEntryById(tenantId, journalEntryId);
+    return journalEntry.lines || [];
+  }
+
   async createAutomaticJournalEntry(
     tenantId: string,
     description: string,
@@ -250,7 +261,7 @@ export class JournalEntryService {
       lineNumber: index + 1,
     }));
 
-    const dto: CreateJournalEntryDto = {
+    const input: CreateJournalEntryInput = {
       entryDate: new Date().toISOString(),
       description,
       sourceType,
@@ -258,7 +269,7 @@ export class JournalEntryService {
       lines: linesWithNumbers,
     };
 
-    const journalEntry = await this.createJournalEntry(tenantId, dto, userId);
+    const journalEntry = await this.createJournalEntry(tenantId, input, userId);
 
     if (autoPost) {
       return await this.postJournalEntry(tenantId, journalEntry.id, userId);
@@ -267,21 +278,21 @@ export class JournalEntryService {
     return journalEntry;
   }
 
-  private async validateJournalEntry(tenantId: string, dto: CreateJournalEntryDto | UpdateJournalEntryDto) {
-    if (!dto.lines || dto.lines.length === 0) {
+  private async validateJournalEntry(tenantId: string, input: CreateJournalEntryInput | UpdateJournalEntryInput) {
+    if (!input.lines || input.lines.length === 0) {
       throw new BadRequestException('Journal entry must have at least one line');
     }
 
     // Validate that debits equal credits
-    const totalDebits = dto.lines.reduce((sum, line) => sum + parseFloat(line.debitAmount), 0);
-    const totalCredits = dto.lines.reduce((sum, line) => sum + parseFloat(line.creditAmount), 0);
+    const totalDebits = input.lines.reduce((sum, line) => sum + parseFloat(line.debitAmount), 0);
+    const totalCredits = input.lines.reduce((sum, line) => sum + parseFloat(line.creditAmount), 0);
 
     if (Math.abs(totalDebits - totalCredits) > 0.01) {
       throw new BadRequestException('Total debits must equal total credits');
     }
 
     // Validate that each line has either debit or credit (not both or neither)
-    for (const line of dto.lines) {
+    for (const line of input.lines) {
       const debitAmount = parseFloat(line.debitAmount);
       const creditAmount = parseFloat(line.creditAmount);
 
@@ -304,7 +315,7 @@ export class JournalEntryService {
       }
 
       // Check if manual entries are allowed for this account
-      if (!(account as any).allowManualEntries && (dto as any).sourceType === 'manual') {
+      if (!(account as any).allowManualEntries && (input as any).sourceType === 'manual') {
         throw new BadRequestException(`Manual entries are not allowed for account ${(account as any).accountName}`);
       }
 
@@ -319,7 +330,7 @@ export class JournalEntryService {
     }
 
     // Validate line numbers are unique and sequential
-    const lineNumbers = dto.lines.map(line => line.lineNumber);
+    const lineNumbers = input.lines.map(line => line.lineNumber);
     const uniqueLineNumbers = new Set(lineNumbers);
     
     if (lineNumbers.length !== uniqueLineNumbers.size) {

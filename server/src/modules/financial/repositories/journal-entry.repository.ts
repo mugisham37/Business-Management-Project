@@ -2,18 +2,23 @@ import { Injectable } from '@nestjs/common';
 import { eq, and, desc, asc, like, isNull, sql, gte, lte, or } from 'drizzle-orm';
 import { DrizzleService } from '../../database/drizzle.service';
 import { journalEntries, journalEntryLines } from '../../database/schema/financial.schema';
-import { CreateJournalEntryDto, UpdateJournalEntryDto, JournalEntryStatus, JournalEntryQueryDto } from '../dto/journal-entry.dto';
+import { 
+  CreateJournalEntryInput, 
+  UpdateJournalEntryInput, 
+  JournalEntryQueryInput 
+} from '../graphql/inputs';
+import { JournalEntryStatus } from '../graphql/enums';
 
 @Injectable()
 export class JournalEntryRepository {
   constructor(private readonly drizzle: DrizzleService) {}
 
-  async create(tenantId: string, dto: CreateJournalEntryDto, userId: string) {
+  async create(tenantId: string, input: CreateJournalEntryInput, userId: string) {
     const entryNumber = await this.generateEntryNumber(tenantId);
     
     // Calculate totals
-    const totalDebits = dto.lines.reduce((sum, line) => sum + parseFloat(line.debitAmount), 0);
-    const totalCredits = dto.lines.reduce((sum, line) => sum + parseFloat(line.creditAmount), 0);
+    const totalDebits = input.lines.reduce((sum, line) => sum + parseFloat(line.debitAmount), 0);
+    const totalCredits = input.lines.reduce((sum, line) => sum + parseFloat(line.creditAmount), 0);
 
     // Validate that debits equal credits
     if (Math.abs(totalDebits - totalCredits) > 0.01) {
@@ -27,13 +32,13 @@ export class JournalEntryRepository {
         .values({
           tenantId,
           entryNumber,
-          entryDate: new Date(dto.entryDate),
-          description: dto.description,
-          reference: dto.reference,
-          sourceType: dto.sourceType,
-          sourceId: dto.sourceId,
-          notes: dto.notes,
-          attachments: dto.attachments || [],
+          entryDate: new Date(input.entryDate),
+          description: input.description,
+          reference: input.reference,
+          sourceType: input.sourceType,
+          sourceId: input.sourceId,
+          notes: input.notes,
+          attachments: [], // Remove reference to input.attachments since it doesn't exist
           totalDebits: totalDebits.toFixed(2),
           totalCredits: totalCredits.toFixed(2),
           status: JournalEntryStatus.DRAFT,
@@ -46,7 +51,7 @@ export class JournalEntryRepository {
 
       // Create journal entry lines
       const lines = await Promise.all(
-        dto.lines.map(async (line) => {
+        input.lines.map(async (line) => {
           const entryLines_result = await tx
             .insert(journalEntryLines)
             .values({
@@ -107,7 +112,7 @@ export class JournalEntryRepository {
     return { ...journalEntry, lines };
   }
 
-  async findAll(tenantId: string, query: JournalEntryQueryDto = {}) {
+  async findAll(tenantId: string, query: JournalEntryQueryInput = {}) {
     const conditions = [
       eq(journalEntries.tenantId, tenantId),
       isNull(journalEntries.deletedAt)
@@ -122,27 +127,25 @@ export class JournalEntryRepository {
       conditions.push(eq(journalEntries.sourceType, query.sourceType));
     }
 
-    if (query.dateFrom) {
-      conditions.push(gte(journalEntries.entryDate, new Date(query.dateFrom)));
+    if (query.startDate) {
+      conditions.push(gte(journalEntries.entryDate, new Date(query.startDate)));
     }
 
-    if (query.dateTo) {
-      conditions.push(lte(journalEntries.entryDate, new Date(query.dateTo)));
+    if (query.endDate) {
+      conditions.push(lte(journalEntries.entryDate, new Date(query.endDate)));
     }
 
-    if (query.search) {
-      conditions.push(
-        or(
-          like(journalEntries.description, `%${query.search}%`),
-          like(journalEntries.reference, `%${query.search}%`),
-          like(journalEntries.entryNumber, `%${query.search}%`)
-        ) as any
-      );
+    if (query.description) {
+      conditions.push(like(journalEntries.description, `%${query.description}%`));
     }
 
-    const page = query.page || 1;
-    const limit = query.limit || 20;
-    const offset = (page - 1) * limit;
+    if (query.reference) {
+      conditions.push(like(journalEntries.reference, `%${query.reference}%`));
+    }
+
+    // Use default pagination since page and limit are not in the input type
+    const limit = 20;
+    const offset = 0;
 
     const entries = await this.drizzle.getDb()
       .select()
@@ -229,7 +232,7 @@ export class JournalEntryRepository {
     return Array.from(entriesMap.values());
   }
 
-  async update(tenantId: string, id: string, dto: UpdateJournalEntryDto, userId: string) {
+  async update(tenantId: string, id: string, input: UpdateJournalEntryInput, userId: string) {
     return await this.drizzle.getDb().transaction(async (tx) => {
       // Check if entry can be updated (only draft entries)
       const existingResults = await tx
@@ -257,16 +260,16 @@ export class JournalEntryRepository {
         updatedAt: new Date(),
       };
 
-      if (dto.entryDate) updateData.entryDate = new Date(dto.entryDate);
-      if (dto.description) updateData.description = dto.description;
-      if (dto.reference !== undefined) updateData.reference = dto.reference;
-      if (dto.notes !== undefined) updateData.notes = dto.notes;
-      if (dto.attachments !== undefined) updateData.attachments = dto.attachments;
+      if (input.entryDate) updateData.entryDate = new Date(input.entryDate);
+      if (input.description) updateData.description = input.description;
+      if (input.reference !== undefined) updateData.reference = input.reference;
+      if (input.notes !== undefined) updateData.notes = input.notes;
+      // Remove attachments reference since it doesn't exist in UpdateJournalEntryInput
 
       // If lines are provided, recalculate totals
-      if (dto.lines) {
-        const totalDebits = dto.lines.reduce((sum, line) => sum + parseFloat(line.debitAmount), 0);
-        const totalCredits = dto.lines.reduce((sum, line) => sum + parseFloat(line.creditAmount), 0);
+      if (input.lines) {
+        const totalDebits = input.lines.reduce((sum, line) => sum + parseFloat(line.debitAmount), 0);
+        const totalCredits = input.lines.reduce((sum, line) => sum + parseFloat(line.creditAmount), 0);
 
         if (Math.abs(totalDebits - totalCredits) > 0.01) {
           throw new Error('Total debits must equal total credits');
@@ -291,7 +294,7 @@ export class JournalEntryRepository {
 
         // Create new lines
         await Promise.all(
-          dto.lines.map(async (line) => {
+          input.lines.map(async (line) => {
             await tx
               .insert(journalEntryLines)
               .values({

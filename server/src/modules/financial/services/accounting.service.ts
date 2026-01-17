@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ChartOfAccountsService } from './chart-of-accounts.service';
 import { JournalEntryService } from './journal-entry.service';
-import { AccountType, NormalBalance } from '../dto/chart-of-accounts.dto';
+import { AccountType, NormalBalance } from '../graphql/enums';
 import { ChartOfAccount } from '../types/chart-of-accounts.types';
 import { transformToChartOfAccountArray, isDebitAccount, parseBalanceAmount } from '../utils/type-transformers';
 
@@ -14,8 +14,7 @@ export class AccountingService {
 
   async initializeTenantAccounting(tenantId: string, userId: string) {
     // Initialize default chart of accounts
-    const accountDtos = await this.chartOfAccountsService.initializeDefaultChartOfAccounts(tenantId, userId);
-    const accounts = transformToChartOfAccountArray(accountDtos);
+    const accounts = await this.chartOfAccountsService.initializeDefaultChartOfAccounts(tenantId, userId);
 
     return {
       message: 'Accounting system initialized successfully',
@@ -29,10 +28,9 @@ export class AccountingService {
   }
 
   async getTrialBalance(tenantId: string, asOfDate?: Date) {
-    const accountDtos = await this.chartOfAccountsService.getAllAccounts(tenantId, {
+    const allAccounts = await this.chartOfAccountsService.getAllAccounts(tenantId, {
       includeInactive: false,
     });
-    const allAccounts = transformToChartOfAccountArray(accountDtos);
 
     const trialBalance = (allAccounts || []).map((account: ChartOfAccount) => {
       const balance = parseBalanceAmount(account.currentBalance);
@@ -64,8 +62,7 @@ export class AccountingService {
 
   async getAccountBalances(tenantId: string, accountType?: AccountType, asOfDate?: Date) {
     const options = accountType ? { accountType } : undefined;
-    const accountDtos = await this.chartOfAccountsService.getAllAccounts(tenantId, options);
-    const accounts = transformToChartOfAccountArray(accountDtos);
+    const accounts = await this.chartOfAccountsService.getAllAccounts(tenantId, options);
 
     return (accounts || []).map((account: ChartOfAccount) => ({
       accountId: account.id,
@@ -102,8 +99,7 @@ export class AccountingService {
     userId: string
   ) {
     // Get relevant accounts
-    const accountDtos = await this.chartOfAccountsService.getAllAccounts(tenantId);
-    const accounts = transformToChartOfAccountArray(accountDtos);
+    const accounts = await this.chartOfAccountsService.getAllAccounts(tenantId);
     const accountMap = new Map((accounts || []).map((acc: ChartOfAccount) => [acc.accountNumber, acc]));
 
     // Find required accounts
@@ -202,8 +198,7 @@ export class AccountingService {
   }
 
   async getFinancialSummary(tenantId: string, dateFrom?: Date, dateTo?: Date) {
-    const accountDtos = await this.chartOfAccountsService.getAllAccounts(tenantId);
-    const accounts = transformToChartOfAccountArray(accountDtos);
+    const accounts = await this.chartOfAccountsService.getAllAccounts(tenantId);
     
     // Group accounts by type
     const accountsByType = (accounts || []).reduce((acc, account) => {
@@ -306,8 +301,7 @@ export class AccountingService {
     }
 
     // Check for accounts with negative balances that shouldn't have them
-    const accountDtos = await this.chartOfAccountsService.getAllAccounts(tenantId);
-    const accounts = transformToChartOfAccountArray(accountDtos);
+    const accounts = await this.chartOfAccountsService.getAllAccounts(tenantId);
     for (const account of accounts) {
       const balance = parseBalanceAmount(account.currentBalance);
       if (balance < 0) {

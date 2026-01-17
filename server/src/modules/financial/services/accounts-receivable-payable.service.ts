@@ -37,6 +37,13 @@ export interface ARAPInvoice {
   description?: string;
   notes?: string;
   attachments: any[];
+  // Add missing properties to match GraphQL type
+  lines?: any[];
+  payments?: any[];
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+  updatedBy?: string;
 }
 
 export interface ARAPPayment {
@@ -62,6 +69,11 @@ export interface ARAPPayment {
   description?: string;
   notes?: string;
   attachments: any[];
+  // Add missing properties to match GraphQL type
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+  updatedBy?: string;
 }
 
 export interface PaymentApplication {
@@ -152,7 +164,7 @@ export class AccountsReceivablePayableService {
     return await this.drizzle.getDb().transaction(async (tx) => {
       // Generate invoice number if not provided
       if (!input.invoiceNumber) {
-        input.invoiceNumber = await this.generateInvoiceNumber(tenantId, input.invoiceType);
+        input.invoiceNumber = await this.generateInvoiceNumberInternal(tenantId, input.invoiceType);
       }
 
       // Calculate due date if not provided
@@ -315,12 +327,44 @@ export class AccountsReceivablePayableService {
     return result[0] ? this.transformToARAPInvoice(result[0]) : null;
   }
 
+  async updateInvoice(
+    tenantId: string, 
+    invoiceId: string, 
+    input: Partial<CreateInvoiceInput>, 
+    userId: string
+  ): Promise<ARAPInvoice | null> {
+    const updateData: any = {
+      updatedAt: new Date(),
+      updatedBy: userId,
+    };
+
+    if (input.invoiceDate) updateData.invoiceDate = input.invoiceDate;
+    if (input.dueDate) updateData.dueDate = input.dueDate;
+    if (input.description) updateData.description = input.description;
+    if (input.notes) updateData.notes = input.notes;
+    if (input.paymentTerms) updateData.paymentTerms = input.paymentTerms;
+    if (input.paymentTermsDays) updateData.paymentTermsDays = input.paymentTermsDays;
+
+    const result = await this.drizzle.getDb()
+      .update(arApInvoices)
+      .set(updateData)
+      .where(
+        and(
+          eq(arApInvoices.tenantId, tenantId),
+          eq(arApInvoices.id, invoiceId)
+        )
+      )
+      .returning();
+
+    return result[0] ? this.transformToARAPInvoice(result[0]) : null;
+  }
+
   // Payment Management
   async createPayment(tenantId: string, input: CreatePaymentInput, userId: string): Promise<ARAPPayment> {
     return await this.drizzle.getDb().transaction(async (tx) => {
       // Generate payment number if not provided
       if (!input.paymentNumber) {
-        input.paymentNumber = await this.generatePaymentNumber(tenantId, input.paymentType);
+        input.paymentNumber = await this.generatePaymentNumberInternal(tenantId, input.paymentType);
       }
 
       // Create payment
@@ -358,7 +402,7 @@ export class AccountsReceivablePayableService {
         let totalApplied = 0;
         
         for (const application of input.applications) {
-          await this.applyPaymentToInvoice(
+          await this.applyPaymentToInvoiceInternal(
             tx,
             tenantId,
             payment[0]?.id || '',
@@ -436,6 +480,42 @@ export class AccountsReceivablePayableService {
       .orderBy(desc(arApPayments.paymentDate));
     
     return payments.map(payment => this.transformToARAPPayment(payment));
+  }
+
+  async getPaymentById(tenantId: string, paymentId: string): Promise<ARAPPayment | null> {
+    const result = await this.drizzle.getDb()
+      .select()
+      .from(arApPayments)
+      .where(
+        and(
+          eq(arApPayments.tenantId, tenantId),
+          eq(arApPayments.id, paymentId)
+        )
+      )
+      .limit(1);
+
+    return result[0] ? this.transformToARAPPayment(result[0]) : null;
+  }
+
+  async sendPaymentReminder(tenantId: string, invoiceId: string, userId: string): Promise<void> {
+    // Implementation for sending payment reminders
+    // This would typically integrate with email/notification services
+    console.log(`Sending payment reminder for invoice ${invoiceId} in tenant ${tenantId} by user ${userId}`);
+    
+    // Update invoice to mark reminder sent
+    await this.drizzle.getDb()
+      .update(arApInvoices)
+      .set({
+        updatedAt: new Date(),
+        updatedBy: userId,
+        // Could add reminderSentAt field to track when reminders were sent
+      })
+      .where(
+        and(
+          eq(arApInvoices.tenantId, tenantId),
+          eq(arApInvoices.id, invoiceId)
+        )
+      );
   }
 
   // Aging Reports
@@ -527,8 +607,39 @@ export class AccountsReceivablePayableService {
     return agingReports.sort((a, b) => b.totalBalance - a.totalBalance);
   }
 
+  // Public wrapper for applyPaymentToInvoice
+  async applyPaymentToInvoice(
+    tenantId: string,
+    paymentId: string,
+    invoiceId: string,
+    appliedAmount: number,
+    discountAmount: number = 0,
+    userId: string
+  ): Promise<void> {
+    await this.drizzle.getDb().transaction(async (tx) => {
+      await this.applyPaymentToInvoiceInternal(
+        tx,
+        tenantId,
+        paymentId,
+        invoiceId,
+        appliedAmount,
+        discountAmount,
+        userId
+      );
+    });
+  }
+
+  // Public wrappers for number generation
+  async generateInvoiceNumber(tenantId: string, invoiceType: 'receivable' | 'payable'): Promise<string> {
+    return this.generateInvoiceNumberInternal(tenantId, invoiceType);
+  }
+
+  async generatePaymentNumber(tenantId: string, paymentType: 'received' | 'made'): Promise<string> {
+    return this.generatePaymentNumberInternal(tenantId, paymentType);
+  }
+
   // Helper Methods
-  private async applyPaymentToInvoice(
+  private async applyPaymentToInvoiceInternal(
     tx: any,
     tenantId: string,
     paymentId: string,
@@ -600,7 +711,7 @@ export class AccountsReceivablePayableService {
     console.log(`Creating journal entry for payment ${payment.id} in tenant ${tenantId}`);
   }
 
-  private async generateInvoiceNumber(tenantId: string, invoiceType: string): Promise<string> {
+  private async generateInvoiceNumberInternal(tenantId: string, invoiceType: string): Promise<string> {
     const prefix = invoiceType === 'receivable' ? 'INV' : 'BILL';
     const year = new Date().getFullYear();
     
@@ -632,7 +743,7 @@ export class AccountsReceivablePayableService {
     return `${prefix}-${year}-${nextNumber.toString().padStart(6, '0')}`;
   }
 
-  private async generatePaymentNumber(tenantId: string, paymentType: string): Promise<string> {
+  private async generatePaymentNumberInternal(tenantId: string, paymentType: string): Promise<string> {
     const prefix = paymentType === 'received' ? 'PMT' : 'PAY';
     const year = new Date().getFullYear();
     
@@ -674,6 +785,13 @@ export class AccountsReceivablePayableService {
       balanceAmount: typeof invoice.balanceAmount === 'string' ? parseFloat(invoice.balanceAmount) : invoice.balanceAmount,
       discountAmount: typeof invoice.discountAmount === 'string' ? parseFloat(invoice.discountAmount) : invoice.discountAmount,
       invoiceType: invoice.invoiceType as 'receivable' | 'payable',
+      // Add missing properties with defaults
+      lines: invoice.lines || [],
+      payments: invoice.payments || [],
+      createdAt: invoice.createdAt || new Date(),
+      updatedAt: invoice.updatedAt || new Date(),
+      createdBy: invoice.createdBy || '',
+      updatedBy: invoice.updatedBy,
     } as ARAPInvoice;
   }
 
@@ -685,6 +803,11 @@ export class AccountsReceivablePayableService {
       unappliedAmount: typeof payment.unappliedAmount === 'string' ? parseFloat(payment.unappliedAmount) : payment.unappliedAmount,
       exchangeRate: typeof payment.exchangeRate === 'string' ? parseFloat(payment.exchangeRate) : payment.exchangeRate,
       paymentType: payment.paymentType as 'received' | 'made',
+      // Add missing properties with defaults
+      createdAt: payment.createdAt || new Date(),
+      updatedAt: payment.updatedAt || new Date(),
+      createdBy: payment.createdBy || '',
+      updatedBy: payment.updatedBy,
     } as ARAPPayment;
   }
 }

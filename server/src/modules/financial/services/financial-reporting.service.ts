@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ChartOfAccountsService } from './chart-of-accounts.service';
 import { JournalEntryService } from './journal-entry.service';
-import { AccountType, AccountSubType } from '../dto/chart-of-accounts.dto';
+import { AccountType, AccountSubType } from '../graphql/enums';
 import { IntelligentCacheService } from '../../cache/intelligent-cache.service';
 
 interface ChartOfAccountsEntity {

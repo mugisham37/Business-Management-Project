@@ -2,36 +2,41 @@ import { Injectable } from '@nestjs/common';
 import { eq, and, desc, asc, like, isNull, sql } from 'drizzle-orm';
 import { DrizzleService } from '../../database/drizzle.service';
 import { chartOfAccounts } from '../../database/schema/financial.schema';
-import { CreateChartOfAccountDto, UpdateChartOfAccountDto, AccountType } from '../dto/chart-of-accounts.dto';
+import { 
+  CreateChartOfAccountInput, 
+  UpdateChartOfAccountInput 
+} from '../graphql/inputs';
+import { AccountType } from '../graphql/enums';
 
 @Injectable()
 export class ChartOfAccountsRepository {
   constructor(private readonly drizzle: DrizzleService) {}
 
-  async create(tenantId: string, dto: CreateChartOfAccountDto, userId: string) {
-    const accountPath = await this.generateAccountPath(tenantId, dto.parentAccountId, dto.accountNumber);
-    const accountLevel = dto.parentAccountId ? await this.getAccountLevel(dto.parentAccountId) + 1 : 1;
+  async create(tenantId: string, input: CreateChartOfAccountInput, userId: string) {
+    const accountPath = await this.generateAccountPath(tenantId, input.parentAccountId, input.accountNumber);
+    const accountLevel = input.parentAccountId ? await this.getAccountLevel(input.parentAccountId) + 1 : 1;
 
     const accounts = await this.drizzle.getDb()
       .insert(chartOfAccounts)
       .values({
         tenantId,
-        accountNumber: dto.accountNumber,
-        accountName: dto.accountName,
-        accountType: dto.accountType,
-        accountSubType: dto.accountSubType,
-        parentAccountId: dto.parentAccountId,
+        accountNumber: input.accountNumber,
+        accountName: input.accountName,
+        accountType: input.accountType,
+        accountSubType: input.accountSubType,
+        parentAccountId: input.parentAccountId,
         accountLevel,
         accountPath,
-        normalBalance: dto.normalBalance,
-        description: dto.description,
-        taxReportingCategory: dto.taxReportingCategory,
-        isActive: dto.isActive ?? true,
-        allowManualEntries: dto.allowManualEntries ?? true,
-        requireDepartment: dto.requireDepartment ?? false,
-        requireProject: dto.requireProject ?? false,
-        externalAccountId: dto.externalAccountId,
-        settings: dto.settings || {},
+        normalBalance: input.normalBalance,
+        description: input.description,
+        taxReportingCategory: input.taxReportingCategory,
+        isActive: input.isActive ?? true,
+        allowManualEntries: input.allowManualJournalEntries ?? true,
+        requireDepartment: input.requireDepartment ?? false,
+        requireProject: input.requireProject ?? false,
+        requireCustomer: input.requireCustomer ?? false,
+        requireSupplier: input.requireSupplier ?? false,
+        settings: {},
         createdBy: userId,
         updatedBy: userId,
       })
@@ -136,11 +141,11 @@ export class ChartOfAccountsRepository {
     return rootAccounts.map(id => accountMap.get(id));
   }
 
-  async update(tenantId: string, id: string, dto: UpdateChartOfAccountDto, userId: string) {
+  async update(tenantId: string, id: string, input: UpdateChartOfAccountInput, userId: string) {
     const [account] = await this.drizzle.getDb()
       .update(chartOfAccounts)
       .set({
-        ...dto,
+        ...input,
         updatedBy: userId,
         updatedAt: new Date(),
       })

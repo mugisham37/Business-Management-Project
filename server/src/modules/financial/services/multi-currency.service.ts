@@ -201,6 +201,32 @@ export class MultiCurrencyService {
     return currency;
   }
 
+  async getCurrencyById(tenantId: string, currencyId: string): Promise<Currency | null> {
+    const cacheKey = `currency:id:${tenantId}:${currencyId}`;
+    let currency = await this.cacheService.get<Currency>(cacheKey);
+
+    if (!currency) {
+      const result = await this.drizzle.getDb()
+        .select()
+        .from(currencies)
+        .where(
+          and(
+            eq(currencies.tenantId, tenantId),
+            eq(currencies.id, currencyId),
+            eq(currencies.isActive, true)
+          )
+        )
+        .limit(1);
+
+      currency = result[0] as Currency || null;
+      if (currency) {
+        await this.cacheService.set(cacheKey, currency, { ttl: 300 });
+      }
+    }
+
+    return currency;
+  }
+
   // Exchange Rate Management
   async createExchangeRate(tenantId: string, data: Partial<ExchangeRate>): Promise<ExchangeRate> {
     // Calculate inverse rate

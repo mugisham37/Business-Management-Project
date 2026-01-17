@@ -1,8 +1,9 @@
-import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
-import { CreateChartOfAccountDto, UpdateChartOfAccountDto, AccountType } from '../dto/chart-of-accounts.dto';
-import { ChartOfAccount } from '../types/chart-of-accounts.types';
+import { CreateChartOfAccountInput, UpdateChartOfAccountInput } from '../graphql/inputs';
+import { ChartOfAccount, AccountHierarchy, AccountBalance } from '../graphql/types';
+import { AccountType } from '../graphql/enums';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
@@ -11,25 +12,31 @@ import { RequirePermission } from '../../auth/decorators/auth.decorators';
 import { CurrentUser } from '../../auth/decorators/auth.decorators';
 import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
-import { transformToChartOfAccountArray, transformHierarchyArrayToChartOfAccountArray } from '../utils/type-transformers';
+import { BaseResolver } from '../../../common/graphql/base.resolver';
+import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 
-@Resolver()
+@Resolver(() => ChartOfAccount)
 @UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('financial-management')
-export class ChartOfAccountsResolver {
-  constructor(private readonly chartOfAccountsService: ChartOfAccountsService) {}
+export class ChartOfAccountsResolver extends BaseResolver {
+  constructor(
+    protected override readonly dataLoaderService: DataLoaderService,
+    private readonly chartOfAccountsService: ChartOfAccountsService,
+  ) {
+    super(dataLoaderService);
+  }
 
-  @Mutation(() => String)
+  @Mutation(() => ChartOfAccount)
   @RequirePermission('financial:manage')
   async createAccount(
-    @Args('input') input: CreateChartOfAccountDto,
+    @Args('input') input: CreateChartOfAccountInput,
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<any> {
+  ): Promise<ChartOfAccount> {
     return await this.chartOfAccountsService.createAccount(tenantId, input, user.id);
   }
 
-  @Query(() => [String])
+  @Query(() => [ChartOfAccount])
   @RequirePermission('financial:read')
   async accounts(
     @CurrentTenant() tenantId: string,
@@ -51,47 +58,45 @@ export class ChartOfAccountsResolver {
     if (includeInactive !== undefined) options.includeInactive = includeInactive;
     
     const accounts = await this.chartOfAccountsService.getAllAccounts(tenantId, options);
-    return transformToChartOfAccountArray(accounts);
+    return accounts;
   }
 
-  @Query(() => String)
+  @Query(() => ChartOfAccount)
   @RequirePermission('financial:read')
   async account(
     @Args('id', { type: () => ID }) id: string,
     @CurrentTenant() tenantId: string,
-  ): Promise<any> {
+  ): Promise<ChartOfAccount> {
     return await this.chartOfAccountsService.findAccountById(tenantId, id);
   }
 
-  @Query(() => [String])
+  @Query(() => [AccountHierarchy])
   @RequirePermission('financial:read')
   async accountHierarchy(
     @CurrentTenant() tenantId: string,
     @Args('rootAccountId', { nullable: true }) rootAccountId?: string,
-  ): Promise<ChartOfAccount[]> {
-    const hierarchy = await this.chartOfAccountsService.getAccountHierarchy(tenantId, rootAccountId);
-    return transformHierarchyArrayToChartOfAccountArray(hierarchy);
+  ): Promise<AccountHierarchy[]> {
+    return await this.chartOfAccountsService.getAccountHierarchy(tenantId, rootAccountId);
   }
 
-  @Query(() => [String])
+  @Query(() => [ChartOfAccount])
   @RequirePermission('financial:read')
   async searchAccounts(
     @Args('searchTerm') searchTerm: string,
     @CurrentTenant() tenantId: string,
     @Args('limit', { nullable: true }) limit?: number,
-  ): Promise<any[]> {
+  ): Promise<ChartOfAccount[]> {
     return await this.chartOfAccountsService.searchAccounts(tenantId, searchTerm, limit);
   }
 
-  @Mutation(() => String)
+  @Mutation(() => ChartOfAccount)
   @RequirePermission('financial:manage')
   async updateAccount(
-    @Args('id', { type: () => ID }) id: string,
-    @Args('input') input: UpdateChartOfAccountDto,
+    @Args('input') input: UpdateChartOfAccountInput,
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<any> {
-    return await this.chartOfAccountsService.updateAccount(tenantId, id, input, user.id);
+  ): Promise<ChartOfAccount> {
+    return await this.chartOfAccountsService.updateAccount(tenantId, input.id, input, user.id);
   }
 
   @Mutation(() => Boolean)
@@ -113,5 +118,89 @@ export class ChartOfAccountsResolver {
   ): Promise<string> {
     const accounts = await this.chartOfAccountsService.initializeDefaultChartOfAccounts(tenantId, user.id);
     return `Created ${accounts.length} default accounts`;
+  }
+
+  // Field Resolvers with DataLoader optimization
+  @ResolveField(() => ChartOfAccount, { nullable: true })
+  async parentAccount(
+    @Parent() account: ChartOfAccount,
+    @CurrentTenant() tenantId: string,
+  ): Promise<ChartOfAccount | null> {
+    if (!account.parentAccountId) return null;
+    
+    return await this.dataLoaderService.getLoader(
+      'chartOfAccount',
+      async (ids: readonly string[]) => {
+        const accounts = await Promise.all(
+          ids.map(id => this.chartOfAccountsService.findAccountById(tenantId, id))
+        );
+        return accounts;
+      }
+    ).load(account.parentAccountId);
+  }
+
+  @ResolveField(() => [ChartOfAccount])
+  async childAccounts(
+    @Parent() account: ChartOfAccount,
+    @CurrentTenant() tenantId: string,
+  ): Promise<ChartOfAccount[]> {
+    return await this.chartOfAccountsService.getAllAccounts(tenantId, {
+      parentAccountId: account.id,
+      isActive: true,
+    });
+  }
+
+  @ResolveField(() => AccountBalance)
+  async currentAccountBalance(
+    @Parent() account: ChartOfAccount,
+    @CurrentTenant() tenantId: string,
+  ): Promise<AccountBalance> {
+    const balanceString = await this.chartOfAccountsService.getAccountBalance(tenantId, account.id);
+    const balance = parseFloat(balanceString) || 0;
+    
+    // Determine if this is a debit or credit balance based on account type and normal balance
+    const isDebitBalance = account.normalBalance === 'debit';
+    
+    return {
+      accountId: account.id,
+      account,
+      debitBalance: isDebitBalance && balance > 0 ? balance.toFixed(2) : '0.00',
+      creditBalance: !isDebitBalance && balance > 0 ? balance.toFixed(2) : '0.00',
+      netBalance: balance.toFixed(2),
+      asOfDate: new Date(),
+      tenantId,
+    };
+  }
+
+  @ResolveField(() => Boolean)
+  async hasTransactions(
+    @Parent() account: ChartOfAccount,
+    @CurrentTenant() tenantId: string,
+  ): Promise<boolean> {
+    // This would check if the account has any journal entry lines
+    // Implementation would depend on JournalEntryService
+    return false; // Placeholder
+  }
+
+  @ResolveField(() => String)
+  async accountPath(
+    @Parent() account: ChartOfAccount,
+    @CurrentTenant() tenantId: string,
+  ): Promise<string> {
+    // Build full account path (e.g., "Assets > Current Assets > Cash")
+    const path = [account.accountName];
+    let currentAccount = account;
+    
+    while (currentAccount.parentAccountId) {
+      const parent = await this.chartOfAccountsService.findAccountById(tenantId, currentAccount.parentAccountId);
+      if (parent) {
+        path.unshift(parent.accountName);
+        currentAccount = parent;
+      } else {
+        break;
+      }
+    }
+    
+    return path.join(' > ');
   }
 }

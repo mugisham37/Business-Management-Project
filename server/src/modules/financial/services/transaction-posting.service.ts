@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { JournalEntryService } from './journal-entry.service';
 import { ChartOfAccountsService } from './chart-of-accounts.service';
-import { AccountType } from '../dto/chart-of-accounts.dto';
+import { AccountType } from '../graphql/enums';
 
 @Injectable()
 export class TransactionPostingService {

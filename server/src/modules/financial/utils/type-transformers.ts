@@ -1,80 +1,60 @@
 import { ChartOfAccount } from '../types/chart-of-accounts.types';
-import { ChartOfAccountResponseDto, AccountHierarchyDto, NormalBalance } from '../dto/chart-of-accounts.dto';
+import { ChartOfAccount as ChartOfAccountGQL, AccountHierarchy } from '../graphql/types';
+import { NormalBalance } from '../graphql/enums';
 
 /**
- * Transform ChartOfAccountResponseDto to ChartOfAccount
+ * Transform ChartOfAccount to GraphQL ChartOfAccount
  * Handles type conversions and provides defaults for missing properties
  */
-export function transformToChartOfAccount(dto: ChartOfAccountResponseDto): ChartOfAccount {
-  const result: ChartOfAccount = {
-    id: dto.id,
-    tenantId: dto.tenantId,
-    accountNumber: dto.accountNumber,
-    accountName: dto.accountName,
-    accountType: dto.accountType,
-    accountSubType: dto.accountSubType,
-    accountLevel: dto.accountLevel,
-    accountPath: dto.accountPath || '',
-    normalBalance: dto.normalBalance,
-    isActive: dto.isActive,
-    allowManualEntries: dto.allowManualEntries,
-    requireDepartment: dto.requireDepartment,
-    requireProject: dto.requireProject,
-    isSystemAccount: dto.isSystemAccount,
-    currentBalance: parseFloat(dto.currentBalance || '0'),
-    settings: dto.settings || {},
-    createdAt: dto.createdAt,
-    updatedAt: dto.updatedAt,
-    version: dto.version || 1,
-  };
-
-  // Handle optional properties explicitly
-  if (dto.parentAccountId !== undefined) {
-    result.parentAccountId = dto.parentAccountId;
-  }
-  
-  if (dto.description !== undefined) {
-    result.description = dto.description;
-  }
-  
-  if (dto.taxReportingCategory !== undefined) {
-    result.taxReportingCategory = dto.taxReportingCategory;
-  }
-  
-  if (dto.externalAccountId !== undefined) {
-    result.externalAccountId = dto.externalAccountId;
-  }
-  
-  if (dto.createdBy !== undefined) {
-    result.createdBy = dto.createdBy;
-  }
-  
-  if (dto.updatedBy !== undefined) {
-    result.updatedBy = dto.updatedBy;
-  }
-
-  return result;
+export function transformToChartOfAccount(account: ChartOfAccount): ChartOfAccountGQL {
+  return {
+    id: account.id,
+    tenantId: account.tenantId,
+    accountNumber: account.accountNumber,
+    accountName: account.accountName,
+    accountType: account.accountType,
+    accountSubType: account.accountSubType,
+    parentAccountId: account.parentAccountId,
+    parentAccount: undefined, // Will be resolved by GraphQL field resolver
+    childAccounts: [], // Will be resolved by GraphQL field resolver
+    normalBalance: account.normalBalance,
+    description: account.description,
+    taxReportingCategory: account.taxReportingCategory,
+    isActive: account.isActive,
+    isSystemAccount: account.isSystemAccount,
+    allowManualJournalEntries: account.allowManualEntries,
+    requireDepartment: account.requireDepartment,
+    requireProject: account.requireProject,
+    requireCustomer: false, // Default value
+    requireSupplier: false, // Default value
+    currentBalance: account.currentBalance.toString(),
+    beginningBalance: '0.00', // Default value
+    createdAt: account.createdAt,
+    updatedAt: account.updatedAt,
+    createdBy: account.createdBy || '',
+    updatedBy: account.updatedBy,
+  } as ChartOfAccountGQL;
 }
 
 /**
- * Transform array of ChartOfAccountResponseDto to ChartOfAccount array
+ * Transform array of ChartOfAccount to GraphQL ChartOfAccount array
  */
-export function transformToChartOfAccountArray(dtos: ChartOfAccountResponseDto[]): ChartOfAccount[] {
-  return dtos.map(transformToChartOfAccount);
+export function transformToChartOfAccountArray(accounts: ChartOfAccount[]): ChartOfAccountGQL[] {
+  return accounts.map(transformToChartOfAccount);
 }
 
 /**
- * Transform AccountHierarchyDto to ChartOfAccount
+ * Transform AccountHierarchy to GraphQL ChartOfAccount
  * Flattens the hierarchy structure to match ChartOfAccount interface
  */
-export function transformHierarchyToChartOfAccount(hierarchy: AccountHierarchyDto): ChartOfAccount {
+export function transformHierarchyToChartOfAccount(hierarchy: any): ChartOfAccountGQL {
   return transformToChartOfAccount(hierarchy.account);
 }
 
 /**
- * Transform array of AccountHierarchyDto to ChartOfAccount array
+ * Transform array of AccountHierarchy to GraphQL ChartOfAccount array
  */
-export function transformHierarchyArrayToChartOfAccountArray(hierarchies: AccountHierarchyDto[]): ChartOfAccount[] {
+export function transformHierarchyArrayToChartOfAccountArray(hierarchies: any[]): ChartOfAccountGQL[] {
   return hierarchies.map(transformHierarchyToChartOfAccount);
 }
 

@@ -1,6 +1,21 @@
 import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
-import { TaxService, TaxJurisdiction, TaxRate, TaxCalculationInput, TaxCalculationResult, TaxReturn } from '../services/tax.service';
+import { TaxService } from '../services/tax.service';
+import { 
+  CreateTaxJurisdictionInput,
+  UpdateTaxJurisdictionInput,
+  CreateTaxRateInput,
+  UpdateTaxRateInput,
+  TaxCalculationInput,
+  CreateTaxReturnInput,
+  UpdateTaxReturnInput
+} from '../graphql/inputs';
+import { 
+  TaxJurisdiction, 
+  TaxRate, 
+  TaxCalculationResult, 
+  TaxReturn 
+} from '../graphql/types';
 import { BaseResolver } from '../../../common/graphql/base.resolver';
 import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 import { IntelligentCacheService } from '../../cache/intelligent-cache.service';
@@ -33,22 +48,13 @@ export class TaxResolver extends BaseResolver {
    * Query: Calculate tax
    * Calculates tax for a given amount and jurisdiction
    */
-  @Query(() => String)
+  @Query(() => TaxCalculationResult)
   @RequirePermission('financial:read')
   async calculateTax(
-    @Args('input') input: any,
+    @Args('input') input: TaxCalculationInput,
     @CurrentTenant() tenantId: string,
   ): Promise<TaxCalculationResult> {
-    const taxInput: TaxCalculationInput = {
-      sourceType: input.sourceType,
-      sourceId: input.sourceId,
-      taxableAmount: parseFloat(input.taxableAmount),
-      productType: input.productType || 'product',
-      jurisdictionCodes: input.jurisdictionCodes,
-      calculationDate: input.calculationDate ? new Date(input.calculationDate) : new Date(),
-    };
-
-    return await this.taxService.calculateTax(tenantId, taxInput);
+    return await this.taxService.calculateTax(tenantId, input);
   }
 
   /**

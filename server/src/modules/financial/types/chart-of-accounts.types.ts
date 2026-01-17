@@ -1,4 +1,4 @@
-import { AccountType, AccountSubType, NormalBalance } from '../dto/chart-of-accounts.dto';
+import { AccountType, AccountSubType, NormalBalance } from '../graphql/enums';
 
 export interface ChartOfAccount {
   id: string;
