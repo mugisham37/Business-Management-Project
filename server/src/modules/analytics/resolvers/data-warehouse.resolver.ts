@@ -1,4 +1,4 @@
-import { Resolver, Query, Args } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/graphql-jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
@@ -82,6 +82,133 @@ export class DataWarehouseResolver extends BaseResolver {
       };
     } catch (error) {
       this.handleError(error, 'Failed to get data cube');
+      throw error;
+    }
+  }
+
+  /**
+   * Get warehouse statistics
+   */
+  @Query(() => String, { name: 'getWarehouseStatistics' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:read')
+  async getWarehouseStatistics(
+    @CurrentUser() _user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<string> {
+    try {
+      const statistics = await this.dataWarehouseService.getWarehouseStatistics(tenantId);
+      return JSON.stringify(statistics);
+    } catch (error) {
+      this.handleError(error, 'Failed to get warehouse statistics');
+      throw error;
+    }
+  }
+
+  /**
+   * Test warehouse connection
+   */
+  @Query(() => Boolean, { name: 'testWarehouseConnection' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:admin')
+  async testWarehouseConnection(
+    @CurrentUser() _user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<boolean> {
+    try {
+      const isConnected = await this.dataWarehouseService.testConnection(tenantId);
+      return isConnected;
+    } catch (error) {
+      this.handleError(error, 'Failed to test warehouse connection');
+      throw error;
+    }
+  }
+
+  /**
+   * Create tenant schema in warehouse
+   */
+  @Mutation(() => String, { name: 'createTenantSchema' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:admin')
+  async createTenantSchema(
+    @Args('schemaConfig', { type: () => String }) schemaConfig: string,
+    @CurrentUser() user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<string> {
+    try {
+      const config = JSON.parse(schemaConfig);
+      await this.dataWarehouseService.createTenantSchema(tenantId, config);
+      return 'Tenant schema created successfully';
+    } catch (error) {
+      this.handleError(error, 'Failed to create tenant schema');
+      throw error;
+    }
+  }
+
+  /**
+   * Optimize warehouse performance
+   */
+  @Mutation(() => String, { name: 'optimizeWarehouse' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:admin')
+  async optimizeWarehouse(
+    @Args('optimizationConfig', { type: () => String, nullable: true }) optimizationConfig?: string,
+    @CurrentUser() user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<string> {
+    try {
+      const config = optimizationConfig ? JSON.parse(optimizationConfig) : {};
+      await this.dataWarehouseService.optimizeWarehouse(tenantId, config);
+      return 'Warehouse optimization completed successfully';
+    } catch (error) {
+      this.handleError(error, 'Failed to optimize warehouse');
+      throw error;
+    }
+  }
+
+  /**
+   * Create partitions for better performance
+   */
+  @Mutation(() => String, { name: 'createPartitions' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:admin')
+  async createPartitions(
+    @Args('partitionConfig', { type: () => String }) partitionConfig: string,
+    @CurrentUser() user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<string> {
+    try {
+      const config = JSON.parse(partitionConfig);
+      await this.dataWarehouseService.createPartitions(tenantId, config);
+      return 'Partitions created successfully';
+    } catch (error) {
+      this.handleError(error, 'Failed to create partitions');
+      throw error;
+    }
+  }
+
+  /**
+   * Get available data cubes
+   */
+  @Query(() => [DataCube], { name: 'getDataCubes' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:read')
+  async getDataCubes(
+    @CurrentUser() _user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<DataCube[]> {
+    try {
+      const cubes = await this.dataWarehouseService.getAvailableCubes?.(tenantId) || [];
+      
+      return cubes.map((cube: any) => ({
+        id: cube.id || `cube_${cube.name}`,
+        name: cube.name,
+        dimensions: cube.dimensions || [],
+        measures: cube.measures || [],
+        data: JSON.stringify(cube.data || {}),
+      }));
+    } catch (error) {
+      this.handleError(error, 'Failed to get data cubes');
       throw error;
     }
   }

@@ -1,5 +1,4 @@
 import { ObjectType, Field, ID, Int, Float, registerEnumType } from '@nestjs/graphql';
-import { ApiProperty } from '@nestjs/swagger';
 import { BaseEntity } from '../../../common/graphql/base.types';
 
 // Enums first
@@ -57,95 +56,75 @@ registerEnumType(ExecutionStatus, {
 @ObjectType()
 export class MetricDimension {
   @Field()
-  @ApiProperty({ description: 'Dimension name' })
   name!: string;
 
   @Field()
-  @ApiProperty({ description: 'Dimension value' })
   value!: string;
 }
 
 @ObjectType()
 export class TrendDataPoint {
   @Field()
-  @ApiProperty({ description: 'Data point timestamp' })
   timestamp!: Date;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Data point value' })
   value!: number;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Data point label', required: false })
   label?: string;
 }
 
 @ObjectType()
 export class MetricValue {
   @Field()
-  @ApiProperty({ description: 'Metric name' })
   name!: string;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Metric value' })
   value!: number;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Metric unit', required: false })
   unit?: string;
 }
 
 @ObjectType()
 export class DashboardWidget {
   @Field(() => ID)
-  @ApiProperty({ description: 'Widget identifier' })
   id!: string;
 
   @Field()
-  @ApiProperty({ description: 'Widget title' })
   title!: string;
 
   @Field()
-  @ApiProperty({ description: 'Widget type' })
   type!: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Widget data', required: false })
   data?: string;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Widget position X' })
   x!: number;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Widget position Y' })
   y!: number;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Widget width' })
   width!: number;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Widget height' })
   height!: number;
 }
 
 @ObjectType()
 export class ForecastDataPoint {
   @Field()
-  @ApiProperty({ description: 'Timestamp' })
   timestamp!: Date;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Predicted value' })
   value!: number;
 
   @Field(() => Float, { nullable: true })
-  @ApiProperty({ description: 'Lower bound', required: false })
   lowerBound?: number;
 
   @Field(() => Float, { nullable: true })
-  @ApiProperty({ description: 'Upper bound', required: false })
   upperBound?: number;
 }
 
@@ -153,405 +132,680 @@ export class ForecastDataPoint {
 @ObjectType()
 export class Metric {
   @Field(() => ID)
-  @ApiProperty({ description: 'Metric identifier' })
   id!: string;
 
   @Field()
-  @ApiProperty({ description: 'Metric name' })
   name!: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Metric description', required: false })
   description?: string;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Metric value' })
   value!: number;
 
   @Field()
-  @ApiProperty({ description: 'Metric unit' })
   unit!: string;
 
   @Field()
-  @ApiProperty({ description: 'Metric category' })
   category!: string;
 
   @Field()
-  @ApiProperty({ description: 'Timestamp for the metric' })
   timestamp!: Date;
 
   @Field(() => [MetricDimension], { nullable: true })
-  @ApiProperty({ type: [MetricDimension], required: false })
   dimensions?: MetricDimension[];
 }
 
 @ObjectType()
 export class KPI {
   @Field(() => ID)
-  @ApiProperty({ description: 'KPI identifier' })
   id!: string;
 
   @Field()
-  @ApiProperty({ description: 'KPI name' })
   name!: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'KPI description', required: false })
   description?: string;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Current value' })
   currentValue!: number;
 
   @Field(() => Float, { nullable: true })
-  @ApiProperty({ description: 'Target value', required: false })
   targetValue?: number;
 
   @Field(() => Float, { nullable: true })
-  @ApiProperty({ description: 'Previous period value', required: false })
   previousValue?: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Change percentage' })
   changePercentage!: number;
 
   @Field()
-  @ApiProperty({ description: 'KPI status' })
   status!: string;
 
   @Field()
-  @ApiProperty({ description: 'Measurement period' })
   period!: string;
 
   @Field()
-  @ApiProperty({ description: 'Last updated timestamp' })
   updatedAt!: Date;
 }
 
 @ObjectType()
 export class Trend {
   @Field(() => ID)
-  @ApiProperty({ description: 'Trend identifier' })
   id!: string;
 
   @Field()
-  @ApiProperty({ description: 'Metric name' })
   metricName!: string;
 
   @Field(() => [TrendDataPoint])
-  @ApiProperty({ type: [TrendDataPoint] })
   dataPoints!: TrendDataPoint[];
 
   @Field()
-  @ApiProperty({ description: 'Trend direction' })
   direction!: string;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Trend slope' })
   slope!: number;
 
   @Field()
-  @ApiProperty({ description: 'Start date' })
   startDate!: Date;
 
   @Field()
-  @ApiProperty({ description: 'End date' })
   endDate!: Date;
 }
 
 @ObjectType()
 export class ComparisonResult {
   @Field(() => ID)
-  @ApiProperty({ description: 'Comparison identifier' })
   id!: string;
 
   @Field()
-  @ApiProperty({ description: 'Comparison type' })
   comparisonType!: string;
 
   @Field()
-  @ApiProperty({ description: 'Metric name' })
   metricName!: string;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Current period value' })
   currentValue!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Comparison period value' })
   comparisonValue!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Absolute variance' })
   variance!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Percentage change' })
   percentageChange!: number;
 
   @Field()
-  @ApiProperty({ description: 'Current period label' })
   currentLabel!: string;
 
   @Field()
-  @ApiProperty({ description: 'Comparison period label' })
   comparisonLabel!: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Additional context', required: false })
   context?: string;
 }
 
 @ObjectType()
 export class LocationComparison {
   @Field(() => ID)
-  @ApiProperty({ description: 'Location identifier' })
   locationId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Location name' })
   locationName!: string;
 
   @Field(() => [MetricValue])
-  @ApiProperty({ type: [MetricValue] })
   metrics!: MetricValue[];
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Rank among compared locations' })
   rank!: number;
 }
 
 @ObjectType()
 export class SegmentComparison {
   @Field(() => ID)
-  @ApiProperty({ description: 'Segment identifier' })
   segmentId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Segment name' })
   segmentName!: string;
 
   @Field(() => [MetricValue])
-  @ApiProperty({ type: [MetricValue] })
   metrics!: MetricValue[];
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Segment size' })
   size!: number;
 }
 
 @ObjectType()
 export class Report extends BaseEntity {
   @Field()
-  @ApiProperty({ description: 'Report name' })
   name!: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Report description', required: false })
   description?: string;
 
   @Field()
-  @ApiProperty({ description: 'Report type' })
   reportType!: string;
 
   @Field()
-  @ApiProperty({ description: 'Report status' })
   status!: string;
 
   @Field(() => [String])
-  @ApiProperty({ type: [String] })
   metrics!: string[];
 
   @Field(() => [String], { nullable: true })
-  @ApiProperty({ type: [String], required: false })
   dimensions?: string[];
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   schedule?: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   lastRunAt?: Date;
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   nextRunAt?: Date;
 }
 
 @ObjectType()
 export class ReportExecution {
   @Field(() => ID)
-  @ApiProperty({ description: 'Execution identifier' })
   id!: string;
 
   @Field(() => ID)
-  @ApiProperty({ description: 'Report identifier' })
   reportId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Execution status' })
   status!: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Job ID for tracking', required: false })
   jobId?: string;
 
   @Field()
-  @ApiProperty({ description: 'Started at timestamp' })
   startedAt!: Date;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Completed at timestamp', required: false })
   completedAt?: Date;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Error message if failed', required: false })
   error?: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Result data', required: false })
   result?: string;
 }
 
 @ObjectType()
 export class ScheduledReport {
   @Field(() => ID)
-  @ApiProperty({ description: 'Schedule identifier' })
   id!: string;
 
   @Field(() => ID)
-  @ApiProperty({ description: 'Report identifier' })
   reportId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Schedule expression (cron)' })
   schedule!: string;
 
   @Field()
-  @ApiProperty({ description: 'Whether schedule is active' })
   isActive!: boolean;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Next run timestamp', required: false })
   nextRunAt?: Date;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Last run timestamp', required: false })
   lastRunAt?: Date;
 }
 
 @ObjectType()
 export class Dashboard extends BaseEntity {
   @Field()
-  @ApiProperty({ description: 'Dashboard name' })
   name!: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Dashboard description', required: false })
   description?: string;
 
   @Field(() => [DashboardWidget])
-  @ApiProperty({ type: [DashboardWidget] })
   widgets!: DashboardWidget[];
 
   @Field()
-  @ApiProperty({ description: 'Whether dashboard is public' })
   isPublic!: boolean;
 }
 
 @ObjectType()
 export class WidgetData {
   @Field(() => ID)
-  @ApiProperty({ description: 'Widget identifier' })
   widgetId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Data as JSON string' })
   data!: string;
 
   @Field()
-  @ApiProperty({ description: 'Last updated timestamp' })
   updatedAt!: Date;
 
   @Field()
-  @ApiProperty({ description: 'Whether data is from cache' })
   fromCache!: boolean;
 }
 
 @ObjectType()
 export class DataCube {
   @Field(() => ID)
-  @ApiProperty({ description: 'Cube identifier' })
   id!: string;
 
   @Field()
-  @ApiProperty({ description: 'Cube name' })
   name!: string;
 
   @Field(() => [String])
-  @ApiProperty({ type: [String] })
   dimensions!: string[];
 
   @Field(() => [String])
-  @ApiProperty({ type: [String] })
   measures!: string[];
 
   @Field()
-  @ApiProperty({ description: 'Cube data as JSON' })
   data!: string;
 }
 
 @ObjectType()
 export class Forecast {
   @Field(() => ID)
-  @ApiProperty({ description: 'Forecast identifier' })
   id!: string;
 
   @Field()
-  @ApiProperty({ description: 'Metric name' })
   metricName!: string;
 
   @Field(() => [ForecastDataPoint])
-  @ApiProperty({ type: [ForecastDataPoint] })
   predictions!: ForecastDataPoint[];
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Confidence level' })
   confidence!: number;
 
   @Field()
-  @ApiProperty({ description: 'Model used' })
   model!: string;
 }
 
 @ObjectType()
 export class Anomaly {
   @Field(() => ID)
-  @ApiProperty({ description: 'Anomaly identifier' })
   id!: string;
 
   @Field()
-  @ApiProperty({ description: 'Metric name' })
   metricName!: string;
 
   @Field()
-  @ApiProperty({ description: 'Timestamp' })
   timestamp!: Date;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Actual value' })
   actualValue!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Expected value' })
   expectedValue!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Deviation score' })
   deviationScore!: number;
 
   @Field()
-  @ApiProperty({ description: 'Severity level' })
   severity!: string;
+}
+
+@ObjectType()
+export class AnalyticsConfiguration {
+  @Field(() => ID)
+  id!: string;
+
+  @Field()
+  tenantId!: string;
+
+  @Field()
+  dataRetentionPeriod!: string;
+
+  @Field()
+  aggregationLevel!: string;
+
+  @Field(() => [String])
+  enabledMetrics!: string[];
+
+  @Field({ nullable: true })
+  customSettings?: string;
+
+  @Field()
+  enableRealTimeProcessing!: boolean;
+
+  @Field()
+  enablePredictiveAnalytics!: boolean;
+
+  @Field()
+  createdAt!: Date;
+
+  @Field()
+  updatedAt!: Date;
+}
+
+@ObjectType()
+export class MetricDefinition {
+  @Field(() => ID)
+  id!: string;
+
+  @Field()
+  name!: string;
+
+  @Field({ nullable: true })
+  description?: string;
+
+  @Field()
+  dataType!: string;
+
+  @Field()
+  aggregationType!: string;
+
+  @Field(() => [String])
+  dimensions!: string[];
+
+  @Field({ nullable: true })
+  formula?: string;
+
+  @Field()
+  isCustom!: boolean;
+
+  @Field()
+  createdAt!: Date;
+
+  @Field()
+  updatedAt!: Date;
+}
+
+@ObjectType()
+export class ETLPipeline {
+  @Field(() => ID)
+  id!: string;
+
+  @Field()
+  name!: string;
+
+  @Field({ nullable: true })
+  description?: string;
+
+  @Field()
+  sourceType!: string;
+
+  @Field()
+  sourceConfig!: string;
+
+  @Field()
+  transformConfig!: string;
+
+  @Field()
+  destinationConfig!: string;
+
+  @Field({ nullable: true })
+  schedule?: string;
+
+  @Field()
+  isActive!: boolean;
+
+  @Field()
+  status!: string;
+
+  @Field({ nullable: true })
+  lastRunAt?: Date;
+
+  @Field({ nullable: true })
+  nextRunAt?: Date;
+
+  @Field()
+  createdAt!: Date;
+
+  @Field()
+  updatedAt!: Date;
+}
+
+@ObjectType()
+export class ETLJobResult {
+  @Field(() => ID)
+  id!: string;
+
+  @Field()
+  pipelineId!: string;
+
+  @Field()
+  status!: string;
+
+  @Field()
+  startedAt!: Date;
+
+  @Field({ nullable: true })
+  completedAt?: Date;
+
+  @Field(() => Int)
+  recordsProcessed!: number;
+
+  @Field(() => Int)
+  recordsSuccessful!: number;
+
+  @Field(() => Int)
+  recordsFailed!: number;
+
+  @Field({ nullable: true })
+  errorMessage?: string;
+
+  @Field({ nullable: true })
+  executionLog?: string;
+}
+
+@ObjectType()
+export class PredictiveModel {
+  @Field(() => ID)
+  id!: string;
+
+  @Field()
+  name!: string;
+
+  @Field()
+  modelType!: string;
+
+  @Field(() => [String])
+  features!: string[];
+
+  @Field()
+  targetVariable!: string;
+
+  @Field()
+  status!: string;
+
+  @Field(() => Float, { nullable: true })
+  accuracy?: number;
+
+  @Field({ nullable: true })
+  trainingConfig?: string;
+
+  @Field({ nullable: true })
+  lastTrainedAt?: Date;
+
+  @Field()
+  createdAt!: Date;
+
+  @Field()
+  updatedAt!: Date;
+}
+
+@ObjectType()
+export class DemandForecast {
+  @Field(() => ID)
+  id!: string;
+
+  @Field()
+  productId!: string;
+
+  @Field()
+  locationId!: string;
+
+  @Field(() => [ForecastDataPoint])
+  predictions!: ForecastDataPoint[];
+
+  @Field(() => Float)
+  confidence!: number;
+
+  @Field()
+  model!: string;
+
+  @Field()
+  forecastPeriod!: string;
+
+  @Field()
+  createdAt!: Date;
+}
+
+@ObjectType()
+export class ChurnPrediction {
+  @Field(() => ID)
+  id!: string;
+
+  @Field()
+  customerId!: string;
+
+  @Field(() => Float)
+  churnProbability!: number;
+
+  @Field()
+  riskLevel!: string;
+
+  @Field(() => [String])
+  riskFactors!: string[];
+
+  @Field({ nullable: true })
+  recommendedActions?: string;
+
+  @Field()
+  predictionDate!: Date;
+
+  @Field()
+  createdAt!: Date;
+}
+
+@ObjectType()
+export class PriceOptimization {
+  @Field(() => ID)
+  id!: string;
+
+  @Field()
+  productId!: string;
+
+  @Field({ nullable: true })
+  locationId?: string;
+
+  @Field(() => Float)
+  currentPrice!: number;
+
+  @Field(() => Float)
+  recommendedPrice!: number;
+
+  @Field(() => Float)
+  expectedRevenueLift!: number;
+
+  @Field(() => Float)
+  confidence!: number;
+
+  @Field({ nullable: true })
+  reasoning?: string;
+
+  @Field()
+  createdAt!: Date;
+}
+
+@ObjectType()
+export class InventoryOptimization {
+  @Field(() => ID)
+  id!: string;
+
+  @Field()
+  productId!: string;
+
+  @Field()
+  locationId!: string;
+
+  @Field(() => Int)
+  currentStock!: number;
+
+  @Field(() => Int)
+  recommendedStock!: number;
+
+  @Field(() => Int)
+  reorderPoint!: number;
+
+  @Field(() => Int)
+  reorderQuantity!: number;
+
+  @Field(() => Float)
+  expectedServiceLevel!: number;
+
+  @Field()
+  createdAt!: Date;
+}
+
+@ObjectType()
+export class QueryPerformanceStats {
+  @Field(() => ID)
+  id!: string;
+
+  @Field()
+  queryName!: string;
+
+  @Field(() => Float)
+  averageExecutionTime!: number;
+
+  @Field(() => Int)
+  executionCount!: number;
+
+  @Field(() => Float)
+  cacheHitRate!: number;
+
+  @Field(() => Int)
+  averageRowsReturned!: number;
+
+  @Field()
+  lastExecutedAt!: Date;
+
+  @Field()
+  createdAt!: Date;
+}
+
+@ObjectType()
+export class WarehouseStatistics {
+  @Field(() => ID)
+  id!: string;
+
+  @Field()
+  tenantId!: string;
+
+  @Field(() => Float)
+  totalStorageGB!: number;
+
+  @Field(() => Int)
+  totalTables!: number;
+
+  @Field(() => Int)
+  totalRows!: number;
+
+  @Field(() => Float)
+  compressionRatio!: number;
+
+  @Field(() => Float)
+  queryPerformanceScore!: number;
+
+  @Field()
+  lastOptimizedAt!: Date;
+
+  @Field()
+  updatedAt!: Date;
+}
+
+@ObjectType()
+export class AvailableFields {
+  @Field(() => [String])
+  dimensions!: string[];
+
+  @Field(() => [String])
+  measures!: string[];
+
+  @Field(() => [String])
+  filters!: string[];
+
+  @Field(() => [String])
+  dateSources!: string[];
 }

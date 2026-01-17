@@ -14,6 +14,15 @@ import { PredictiveAnalyticsResolver } from './resolvers/predictive-analytics.re
 import { CustomReportingResolver } from './resolvers/custom-reporting.resolver';
 import { MobileAnalyticsResolver } from './resolvers/mobile-analytics.resolver';
 import { ComparativeAnalysisResolver } from './resolvers/comparative-analysis.resolver';
+import { ETLResolver } from './resolvers/etl.resolver';
+import { 
+  MetricFieldResolver, 
+  KPIFieldResolver, 
+  DashboardFieldResolver, 
+  ReportFieldResolver, 
+  TrendFieldResolver 
+} from './resolvers/field-resolvers';
+import { AnalyticsSubscriptionResolver } from './resolvers/subscription.resolver';
 
 // Services
 import { AnalyticsFoundationService } from './services/analytics-foundation.service';
@@ -48,6 +57,17 @@ import { AnalyticsRepository } from './repositories/analytics.repository';
     CustomReportingResolver,
     MobileAnalyticsResolver,
     ComparativeAnalysisResolver,
+    ETLResolver,
+    
+    // Field Resolvers
+    MetricFieldResolver,
+    KPIFieldResolver,
+    DashboardFieldResolver,
+    ReportFieldResolver,
+    TrendFieldResolver,
+    
+    // Subscription Resolvers
+    AnalyticsSubscriptionResolver,
     
     // Core Services
     AnalyticsFoundationService,

@@ -68,22 +68,24 @@ export class ComparativeAnalysisResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
   ): Promise<ComparisonResult[]> {
     try {
-      // Mock implementation - replace with actual service method when available
-      const comparisons: ComparisonData[] = [];
-      const metricNames = input.metricNames || ['revenue', 'transactions', 'customers'];
+      // Call actual service method
+      const comparisons = await this.comparativeAnalysisService.compareTimePeriods?.(
+        tenantId,
+        {
+          currentPeriod: {
+            startDate: input.currentStartDate,
+            endDate: input.currentEndDate,
+          },
+          comparisonPeriod: {
+            startDate: input.comparisonStartDate,
+            endDate: input.comparisonEndDate,
+          },
+          metricNames: input.metricNames || ['revenue', 'transactions', 'customers'],
+        }
+      ) || [];
 
-      for (const metricName of metricNames) {
-        comparisons.push({
-          metricName,
-          currentValue: Math.random() * 10000,
-          comparisonValue: Math.random() * 10000,
-          currentLabel: 'Current Period',
-          comparisonLabel: 'Previous Period',
-        });
-      }
-
-      return comparisons.map((comparison: ComparisonData) => ({
-        id: `comparison_${comparison.metricName}_${Date.now()}`,
+      return comparisons.map((comparison: any) => ({
+        id: comparison.id || `comparison_${comparison.metricName}_${Date.now()}`,
         comparisonType: 'TIME_PERIOD',
         metricName: comparison.metricName,
         currentValue: comparison.currentValue,
@@ -114,26 +116,25 @@ export class ComparativeAnalysisResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
   ): Promise<LocationComparison[]> {
     try {
-      // Mock implementation - replace with actual service method when available
-      const comparisons: LocationData[] = input.locationIds.map((locationId, index) => ({
-        locationId,
-        locationName: `Location ${index + 1}`,
-        metrics: input.metricNames.map((name) => ({
-          name,
-          value: Math.random() * 10000,
-          unit: 'USD',
-        })),
-        rank: index + 1,
-      }));
+      // Call actual service method
+      const comparisons = await this.comparativeAnalysisService.compareLocations?.(
+        tenantId,
+        {
+          locationIds: input.locationIds,
+          metricNames: input.metricNames,
+          startDate: input.startDate,
+          endDate: input.endDate,
+        }
+      ) || [];
 
-      return comparisons.map((comparison: LocationData, index: number) => ({
+      return comparisons.map((comparison: any, index: number) => ({
         locationId: comparison.locationId,
-        locationName: comparison.locationName,
-        metrics: comparison.metrics.map((metric: { name: string; value: number; unit?: string }) => ({
+        locationName: comparison.locationName || `Location ${index + 1}`,
+        metrics: comparison.metrics?.map((metric: any) => ({
           name: metric.name,
           value: metric.value,
           unit: metric.unit || undefined,
-        })),
+        })) || [],
         rank: comparison.rank || index + 1,
       }));
     } catch (error) {
@@ -154,26 +155,25 @@ export class ComparativeAnalysisResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
   ): Promise<SegmentComparison[]> {
     try {
-      // Mock implementation - replace with actual service method when available
-      const comparisons: SegmentData[] = input.segmentIds.map((segmentId, index) => ({
-        segmentId,
-        segmentName: `Segment ${index + 1}`,
-        metrics: input.metricNames.map((name) => ({
-          name,
-          value: Math.random() * 10000,
-          unit: 'USD',
-        })),
-        size: Math.floor(Math.random() * 1000),
-      }));
+      // Call actual service method
+      const comparisons = await this.comparativeAnalysisService.compareSegments?.(
+        tenantId,
+        {
+          segmentIds: input.segmentIds,
+          metricNames: input.metricNames,
+          startDate: input.startDate,
+          endDate: input.endDate,
+        }
+      ) || [];
 
-      return comparisons.map((comparison: SegmentData) => ({
+      return comparisons.map((comparison: any) => ({
         segmentId: comparison.segmentId,
-        segmentName: comparison.segmentName,
-        metrics: comparison.metrics.map((metric: { name: string; value: number; unit?: string }) => ({
+        segmentName: comparison.segmentName || `Segment ${comparison.segmentId}`,
+        metrics: comparison.metrics?.map((metric: any) => ({
           name: metric.name,
           value: metric.value,
           unit: metric.unit || undefined,
-        })),
+        })) || [],
         size: comparison.size || 0,
       }));
     } catch (error) {

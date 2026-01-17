@@ -1,5 +1,4 @@
 import { InputType, Field, Int, ID } from '@nestjs/graphql';
-import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsOptional, IsEnum, IsDate, IsArray, IsInt, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { MetricCategory, TimePeriod } from '../types/analytics.types';
@@ -7,35 +6,30 @@ import { MetricCategory, TimePeriod } from '../types/analytics.types';
 @InputType()
 export class MetricsFilterInput {
   @Field(() => [MetricCategory], { nullable: true })
-  @ApiProperty({ enum: MetricCategory, isArray: true, required: false })
   @IsOptional()
   @IsArray()
   @IsEnum(MetricCategory, { each: true })
   categories?: MetricCategory[];
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
   startDate?: Date;
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
   endDate?: Date;
 
   @Field(() => [String], { nullable: true })
-  @ApiProperty({ type: [String], required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   metricNames?: string[];
 
   @Field(() => [String], { nullable: true })
-  @ApiProperty({ type: [String], required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -45,20 +39,17 @@ export class MetricsFilterInput {
 @InputType()
 export class KPIFilterInput {
   @Field(() => [String], { nullable: true })
-  @ApiProperty({ type: [String], required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   kpiNames?: string[];
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   status?: string;
 
   @Field(() => TimePeriod, { nullable: true })
-  @ApiProperty({ enum: TimePeriod, required: false })
   @IsOptional()
   @IsEnum(TimePeriod)
   period?: TimePeriod;
@@ -67,34 +58,29 @@ export class KPIFilterInput {
 @InputType()
 export class TrendFilterInput {
   @Field(() => [String], { nullable: true })
-  @ApiProperty({ type: [String], required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   metricNames?: string[];
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
   startDate?: Date;
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
   endDate?: Date;
 
   @Field(() => TimePeriod, { nullable: true })
-  @ApiProperty({ enum: TimePeriod, required: false })
   @IsOptional()
   @IsEnum(TimePeriod)
   granularity?: TimePeriod;
 
   @Field(() => Int, { nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -105,31 +91,26 @@ export class TrendFilterInput {
 @InputType()
 export class TimePeriodComparisonInput {
   @Field()
-  @ApiProperty()
   @IsDate()
   @Type(() => Date)
   currentStartDate!: Date;
 
   @Field()
-  @ApiProperty()
   @IsDate()
   @Type(() => Date)
   currentEndDate!: Date;
 
   @Field()
-  @ApiProperty()
   @IsDate()
   @Type(() => Date)
   comparisonStartDate!: Date;
 
   @Field()
-  @ApiProperty()
   @IsDate()
   @Type(() => Date)
   comparisonEndDate!: Date;
 
   @Field(() => [String], { nullable: true })
-  @ApiProperty({ type: [String], required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -139,26 +120,22 @@ export class TimePeriodComparisonInput {
 @InputType()
 export class LocationComparisonInput {
   @Field(() => [String])
-  @ApiProperty({ type: [String] })
   @IsArray()
   @IsString({ each: true })
   locationIds!: string[];
 
   @Field(() => [String])
-  @ApiProperty({ type: [String] })
   @IsArray()
   @IsString({ each: true })
   metricNames!: string[];
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
   startDate?: Date;
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
@@ -168,26 +145,22 @@ export class LocationComparisonInput {
 @InputType()
 export class SegmentComparisonInput {
   @Field(() => [String])
-  @ApiProperty({ type: [String] })
   @IsArray()
   @IsString({ each: true })
   segmentIds!: string[];
 
   @Field(() => [String])
-  @ApiProperty({ type: [String] })
   @IsArray()
   @IsString({ each: true })
   metricNames!: string[];
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
   startDate?: Date;
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
@@ -198,43 +171,36 @@ export class SegmentComparisonInput {
 @InputType()
 export class CreateReportInput {
   @Field()
-  @ApiProperty()
   @IsString()
   name!: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   description?: string;
 
   @Field()
-  @ApiProperty()
   @IsString()
   reportType!: string;
 
   @Field(() => [String])
-  @ApiProperty({ type: [String] })
   @IsArray()
   @IsString({ each: true })
   metrics!: string[];
 
   @Field(() => [String], { nullable: true })
-  @ApiProperty({ type: [String], required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   dimensions?: string[];
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
   startDate?: Date;
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
@@ -244,19 +210,16 @@ export class CreateReportInput {
 @InputType()
 export class ExecuteReportInput {
   @Field(() => ID)
-  @ApiProperty()
   @IsString()
   reportId!: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
   startDate?: Date;
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
@@ -266,18 +229,265 @@ export class ExecuteReportInput {
 @InputType()
 export class ScheduleReportInput {
   @Field(() => ID)
-  @ApiProperty()
   @IsString()
   reportId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Cron expression for schedule' })
   @IsString()
   schedule!: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   timezone?: string;
+}
+
+@InputType()
+export class UpdateReportInput {
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  reportType?: string;
+
+  @Field(() => [String], { nullable: true })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  metrics?: string[];
+
+  @Field(() => [String], { nullable: true })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  dimensions?: string[];
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  startDate?: Date;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  endDate?: Date;
+}
+
+@InputType()
+export class DashboardFilterInput {
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  createdBy?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  createdAfter?: Date;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  createdBefore?: Date;
+}
+
+@InputType()
+export class ReportFilterInput {
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  reportType?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  createdBy?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  createdAfter?: Date;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  createdBefore?: Date;
+}
+
+@InputType()
+export class AnalyticsQueryInput {
+  @Field()
+  @IsString()
+  name!: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @Field()
+  @IsString()
+  sql!: string;
+
+  @Field(() => [String])
+  @IsArray()
+  @IsString({ each: true })
+  dimensions!: string[];
+
+  @Field(() => [String])
+  @IsArray()
+  @IsString({ each: true })
+  measures!: string[];
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  parameters?: string; // JSON string of parameters
+
+  @Field(() => Int, { nullable: true })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  limit?: number;
+}
+
+@InputType()
+export class ETLPipelineInput {
+  @Field()
+  @IsString()
+  name!: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @Field()
+  @IsString()
+  sourceType!: string;
+
+  @Field()
+  @IsString()
+  sourceConfig!: string; // JSON string
+
+  @Field()
+  @IsString()
+  transformConfig!: string; // JSON string
+
+  @Field()
+  @IsString()
+  destinationConfig!: string; // JSON string
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  schedule?: string; // Cron expression
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+@InputType()
+export class PredictiveModelTrainingInput {
+  @Field()
+  @IsString()
+  modelName!: string;
+
+  @Field()
+  @IsString()
+  modelType!: string; // 'forecast', 'churn', 'pricing', 'inventory'
+
+  @Field(() => [String])
+  @IsArray()
+  @IsString({ each: true })
+  features!: string[];
+
+  @Field()
+  @IsString()
+  targetVariable!: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  trainingConfig?: string; // JSON string
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  trainingStartDate?: Date;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  trainingEndDate?: Date;
+}
+
+@InputType()
+export class AnalyticsConfigurationInput {
+  @Field()
+  @IsString()
+  dataRetentionPeriod!: string;
+
+  @Field()
+  @IsString()
+  aggregationLevel!: string;
+
+  @Field(() => [String])
+  @IsArray()
+  @IsString({ each: true })
+  enabledMetrics!: string[];
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  customSettings?: string; // JSON string
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  enableRealTimeProcessing?: boolean;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  enablePredictiveAnalytics?: boolean;
 }

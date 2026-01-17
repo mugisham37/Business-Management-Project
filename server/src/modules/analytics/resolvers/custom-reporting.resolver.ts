@@ -254,4 +254,243 @@ export class CustomReportingResolver extends BaseResolver {
       throw error;
     }
   }
+
+  /**
+   * Get a specific report
+   */
+  @Query(() => Report, { name: 'getReport' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:read')
+  async getReport(
+    @Args('reportId', { type: () => ID }) reportId: string,
+    @CurrentUser() user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<Report> {
+    try {
+      const report = await this.customReportingService.getReport(tenantId, reportId);
+      
+      if (!report) {
+        throw new Error(`Report not found: ${reportId}`);
+      }
+
+      return {
+        id: report.id,
+        tenantId: report.tenantId,
+        name: report.name,
+        description: report.description,
+        reportType: report.reportType,
+        status: report.status || 'DRAFT',
+        metrics: report.metrics,
+        dimensions: report.dimensions,
+        schedule: report.schedule,
+        lastRunAt: report.lastRunAt,
+        nextRunAt: report.nextRunAt,
+        createdAt: report.createdAt,
+        updatedAt: report.updatedAt,
+        deletedAt: report.deletedAt,
+        createdBy: report.createdBy,
+        updatedBy: report.updatedBy,
+        version: report.version || 1,
+      };
+    } catch (error) {
+      this.handleError(error, 'Failed to get report');
+      throw error;
+    }
+  }
+
+  /**
+   * Update an existing report
+   */
+  @Mutation(() => Report, { name: 'updateReport' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:write')
+  async updateReport(
+    @Args('reportId', { type: () => ID }) reportId: string,
+    @Args('input', { type: () => CreateReportInput }) input: CreateReportInput,
+    @CurrentUser() user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<Report> {
+    try {
+      const report = await this.customReportingService.updateReport(
+        tenantId,
+        reportId,
+        user.id,
+        {
+          name: input.name,
+          description: input.description,
+          reportType: input.reportType,
+          metrics: input.metrics,
+          dimensions: input.dimensions,
+          startDate: input.startDate,
+          endDate: input.endDate,
+        }
+      );
+
+      return {
+        id: report.id,
+        tenantId: report.tenantId,
+        name: report.name,
+        description: report.description,
+        reportType: report.reportType,
+        status: report.status || 'DRAFT',
+        metrics: report.metrics,
+        dimensions: report.dimensions,
+        schedule: report.schedule,
+        lastRunAt: report.lastRunAt,
+        nextRunAt: report.nextRunAt,
+        createdAt: report.createdAt,
+        updatedAt: report.updatedAt,
+        deletedAt: report.deletedAt,
+        createdBy: report.createdBy,
+        updatedBy: report.updatedBy,
+        version: report.version || 1,
+      };
+    } catch (error) {
+      this.handleError(error, 'Failed to update report');
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a report
+   */
+  @Mutation(() => Boolean, { name: 'deleteReport' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:write')
+  async deleteReport(
+    @Args('reportId', { type: () => ID }) reportId: string,
+    @CurrentUser() user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<boolean> {
+    try {
+      await this.customReportingService.deleteReport(tenantId, reportId);
+      return true;
+    } catch (error) {
+      this.handleError(error, 'Failed to delete report');
+      throw error;
+    }
+  }
+
+  /**
+   * Unschedule a report
+   */
+  @Mutation(() => Boolean, { name: 'unscheduleReport' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:write')
+  async unscheduleReport(
+    @Args('reportId', { type: () => ID }) reportId: string,
+    @CurrentUser() user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<boolean> {
+    try {
+      await this.customReportingService.unscheduleReport?.(tenantId, reportId);
+      return true;
+    } catch (error) {
+      this.handleError(error, 'Failed to unschedule report');
+      throw error;
+    }
+  }
+
+  /**
+   * Batch create reports
+   */
+  @Mutation(() => [Report], { name: 'createReports' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:write')
+  async createReports(
+    @Args('inputs', { type: () => [CreateReportInput] }) inputs: CreateReportInput[],
+    @CurrentUser() user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<Report[]> {
+    try {
+      const reports = await Promise.all(
+        inputs.map(input => this.customReportingService.createReport(
+          tenantId,
+          {
+            name: input.name,
+            description: input.description,
+            reportType: input.reportType,
+            metrics: input.metrics,
+            dimensions: input.dimensions,
+            startDate: input.startDate,
+            endDate: input.endDate,
+          },
+          user.id
+        ))
+      );
+
+      return reports.map(report => ({
+        id: report.id,
+        tenantId: report.tenantId,
+        name: report.name,
+        description: report.description,
+        reportType: report.reportType,
+        status: report.status || 'DRAFT',
+        metrics: report.metrics,
+        dimensions: report.dimensions,
+        schedule: report.schedule,
+        lastRunAt: report.lastRunAt,
+        nextRunAt: report.nextRunAt,
+        createdAt: report.createdAt,
+        updatedAt: report.updatedAt,
+        deletedAt: report.deletedAt,
+        createdBy: report.createdBy,
+        updatedBy: report.updatedBy,
+        version: report.version || 1,
+      }));
+    } catch (error) {
+      this.handleError(error, 'Failed to create reports');
+      throw error;
+    }
+  }
+
+  /**
+   * Batch execute reports
+   */
+  @Mutation(() => [ReportExecution], { name: 'executeReports' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:read')
+  async executeReports(
+    @Args('reportIds', { type: () => [ID] }) reportIds: string[],
+    @CurrentUser() user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<ReportExecution[]> {
+    try {
+      const executions = await Promise.all(
+        reportIds.map(async (reportId) => {
+          const executionId = `exec_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+          
+          const job = await this.analyticsQueue.add('execute-report', {
+            tenantId,
+            reportId,
+            executionId,
+            userId: user.id,
+          }, {
+            jobId: executionId,
+            attempts: 3,
+            backoff: {
+              type: 'exponential',
+              delay: 5000,
+            },
+          });
+
+          return {
+            id: executionId,
+            reportId,
+            status: 'QUEUED' as const,
+            jobId: job.id.toString(),
+            startedAt: new Date(),
+            completedAt: undefined,
+            error: undefined,
+            result: undefined,
+          };
+        })
+      );
+
+      return executions;
+    } catch (error) {
+      this.handleError(error, 'Failed to execute reports');
+      throw error;
+    }
+  }
 }

@@ -26,25 +26,31 @@ export class PredictiveAnalyticsResolver extends BaseResolver {
   async getForecast(
     @Args('metricName') metricName: string,
     @Args('periods', { type: () => Number }) periods: number,
+    @Args('productId', { nullable: true }) productId?: string,
+    @Args('locationId', { nullable: true }) locationId?: string,
     @CurrentUser() _user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<Forecast[]> {
     try {
-      // Mock implementation - replace with actual service method when available
-      const forecast: Forecast = {
-        id: `forecast_${metricName}_${Date.now()}`,
-        metricName,
-        predictions: Array.from({ length: periods }, (_, i) => ({
-          timestamp: new Date(Date.now() + i * 24 * 60 * 60 * 1000),
-          value: Math.random() * 10000,
-          lowerBound: Math.random() * 8000 || undefined,
-          upperBound: Math.random() * 12000 || undefined,
-        })),
-        confidence: 0.85,
-        model: 'ARIMA',
-      };
+      // Call actual service method
+      const forecast = await this.predictiveAnalyticsService.generateDemandForecast(
+        tenantId,
+        productId || 'default',
+        locationId || 'default',
+        {
+          forecastPeriod: 'daily',
+          forecastHorizon: periods,
+          metricName,
+        }
+      );
 
-      return [forecast];
+      return [{
+        id: forecast.id || `forecast_${metricName}_${Date.now()}`,
+        metricName: forecast.metricName || metricName,
+        predictions: forecast.predictions || [],
+        confidence: forecast.confidence || 0.85,
+        model: forecast.model || 'ARIMA',
+      }];
     } catch (error) {
       this.handleError(error, 'Failed to get forecast');
       throw error;
@@ -56,24 +62,145 @@ export class PredictiveAnalyticsResolver extends BaseResolver {
   @Permissions('analytics:read')
   async detectAnomalies(
     @Args('metricName') metricName: string,
+    @Args('threshold', { type: () => Number, nullable: true }) threshold?: number,
     @CurrentUser() _user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<Anomaly[]> {
     try {
-      // Mock implementation - replace with actual service method when available
-      const anomalies: Anomaly[] = Array.from({ length: 3 }, (_, i) => ({
-        id: `anomaly_${metricName}_${i}`,
+      // Call actual service method - assuming it exists or will be implemented
+      const anomalies = await this.predictiveAnalyticsService.detectAnomalies?.(
+        tenantId,
         metricName,
-        timestamp: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
-        actualValue: Math.random() * 15000,
-        expectedValue: Math.random() * 10000,
-        deviationScore: Math.random() * 3,
-        severity: i === 0 ? 'HIGH' : i === 1 ? 'MEDIUM' : 'LOW',
-      }));
+        {
+          threshold: threshold || 2.0,
+          lookbackPeriod: 30,
+        }
+      ) || [];
 
-      return anomalies;
+      return anomalies.map(anomaly => ({
+        id: anomaly.id || `anomaly_${metricName}_${Date.now()}`,
+        metricName: anomaly.metricName || metricName,
+        timestamp: anomaly.timestamp || new Date(),
+        actualValue: anomaly.actualValue || 0,
+        expectedValue: anomaly.expectedValue || 0,
+        deviationScore: anomaly.deviationScore || 0,
+        severity: anomaly.severity || 'MEDIUM',
+      }));
     } catch (error) {
       this.handleError(error, 'Failed to detect anomalies');
+      throw error;
+    }
+  }
+
+  /**
+   * Generate demand forecast for specific product/location
+   */
+  @Query(() => Forecast, { name: 'generateDemandForecast' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:read')
+  async generateDemandForecast(
+    @Args('productId') productId: string,
+    @Args('locationId') locationId: string,
+    @Args('forecastHorizon', { type: () => Number }) forecastHorizon: number,
+    @CurrentUser() _user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<Forecast> {
+    try {
+      const forecast = await this.predictiveAnalyticsService.generateDemandForecast(
+        tenantId,
+        productId,
+        locationId,
+        {
+          forecastPeriod: 'daily',
+          forecastHorizon,
+        }
+      );
+
+      return {
+        id: forecast.id || `demand_forecast_${productId}_${Date.now()}`,
+        metricName: forecast.metricName || 'demand',
+        predictions: forecast.predictions || [],
+        confidence: forecast.confidence || 0.85,
+        model: forecast.model || 'ARIMA',
+      };
+    } catch (error) {
+      this.handleError(error, 'Failed to generate demand forecast');
+      throw error;
+    }
+  }
+
+  /**
+   * Predict customer churn
+   */
+  @Query(() => String, { name: 'predictCustomerChurn' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:read')
+  async predictCustomerChurn(
+    @Args('customerId', { nullable: true }) customerId?: string,
+    @CurrentUser() _user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<string> {
+    try {
+      const churnPrediction = await this.predictiveAnalyticsService.predictCustomerChurn(
+        tenantId,
+        customerId
+      );
+
+      return JSON.stringify(churnPrediction);
+    } catch (error) {
+      this.handleError(error, 'Failed to predict customer churn');
+      throw error;
+    }
+  }
+
+  /**
+   * Optimize product pricing
+   */
+  @Query(() => String, { name: 'optimizeProductPricing' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:read')
+  async optimizeProductPricing(
+    @Args('productId') productId: string,
+    @Args('locationId', { nullable: true }) locationId?: string,
+    @CurrentUser() _user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<string> {
+    try {
+      const pricingOptimization = await this.predictiveAnalyticsService.optimizeProductPricing(
+        tenantId,
+        productId,
+        locationId
+      );
+
+      return JSON.stringify(pricingOptimization);
+    } catch (error) {
+      this.handleError(error, 'Failed to optimize product pricing');
+      throw error;
+    }
+  }
+
+  /**
+   * Optimize inventory levels
+   */
+  @Query(() => String, { name: 'optimizeInventoryLevels' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('analytics:read')
+  async optimizeInventoryLevels(
+    @Args('productId') productId: string,
+    @Args('locationId') locationId: string,
+    @CurrentUser() _user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<string> {
+    try {
+      const inventoryOptimization = await this.predictiveAnalyticsService.optimizeInventoryLevels(
+        tenantId,
+        productId,
+        locationId
+      );
+
+      return JSON.stringify(inventoryOptimization);
+    } catch (error) {
+      this.handleError(error, 'Failed to optimize inventory levels');
       throw error;
     }
   }
