@@ -213,8 +213,8 @@ export class PurchaseOrderRepository {
         )
         .orderBy(asc(purchaseOrderApprovals.approvalLevel));
 
-      // Load receipts
-      result.receipts = await this.db
+      // Load receipts with items
+      const receipts = await this.db
         .select()
         .from(purchaseOrderReceipts)
         .where(
@@ -225,6 +225,26 @@ export class PurchaseOrderRepository {
           ),
         )
         .orderBy(desc(purchaseOrderReceipts.receiptDate));
+
+      // Load items for each receipt
+      result.receipts = await Promise.all(
+        receipts.map(async (receipt) => {
+          const items = await this.db
+            .select()
+            .from(purchaseOrderReceiptItems)
+            .where(
+              and(
+                eq(purchaseOrderReceiptItems.tenantId, tenantId),
+                eq(purchaseOrderReceiptItems.receiptId, receipt.id),
+                isNull(purchaseOrderReceiptItems.deletedAt),
+              ),
+            );
+          return {
+            ...receipt,
+            items,
+          };
+        }),
+      );
 
       // Load invoices
       result.invoices = await this.db
@@ -281,12 +301,16 @@ export class PurchaseOrderRepository {
       orderDateTo,
       deliveryDateFrom,
       deliveryDateTo,
+      sortBy: querySortBy,
+      sortOrder: querySortOrder,
+      page: queryPage,
+      limit: queryLimit,
     } = query;
     
-    const page = 1;
-    const limit = 20;
-    const sortBy = 'orderDate';
-    const sortOrder = 'desc';
+    const page = queryPage || 1;
+    const limit = queryLimit || 20;
+    const sortBy = querySortBy || 'orderDate';
+    const sortOrder = querySortOrder || 'desc';
 
     // Build where conditions
     const conditions = [eq(purchaseOrders.tenantId, tenantId), isNull(purchaseOrders.deletedAt)];
@@ -956,5 +980,79 @@ export class PurchaseOrderRepository {
       orderCount: row.orderCount || 0,
       averageOrderValue: row.averageOrderValue || 0,
     }));
+  }
+
+  async findInvoiceById(tenantId: string, invoiceId: string) {
+    const [invoice] = await this.db
+      .select()
+      .from(purchaseOrderInvoices)
+      .where(
+        and(
+          eq(purchaseOrderInvoices.tenantId, tenantId),
+          eq(purchaseOrderInvoices.id, invoiceId),
+          isNull(purchaseOrderInvoices.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!invoice) {
+      return null;
+    }
+
+    // Load invoice items with proper type conversion
+    const items = await this.db
+      .select()
+      .from(purchaseOrderInvoiceItems)
+      .where(
+        and(
+          eq(purchaseOrderInvoiceItems.tenantId, tenantId),
+          eq(purchaseOrderInvoiceItems.invoiceId, invoiceId),
+          isNull(purchaseOrderInvoiceItems.deletedAt),
+        ),
+      );
+
+    // Convert string numbers to actual numbers for calculations
+    const convertedItems = items.map(item => ({
+      ...item,
+      quantity: parseFloat(item.quantity.toString()),
+      unitPrice: parseFloat(item.unitPrice.toString()),
+      totalAmount: parseFloat(item.totalAmount.toString()),
+    }));
+
+    return {
+      ...invoice,
+      invoiceAmount: parseFloat(invoice.invoiceAmount.toString()),
+      taxAmount: parseFloat(invoice.taxAmount.toString()),
+      discountAmount: parseFloat(invoice.discountAmount.toString()),
+      items: convertedItems,
+    };
+  }
+
+  async updateInvoiceMatchStatus(
+    tenantId: string,
+    invoiceId: string,
+    matchStatus: 'pending' | 'matched' | 'variance' | 'disputed',
+    matchingResults: any,
+    userId: string,
+  ): Promise<void> {
+    // Extract variance amount from matching results if available
+    const varianceAmount = matchingResults?.totalVariance || 0;
+    
+    await this.db
+      .update(purchaseOrderInvoices)
+      .set({
+        matchStatus,
+        varianceAmount: varianceAmount.toString(),
+        // Store the full matching results in attachments as a JSON backup
+        attachments: matchingResults ? [matchingResults] : undefined,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(purchaseOrderInvoices.tenantId, tenantId),
+          eq(purchaseOrderInvoices.id, invoiceId),
+        ),
+      );
   }
 }

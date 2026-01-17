@@ -58,7 +58,6 @@ export class EDIIntegrationResolver extends BaseResolver {
   @Permissions('supplier:edi:receive')
   async receiveEDIDocument(
     @Args('input') input: ReceiveEDIDocumentInput,
-    @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<any> {
     return this.ediIntegrationService.processInboundDocument(
@@ -74,7 +73,6 @@ export class EDIIntegrationResolver extends BaseResolver {
   @Permissions('supplier:edi:read')
   async getEDIStatus(
     @Args('documentId', { type: () => ID }) documentId: string,
-    @CurrentTenant() tenantId: string,
   ): Promise<any> {
     // In a real implementation, this would query the EDI document status
     // For now, return a mock status

@@ -14,9 +14,7 @@ import {
   Min,
   Max,
   IsNotEmpty,
-  ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { GraphQLJSON } from 'graphql-scalars';
 
 // Enums
@@ -860,6 +858,28 @@ export class SupplierFilterInput {
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  sortBy?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  sortOrder?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  page?: number;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  limit?: number;
 }
 
 @InputType()

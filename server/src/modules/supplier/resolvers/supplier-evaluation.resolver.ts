@@ -94,7 +94,11 @@ export class SupplierEvaluationResolver extends BaseResolver {
     @Args('offset', { type: () => Int, nullable: true, defaultValue: 0 }) offset: number,
     @CurrentTenant() tenantId: string,
   ): Promise<EvaluationListResponse> {
-    return this.supplierService.getSupplierEvaluations(tenantId, supplierId, limit, offset);
+    const result = await this.supplierService.getSupplierEvaluations(tenantId, supplierId, limit, offset);
+    return {
+      evaluations: result.evaluations as any,
+      total: result.total,
+    };
   }
 
   @Query(() => SupplierEvaluation, { name: 'latestSupplierEvaluation', nullable: true })

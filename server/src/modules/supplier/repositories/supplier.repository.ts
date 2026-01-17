@@ -183,11 +183,22 @@ export class SupplierRepository {
     limit: number;
     totalPages: number;
   }> {
-    const { search, status, supplierType, rating, preferredOnly, tags } = query;
-    const page = 1;
-    const limit = 20;
-    const sortBy = 'name';
-    const sortOrder = 'asc';
+    const { 
+      search, 
+      status, 
+      supplierType, 
+      rating, 
+      preferredOnly, 
+      tags,
+      sortBy: querySortBy,
+      sortOrder: querySortOrder,
+      page: queryPage,
+      limit: queryLimit,
+    } = query;
+    const page = queryPage || 1;
+    const limit = queryLimit || 20;
+    const sortBy = querySortBy || 'name';
+    const sortOrder = querySortOrder || 'asc';
 
     // Build where conditions
     const conditions = [eq(suppliers.tenantId, tenantId), isNull(suppliers.deletedAt)];

@@ -85,7 +85,11 @@ export class SupplierCommunicationResolver extends BaseResolver {
     @Args('offset', { type: () => Int, nullable: true, defaultValue: 0 }) offset: number,
     @CurrentTenant() tenantId: string,
   ): Promise<CommunicationListResponse> {
-    return this.supplierService.getSupplierCommunications(tenantId, supplierId, limit, offset);
+    const result = await this.supplierService.getSupplierCommunications(tenantId, supplierId, limit, offset);
+    return {
+      communications: result.communications as any,
+      total: result.total,
+    };
   }
 
   @Query(() => [SupplierCommunication], { name: 'pendingFollowUps' })
@@ -110,6 +114,27 @@ export class SupplierCommunicationResolver extends BaseResolver {
     const startDate = dateRange ? new Date(dateRange.startDate) : undefined;
     const endDate = dateRange ? new Date(dateRange.endDate) : undefined;
     return this.supplierService.getCommunicationStats(tenantId, supplierId, startDate, endDate);
+  }
+
+  @Query(() => CommunicationByTypeStats, { name: 'communicationByTypeStats' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('supplier:read')
+  async getCommunicationByTypeStats(
+    @Args('supplierId', { type: () => ID, nullable: true }) supplierId: string,
+    @Args('dateRange', { type: () => DateRangeInput, nullable: true }) dateRange: DateRangeInput,
+    @CurrentTenant() tenantId: string,
+  ): Promise<CommunicationByTypeStats> {
+    const startDate = dateRange ? new Date(dateRange.startDate) : undefined;
+    const endDate = dateRange ? new Date(dateRange.endDate) : undefined;
+    const stats = await this.supplierService.getCommunicationStats(tenantId, supplierId, startDate, endDate);
+    
+    return {
+      emailCount: stats.byType?.email || 0,
+      phoneCount: stats.byType?.phone || 0,
+      meetingCount: stats.byType?.meeting || 0,
+      inboundCount: stats.byDirection?.inbound || 0,
+      outboundCount: stats.byDirection?.outbound || 0,
+    };
   }
 
   @Mutation(() => SupplierCommunication, { name: 'createSupplierCommunication' })

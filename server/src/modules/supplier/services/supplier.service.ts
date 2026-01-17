@@ -578,4 +578,39 @@ export class SupplierService {
 
     return Math.max(0, Math.min(100, score));
   }
+
+  async getSupplierPerformanceMetrics(tenantId: string, supplierId: string) {
+    // Get performance metrics from repository
+    // This would typically come from a dedicated performance metrics table
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 12); // Last 12 months
+
+    const performanceScore = await this.calculateSupplierPerformanceScore(
+      tenantId,
+      supplierId,
+      startDate,
+      endDate,
+    );
+
+    const evaluations = await this.evaluationRepository.findBySupplier(tenantId, supplierId, 12, 0);
+    const communications = await this.communicationRepository.findBySupplier(tenantId, supplierId, 100, 0);
+
+    return [{
+      id: `${supplierId}-${Date.now()}`,
+      supplierId,
+      tenantId,
+      periodStart: startDate,
+      periodEnd: endDate,
+      overallScore: performanceScore.overallScore,
+      qualityScore: performanceScore.qualityScore,
+      deliveryScore: performanceScore.deliveryScore,
+      serviceScore: performanceScore.serviceScore,
+      communicationScore: performanceScore.communicationScore,
+      totalEvaluations: evaluations.total,
+      totalCommunications: communications.total,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }];
+  }
 }

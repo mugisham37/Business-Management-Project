@@ -1,4 +1,4 @@
-import { ObjectType, Field, ID, Float, InputType, registerEnumType } from '@nestjs/graphql';
+import { ObjectType, Field, Float, InputType, registerEnumType } from '@nestjs/graphql';
 import { BaseEntity, Edge, Connection } from '../../../common/graphql/base.types';
 import { 
   IsString, 
@@ -6,7 +6,6 @@ import {
   IsNumber, 
   IsBoolean, 
   IsEnum, 
-  IsUUID,
   IsEmail,
   IsUrl,
   Min,

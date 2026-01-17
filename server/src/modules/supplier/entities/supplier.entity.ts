@@ -276,8 +276,8 @@ export class SupplierCommunication extends BaseEntity {
   tags!: string[];
 
   // Relations
-  @Field(() => Supplier)
-  supplier!: Supplier;
+  @Field(() => Supplier, { nullable: true })
+  supplier?: Supplier;
 
   @Field(() => SupplierContact, { nullable: true })
   contact?: SupplierContact;
@@ -347,13 +347,12 @@ export class SupplierEvaluation extends BaseEntity {
 
   @Field({ nullable: true })
   approvedBy?: string;
-
   @Field({ nullable: true })
   approvedAt?: Date;
 
   // Relations
-  @Field(() => Supplier)
-  supplier!: Supplier;
+  @Field(() => Supplier, { nullable: true })
+  supplier?: Supplier;
 }
 
 @ObjectType()

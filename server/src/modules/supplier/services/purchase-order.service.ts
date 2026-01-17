@@ -521,26 +521,120 @@ export class PurchaseOrderService {
     }
   }
 
-  // Private helper methods to remove unused parameter warnings
+  // Private helper methods
   private async performThreeWayMatching(
-    _tenantId: string,
-    _invoiceId: string,
-    _userId: string,
+    tenantId: string,
+    invoiceId: string,
+    userId: string,
   ): Promise<void> {
-    // Three-way matching logic would go here
-    // This would compare:
-    // 1. Purchase Order (what was ordered)
-    // 2. Receipt (what was received)
-    // 3. Invoice (what is being billed)
+    // Get the invoice with related items
+    const invoice = await this.purchaseOrderRepository.findInvoiceById(tenantId, invoiceId);
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
+    }
+
+    // Get the purchase order with all relations
+    const purchaseOrder = await this.purchaseOrderRepository.findById(tenantId, invoice.purchaseOrderId, true);
+    if (!purchaseOrder) {
+      throw new NotFoundException('Purchase order not found');
+    }
+
+    // Get all receipts for this PO
+    const receipts = purchaseOrder.receipts || [];
+    const poItems = purchaseOrder.items || [];
     
-    // For now, we'll just mark as matched if amounts are within tolerance
-    // In a real system, this would be much more sophisticated
-    
-    // Implementation would involve:
-    // - Comparing quantities and prices across all three documents
-    // - Calculating variances
-    // - Setting match status based on tolerance rules
-    // - Flagging discrepancies for review
+    // Perform three-way matching
+    const matchingResults = {
+      overallMatch: true,
+      variances: [] as any[],
+      totalVariance: 0,
+    };
+
+    // Compare invoice items with PO items and receipt items
+    for (const invoiceItem of invoice.items || []) {
+      // Find the corresponding PO item by purchaseOrderItemId
+      const poItem = poItems.find(
+        (item: any) => item.id === invoiceItem.purchaseOrderItemId
+      );
+      
+      if (!poItem) {
+        matchingResults.overallMatch = false;
+        matchingResults.variances.push({
+          type: 'ITEM_NOT_ON_PO',
+          purchaseOrderItemId: invoiceItem.purchaseOrderItemId,
+          description: 'Invoice item not found on purchase order',
+        });
+        continue;
+      }
+
+      // Convert strings to numbers for calculations
+      const poItemUnitPrice = parseFloat(poItem.unitPrice.toString());
+      const poItemQuantity = parseFloat(poItem.quantityOrdered.toString());
+
+      // Find corresponding receipt items
+      let receivedQuantity = 0;
+      for (const receipt of receipts) {
+        const receiptItemsTyped = receipt as any;
+        const receiptItem = receiptItemsTyped.items?.find(
+          (item: any) => item.purchaseOrderItemId === invoiceItem.purchaseOrderItemId
+        );
+        if (receiptItem) {
+          receivedQuantity += parseFloat(receiptItem.quantityAccepted?.toString() || 0);
+        }
+      }
+
+      // Check quantity variance
+      const quantityVariance = invoiceItem.quantity - receivedQuantity;
+      if (Math.abs(quantityVariance) > 0.01) { // Allow for small rounding differences
+        matchingResults.overallMatch = false;
+        matchingResults.variances.push({
+          type: 'QUANTITY_VARIANCE',
+          purchaseOrderItemId: invoiceItem.purchaseOrderItemId,
+          invoiceQuantity: invoiceItem.quantity,
+          receivedQuantity,
+          variance: quantityVariance,
+        });
+      }
+
+      // Check price variance (allow 5% tolerance)
+      const priceVariance = Math.abs(invoiceItem.unitPrice - poItemUnitPrice);
+      const priceVariancePercent = (priceVariance / poItemUnitPrice) * 100;
+      if (priceVariancePercent > 5) {
+        matchingResults.overallMatch = false;
+        matchingResults.variances.push({
+          type: 'PRICE_VARIANCE',
+          purchaseOrderItemId: invoiceItem.purchaseOrderItemId,
+          poUnitPrice: poItemUnitPrice,
+          invoiceUnitPrice: invoiceItem.unitPrice,
+          variance: priceVariance,
+          variancePercent: priceVariancePercent,
+        });
+      }
+
+      // Calculate total variance
+      matchingResults.totalVariance += Math.abs(
+        (invoiceItem.quantity * invoiceItem.unitPrice) - 
+        (receivedQuantity * poItemUnitPrice)
+      );
+    }
+
+    // Update invoice match status
+    const matchStatus = matchingResults.overallMatch ? 'matched' : 
+                       matchingResults.totalVariance > 100 ? 'disputed' : 'variance';
+
+    await this.purchaseOrderRepository.updateInvoiceMatchStatus(
+      tenantId,
+      invoiceId,
+      matchStatus,
+      matchingResults,
+      userId,
+    );
+
+    // If there are significant variances, create alerts or notifications
+    if (!matchingResults.overallMatch && matchingResults.totalVariance > 50) {
+      // In a real system, this would create alerts for procurement team
+      console.log(`Three-way matching failed for invoice ${invoiceId}:`, matchingResults);
+    }
   }
 
   // Workflow automation methods

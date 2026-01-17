@@ -14,11 +14,11 @@ import {
   PurchaseOrderType, 
   PurchaseOrderConnection,
   PurchaseOrderItemType,
+} from '../types/purchase-order.types';
+import { 
   CreatePurchaseOrderInput,
   UpdatePurchaseOrderInput,
   PurchaseOrderFilterInput,
-} from '../types/purchase-order.types';
-import { 
   CreateApprovalInput,
   ApprovalResponseInput,
   CreateReceiptInput,
@@ -175,10 +175,8 @@ export class PurchaseOrderResolver extends BaseResolver {
 
     // Publish subscription event
     await this.pubSubService.publish('PURCHASE_ORDER_CREATED', {
-      purchaseOrderCreated: {
-        ...purchaseOrder,
-        tenantId,
-      },
+      tenantId,
+      purchaseOrderCreated: purchaseOrder,
     });
 
     return purchaseOrder;
@@ -193,7 +191,20 @@ export class PurchaseOrderResolver extends BaseResolver {
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<any> {
-    return this.purchaseOrderService.updatePurchaseOrder(tenantId, id, input, user.id);
+    const originalPO = await this.purchaseOrderService.getPurchaseOrder(tenantId, id);
+    const updatedPO = await this.purchaseOrderService.updatePurchaseOrder(tenantId, id, input, user.id);
+
+    // Publish status change subscription if status changed
+    if (input.status && input.status !== originalPO.status) {
+      await this.pubSubService.publish('PURCHASE_ORDER_STATUS_CHANGED', {
+        tenantId,
+        purchaseOrderStatusChanged: updatedPO,
+        previousStatus: originalPO.status,
+        newStatus: input.status,
+      });
+    }
+
+    return updatedPO;
   }
 
   @Mutation(() => Boolean, { name: 'deletePurchaseOrder' })
@@ -245,10 +256,8 @@ export class PurchaseOrderResolver extends BaseResolver {
     // Publish subscription event
     const purchaseOrder = await this.purchaseOrderService.getPurchaseOrder(tenantId, input.purchaseOrderId);
     await this.pubSubService.publish('PURCHASE_ORDER_RECEIVED', {
-      purchaseOrderReceived: {
-        ...purchaseOrder,
-        tenantId,
-      },
+      tenantId,
+      purchaseOrderReceived: purchaseOrder,
     });
 
     return true;
@@ -331,5 +340,35 @@ export class PurchaseOrderResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
   ) {
     return this.pubSubService.asyncIterator('PURCHASE_ORDER_RECEIVED', tenantId);
+  }
+
+  @Subscription(() => PurchaseOrderType, {
+    name: 'purchaseOrderApproved',
+    filter: (payload, variables, context) => {
+      return payload.purchaseOrderApproved.tenantId === context.req.user.tenantId;
+    },
+  })
+  purchaseOrderApproved(@CurrentTenant() tenantId: string) {
+    return this.pubSubService.asyncIterator('PURCHASE_ORDER_APPROVED', tenantId);
+  }
+
+  @Subscription(() => PurchaseOrderType, {
+    name: 'purchaseOrderSent',
+    filter: (payload, variables, context) => {
+      return payload.purchaseOrderSent.tenantId === context.req.user.tenantId;
+    },
+  })
+  purchaseOrderSent(@CurrentTenant() tenantId: string) {
+    return this.pubSubService.asyncIterator('PURCHASE_ORDER_SENT', tenantId);
+  }
+
+  @Subscription(() => PurchaseOrderType, {
+    name: 'purchaseOrderInvoiced',
+    filter: (payload, variables, context) => {
+      return payload.purchaseOrderInvoiced.tenantId === context.req.user.tenantId;
+    },
+  })
+  purchaseOrderInvoiced(@CurrentTenant() tenantId: string) {
+    return this.pubSubService.asyncIterator('PURCHASE_ORDER_INVOICED', tenantId);
   }
 }

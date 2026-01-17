@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent, Int, Float } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent, Int, Float, Subscription } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { GraphQLJwtAuthGuard } from '../../auth/guards/graphql-jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
@@ -7,6 +7,7 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { BaseResolver } from '../../../common/graphql/base.resolver';
 import { DataLoaderService } from '../../../common/graphql/dataloader.service';
+import { PubSubService } from '../../../common/graphql/pubsub.service';
 import { SupplierService } from '../services/supplier.service';
 import { PurchaseOrderService } from '../services/purchase-order.service';
 import { Supplier, SupplierContact, SupplierCommunication, SupplierEvaluation, SupplierPerformanceMetrics } from '../entities/supplier.entity';
@@ -39,6 +40,12 @@ class CommunicationListResponse {
 
   @Field(() => Int)
   total!: number;
+
+  @Field(() => Int)
+  totalPages!: number;
+
+  @Field(() => Boolean)
+  hasNextPage!: boolean;
 }
 
 @ObjectType()
@@ -48,6 +55,12 @@ class EvaluationListResponse {
 
   @Field(() => Int)
   total!: number;
+
+  @Field(() => Int)
+  totalPages!: number;
+
+  @Field(() => Boolean)
+  hasNextPage!: boolean;
 }
 
 @ObjectType()
@@ -93,6 +106,7 @@ export class SupplierResolver extends BaseResolver {
     protected override readonly dataLoaderService: DataLoaderService,
     private readonly supplierService: SupplierService,
     private readonly purchaseOrderService: PurchaseOrderService,
+    private readonly pubSubService: PubSubService,
   ) {
     super(dataLoaderService);
   }
@@ -205,6 +219,48 @@ export class SupplierResolver extends BaseResolver {
     );
   }
 
+  @Query(() => CommunicationListResponse, { name: 'supplierCommunicationsList' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('supplier:read')
+  async getSupplierCommunicationsList(
+    @Args('supplierId', { type: () => ID }) supplierId: string,
+    @Args('limit', { type: () => Int, nullable: true, defaultValue: 20 }) limit: number,
+    @Args('offset', { type: () => Int, nullable: true, defaultValue: 0 }) offset: number,
+    @CurrentTenant() tenantId: string,
+  ): Promise<CommunicationListResponse> {
+    const result = await this.supplierService.getSupplierCommunications(tenantId, supplierId, limit, offset);
+    return {
+      communications: result.communications.map((comm: any) => ({
+        ...comm,
+        contactId: comm.contactId || '',
+      })),
+      total: result.total,
+      totalPages: Math.ceil(result.total / limit),
+      hasNextPage: offset + limit < result.total,
+    };
+  }
+
+  @Query(() => EvaluationListResponse, { name: 'supplierEvaluationsList' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('supplier:read')
+  async getSupplierEvaluationsList(
+    @Args('supplierId', { type: () => ID }) supplierId: string,
+    @Args('limit', { type: () => Int, nullable: true, defaultValue: 20 }) limit: number,
+    @Args('offset', { type: () => Int, nullable: true, defaultValue: 0 }) offset: number,
+    @CurrentTenant() tenantId: string,
+  ): Promise<EvaluationListResponse> {
+    const result = await this.supplierService.getSupplierEvaluations(tenantId, supplierId, limit, offset);
+    return {
+      evaluations: result.evaluations.map((evaluation: any) => ({
+        ...evaluation,
+        overallScore: parseFloat(evaluation.overallScore) || 0,
+      })),
+      total: result.total,
+      totalPages: Math.ceil(result.total / limit),
+      hasNextPage: offset + limit < result.total,
+    };
+  }
+
   @Mutation(() => Supplier, { name: 'createSupplier' })
   @UseGuards(PermissionsGuard)
   @Permissions('supplier:create')
@@ -294,8 +350,54 @@ export class SupplierResolver extends BaseResolver {
     @Parent() supplier: any,
     @CurrentTenant() tenantId: string,
   ): Promise<any[]> {
-    // This would typically load performance metrics from a repository
-    // For now, return empty array as implementation may vary
-    return [];
+    return this.supplierService.getSupplierPerformanceMetrics(tenantId, supplier.id);
+  }
+
+  @ResolveField(() => SupplierPerformanceScore, { name: 'currentPerformanceScore', nullable: true })
+  async currentPerformanceScore(
+    @Parent() supplier: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<any> {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 12); // Last 12 months
+    
+    return this.supplierService.calculateSupplierPerformanceScore(
+      tenantId,
+      supplier.id,
+      startDate,
+      endDate,
+    );
+  }
+
+  // Subscriptions for real-time updates
+  @Subscription(() => Supplier, {
+    name: 'supplierCreated',
+    filter: (payload, variables, context) => {
+      return payload.supplierCreated.tenantId === context.req.user.tenantId;
+    },
+  })
+  supplierCreated(@CurrentTenant() tenantId: string) {
+    return this.pubSubService.asyncIterator('SUPPLIER_CREATED', tenantId);
+  }
+
+  @Subscription(() => Supplier, {
+    name: 'supplierUpdated',
+    filter: (payload, variables, context) => {
+      return payload.supplierUpdated.tenantId === context.req.user.tenantId;
+    },
+  })
+  supplierUpdated(@CurrentTenant() tenantId: string) {
+    return this.pubSubService.asyncIterator('SUPPLIER_UPDATED', tenantId);
+  }
+
+  @Subscription(() => SupplierEvaluation, {
+    name: 'supplierEvaluated',
+    filter: (payload, variables, context) => {
+      return payload.supplierEvaluated.tenantId === context.req.user.tenantId;
+    },
+  })
+  supplierEvaluated(@CurrentTenant() tenantId: string) {
+    return this.pubSubService.asyncIterator('SUPPLIER_EVALUATED', tenantId);
   }
 }

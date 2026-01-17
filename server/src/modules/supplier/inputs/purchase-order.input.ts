@@ -697,5 +697,27 @@ export class PurchaseOrderFilterInput {
   @IsOptional()
   @IsDateString()
   deliveryDateTo?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  sortBy?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  sortOrder?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  page?: number;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  limit?: number;
 }
 
