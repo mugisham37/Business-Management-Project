@@ -1,5 +1,4 @@
-import { ObjectType, Field, ID, Float, Int, registerEnumType } from '@nestjs/graphql';
-import { ApiProperty } from '@nestjs/swagger';
+import { ObjectType, Field, ID, Float, Int, InputType, registerEnumType } from '@nestjs/graphql';
 
 /**
  * Territory type enum
@@ -9,7 +8,7 @@ export enum TerritoryType {
   INDUSTRY = 'industry',
   ACCOUNT_SIZE = 'account_size',
   PRODUCT_LINE = 'product_line',
-  HYBRID = 'hybrid',
+  CUSTOM = 'custom',
 }
 
 registerEnumType(TerritoryType, {
@@ -18,86 +17,292 @@ registerEnumType(TerritoryType, {
 });
 
 /**
+ * Create Territory Input Type
+ */
+@InputType()
+export class CreateTerritoryInput {
+  @Field()
+  territoryCode!: string;
+
+  @Field()
+  name!: string;
+
+  @Field({ nullable: true })
+  description?: string;
+
+  @Field(() => TerritoryType)
+  territoryType!: TerritoryType;
+
+  @Field({ nullable: true })
+  geographicBounds?: string; // JSON string
+
+  @Field(() => [String], { nullable: true })
+  industryCriteria?: string[];
+
+  @Field({ nullable: true })
+  accountSizeCriteria?: string; // JSON string
+
+  @Field(() => [String], { nullable: true })
+  productLineCriteria?: string[];
+
+  @Field({ nullable: true })
+  customCriteria?: string; // JSON string
+
+  @Field(() => ID, { nullable: true })
+  primarySalesRepId?: string;
+
+  @Field(() => [String], { nullable: true })
+  secondarySalesRepIds?: string[];
+
+  @Field(() => ID, { nullable: true })
+  managerId?: string;
+
+  @Field(() => Float, { nullable: true })
+  annualRevenueTarget?: number;
+
+  @Field(() => Float, { nullable: true })
+  quarterlyRevenueTarget?: number;
+
+  @Field(() => Int, { nullable: true })
+  customerAcquisitionTarget?: number;
+
+  @Field({ nullable: true })
+  commissionStructure?: string; // JSON string
+
+  @Field({ nullable: true })
+  metadata?: string; // JSON string
+}
+
+/**
+ * Update Territory Input Type
+ */
+@InputType()
+export class UpdateTerritoryInput {
+  @Field({ nullable: true })
+  name?: string;
+
+  @Field({ nullable: true })
+  description?: string;
+
+  @Field({ nullable: true })
+  isActive?: boolean;
+
+  @Field({ nullable: true })
+  geographicBounds?: string; // JSON string
+
+  @Field(() => [String], { nullable: true })
+  industryCriteria?: string[];
+
+  @Field({ nullable: true })
+  accountSizeCriteria?: string; // JSON string
+
+  @Field(() => [String], { nullable: true })
+  productLineCriteria?: string[];
+
+  @Field({ nullable: true })
+  customCriteria?: string; // JSON string
+
+  @Field(() => ID, { nullable: true })
+  primarySalesRepId?: string;
+
+  @Field(() => [String], { nullable: true })
+  secondarySalesRepIds?: string[];
+
+  @Field(() => ID, { nullable: true })
+  managerId?: string;
+
+  @Field(() => Float, { nullable: true })
+  annualRevenueTarget?: number;
+
+  @Field(() => Float, { nullable: true })
+  quarterlyRevenueTarget?: number;
+
+  @Field(() => Int, { nullable: true })
+  customerAcquisitionTarget?: number;
+
+  @Field({ nullable: true })
+  commissionStructure?: string; // JSON string
+
+  @Field({ nullable: true })
+  metadata?: string; // JSON string
+}
+
+/**
+ * Territory Query Input Type
+ */
+@InputType()
+export class TerritoryQueryInput {
+  @Field({ nullable: true })
+  search?: string;
+
+  @Field(() => TerritoryType, { nullable: true })
+  territoryType?: TerritoryType;
+
+  @Field({ nullable: true })
+  isActive?: boolean;
+
+  @Field(() => ID, { nullable: true })
+  primarySalesRepId?: string;
+
+  @Field(() => ID, { nullable: true })
+  managerId?: string;
+
+  @Field(() => Float, { nullable: true })
+  minAnnualRevenueTarget?: number;
+
+  @Field(() => Float, { nullable: true })
+  maxAnnualRevenueTarget?: number;
+
+  @Field(() => Int, { nullable: true, defaultValue: 1 })
+  page?: number;
+
+  @Field(() => Int, { nullable: true, defaultValue: 20 })
+  limit?: number;
+
+  @Field({ nullable: true, defaultValue: 'territoryCode' })
+  sortBy?: string;
+
+  @Field({ nullable: true, defaultValue: 'asc' })
+  sortOrder?: string;
+}
+
+/**
+ * Assign Customer to Territory Input Type
+ */
+@InputType()
+export class AssignCustomerToTerritoryInput {
+  @Field(() => ID)
+  customerId!: string;
+
+  @Field({ nullable: true })
+  assignmentReason?: string;
+}
+
+/**
+ * Bulk Assign Customers Input Type
+ */
+@InputType()
+export class BulkAssignCustomersInput {
+  @Field(() => [String])
+  customerIds!: string[];
+
+  @Field({ nullable: true })
+  assignmentReason?: string;
+}
+
+/**
+ * Territory Performance Query Input Type
+ */
+@InputType()
+export class TerritoryPerformanceQueryInput {
+  @Field({ nullable: true })
+  startDate?: Date;
+
+  @Field({ nullable: true })
+  endDate?: Date;
+
+  @Field({ nullable: true })
+  includeCustomerMetrics?: boolean;
+
+  @Field({ nullable: true })
+  includeSalesMetrics?: boolean;
+
+  @Field({ nullable: true })
+  includeCommissionMetrics?: boolean;
+}
+
+/**
  * Territory GraphQL type
  * Represents a B2B sales territory
  */
 @ObjectType()
 export class TerritoryGraphQLType {
   @Field(() => ID)
-  @ApiProperty({ description: 'Unique territory identifier' })
   id!: string;
 
   @Field()
-  @ApiProperty({ description: 'Tenant identifier' })
   tenantId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Territory code' })
   territoryCode!: string;
 
   @Field()
-  @ApiProperty({ description: 'Territory name' })
   name!: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Territory description', required: false })
   description?: string;
 
   @Field(() => TerritoryType)
-  @ApiProperty({ enum: TerritoryType, description: 'Territory type' })
   territoryType!: TerritoryType;
 
   @Field()
-  @ApiProperty({ description: 'Territory active status' })
   isActive!: boolean;
 
+  @Field({ nullable: true })
+  geographicBounds?: string; // JSON string
+
+  @Field(() => [String], { nullable: true })
+  industryCriteria?: string[];
+
+  @Field({ nullable: true })
+  accountSizeCriteria?: string; // JSON string
+
+  @Field(() => [String], { nullable: true })
+  productLineCriteria?: string[];
+
+  @Field({ nullable: true })
+  customCriteria?: string; // JSON string
+
+  @Field(() => ID, { nullable: true })
+  primarySalesRepId?: string;
+
+  @Field(() => [String], { nullable: true })
+  secondarySalesRepIds?: string[];
+
+  @Field(() => ID, { nullable: true })
+  managerId?: string;
+
   @Field(() => Float, { nullable: true })
-  @ApiProperty({ description: 'Annual revenue target', required: false })
   annualRevenueTarget?: number;
 
   @Field(() => Float, { nullable: true })
-  @ApiProperty({ description: 'Quarterly revenue target', required: false })
   quarterlyRevenueTarget?: number;
 
   @Field(() => Int, { nullable: true })
-  @ApiProperty({ description: 'Customer acquisition target', required: false })
   customerAcquisitionTarget?: number;
 
+  @Field({ nullable: true })
+  commissionStructure?: string; // JSON string
+
   @Field()
-  @ApiProperty({ description: 'Creation timestamp' })
   createdAt!: Date;
 
   @Field()
-  @ApiProperty({ description: 'Last update timestamp' })
   updatedAt!: Date;
+
+  @Field({ nullable: true })
+  metadata?: string; // JSON string
 
   // Field resolvers
   @Field(() => [CustomerType])
-  @ApiProperty({ type: [CustomerType], description: 'Customers in territory' })
   customers!: any[];
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Primary sales representative', required: false })
   salesRep?: any;
 
   @Field(() => [UserType], { nullable: true })
-  @ApiProperty({ description: 'Secondary sales representatives', required: false })
   secondarySalesReps?: any[];
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Territory manager', required: false })
   manager?: any;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Number of customers in territory' })
   customerCount!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Target achievement percentage' })
   targetAchievement!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Current period revenue' })
   currentRevenue!: number;
 }
 
@@ -107,27 +312,21 @@ export class TerritoryGraphQLType {
 @ObjectType()
 export class TerritoryCustomerAssignmentType {
   @Field(() => ID)
-  @ApiProperty({ description: 'Assignment identifier' })
   id!: string;
 
   @Field(() => ID)
-  @ApiProperty({ description: 'Territory identifier' })
   territoryId!: string;
 
   @Field(() => ID)
-  @ApiProperty({ description: 'Customer identifier' })
   customerId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Assignment date' })
   assignedDate!: Date;
 
   @Field()
-  @ApiProperty({ description: 'Assignment active status' })
   isActive!: boolean;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Assignment reason', required: false })
   assignmentReason?: string;
 }
 
@@ -137,24 +336,19 @@ export class TerritoryCustomerAssignmentType {
 @ObjectType()
 export class TerritoryPerformanceType {
   @Field(() => ID)
-  @ApiProperty({ description: 'Territory identifier' })
   territoryId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Territory name' })
   territoryName!: string;
 
   @Field()
-  @ApiProperty({ description: 'Performance period' })
-  period!: any;
+  period!: string; // JSON string
 
   @Field()
-  @ApiProperty({ description: 'Performance metrics' })
-  metrics!: any;
+  metrics!: string; // JSON string
 
   @Field()
-  @ApiProperty({ description: 'Sales representative information' })
-  salesRep!: any;
+  salesRep!: string; // JSON string
 }
 
 /**
@@ -163,11 +357,9 @@ export class TerritoryPerformanceType {
 @ObjectType()
 export class TerritoryListResponse {
   @Field(() => [TerritoryGraphQLType])
-  @ApiProperty({ type: [TerritoryGraphQLType], description: 'List of territories' })
   territories!: TerritoryGraphQLType[];
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Total count of territories' })
   total!: number;
 }
 
@@ -177,11 +369,9 @@ export class TerritoryListResponse {
 @ObjectType()
 export class TerritoryCustomersResponse {
   @Field(() => [CustomerType])
-  @ApiProperty({ type: [CustomerType], description: 'List of customers' })
   customers!: any[];
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Total count of customers' })
   total!: number;
 }
 
@@ -191,12 +381,22 @@ export class TerritoryCustomersResponse {
 @ObjectType()
 export class BulkAssignmentResponse {
   @Field(() => [TerritoryCustomerAssignmentType])
-  @ApiProperty({ type: [TerritoryCustomerAssignmentType], description: 'List of assignments' })
   assignments!: TerritoryCustomerAssignmentType[];
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Count of assignments' })
   count!: number;
+}
+
+/**
+ * Territory Assignment Response Type
+ */
+@ObjectType()
+export class TerritoryAssignmentResponse {
+  @Field(() => TerritoryCustomerAssignmentType)
+  assignment!: TerritoryCustomerAssignmentType;
+
+  @Field()
+  message!: string;
 }
 
 // Placeholder types for field resolvers

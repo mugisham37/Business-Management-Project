@@ -1,5 +1,287 @@
-import { ObjectType, Field, ID, Float, Int } from '@nestjs/graphql';
-import { ApiProperty } from '@nestjs/swagger';
+import { ObjectType, Field, ID, Float, Int, InputType, registerEnumType } from '@nestjs/graphql';
+import { AddressInput, AddressType } from './b2b-order.types';
+
+/**
+ * Portal Order Status Enum
+ */
+export enum PortalOrderStatus {
+  DRAFT = 'draft',
+  SUBMITTED = 'submitted',
+  PROCESSING = 'processing',
+  SHIPPED = 'shipped',
+  DELIVERED = 'delivered',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled',
+}
+
+registerEnumType(PortalOrderStatus, {
+  name: 'PortalOrderStatus',
+  description: 'Status of a portal order',
+});
+
+/**
+ * Customer Portal Login Input Type
+ */
+@InputType()
+export class CustomerPortalLoginInput {
+  @Field()
+  email!: string;
+
+  @Field()
+  password!: string;
+}
+
+/**
+ * Customer Portal Registration Input Type
+ */
+@InputType()
+export class CustomerPortalRegistrationInput {
+  @Field()
+  companyName!: string;
+
+  @Field()
+  firstName!: string;
+
+  @Field()
+  lastName!: string;
+
+  @Field()
+  email!: string;
+
+  @Field()
+  phone!: string;
+
+  @Field()
+  password!: string;
+
+  @Field({ nullable: true })
+  taxId?: string;
+
+  @Field({ nullable: true })
+  industry?: string;
+
+  @Field({ nullable: true })
+  billingAddressLine1?: string;
+
+  @Field({ nullable: true })
+  billingCity?: string;
+
+  @Field({ nullable: true })
+  billingState?: string;
+
+  @Field({ nullable: true })
+  billingPostalCode?: string;
+
+  @Field({ nullable: true })
+  billingCountry?: string;
+}
+
+/**
+ * Portal Order Item Input Type
+ */
+@InputType()
+export class PortalOrderItemInput {
+  @Field(() => ID)
+  productId!: string;
+
+  @Field(() => Float)
+  quantity!: number;
+
+  @Field({ nullable: true })
+  specialInstructions?: string;
+}
+
+/**
+ * Create Portal Order Input Type
+ */
+@InputType()
+export class CreatePortalOrderInput {
+  @Field(() => [PortalOrderItemInput])
+  items!: PortalOrderItemInput[];
+
+  @Field({ nullable: true })
+  requestedDeliveryDate?: Date;
+
+  @Field({ nullable: true })
+  shippingMethod?: string;
+
+  @Field({ nullable: true })
+  purchaseOrderNumber?: string;
+
+  @Field(() => AddressInput, { nullable: true })
+  shippingAddress?: AddressInput;
+
+  @Field({ nullable: true })
+  specialInstructions?: string;
+}
+
+/**
+ * Portal Order Query Input Type
+ */
+@InputType()
+export class PortalOrderQueryInput {
+  @Field(() => PortalOrderStatus, { nullable: true })
+  status?: PortalOrderStatus;
+
+  @Field({ nullable: true })
+  orderDateFrom?: Date;
+
+  @Field({ nullable: true })
+  orderDateTo?: Date;
+
+  @Field({ nullable: true })
+  search?: string;
+
+  @Field(() => Int, { nullable: true, defaultValue: 1 })
+  page?: number;
+
+  @Field(() => Int, { nullable: true, defaultValue: 20 })
+  limit?: number;
+
+  @Field({ nullable: true, defaultValue: 'orderDate' })
+  sortBy?: string;
+
+  @Field({ nullable: true, defaultValue: 'desc' })
+  sortOrder?: string;
+}
+
+/**
+ * Product Catalog Query Input Type
+ */
+@InputType()
+export class ProductCatalogQueryInput {
+  @Field({ nullable: true })
+  search?: string;
+
+  @Field({ nullable: true })
+  category?: string;
+
+  @Field(() => Float, { nullable: true })
+  minPrice?: number;
+
+  @Field(() => Float, { nullable: true })
+  maxPrice?: number;
+
+  @Field({ nullable: true })
+  inStockOnly?: boolean;
+
+  @Field(() => Int, { nullable: true, defaultValue: 1 })
+  page?: number;
+
+  @Field(() => Int, { nullable: true, defaultValue: 20 })
+  limit?: number;
+
+  @Field({ nullable: true, defaultValue: 'name' })
+  sortBy?: string;
+
+  @Field({ nullable: true, defaultValue: 'asc' })
+  sortOrder?: string;
+}
+
+/**
+ * Update Account Info Input Type
+ */
+@InputType()
+export class UpdateAccountInfoInput {
+  @Field({ nullable: true })
+  companyName?: string;
+
+  @Field({ nullable: true })
+  firstName?: string;
+
+  @Field({ nullable: true })
+  lastName?: string;
+
+  @Field({ nullable: true })
+  phone?: string;
+
+  @Field({ nullable: true })
+  billingAddressLine1?: string;
+
+  @Field({ nullable: true })
+  billingAddressLine2?: string;
+
+  @Field({ nullable: true })
+  billingCity?: string;
+
+  @Field({ nullable: true })
+  billingState?: string;
+
+  @Field({ nullable: true })
+  billingPostalCode?: string;
+
+  @Field({ nullable: true })
+  billingCountry?: string;
+
+  @Field({ nullable: true })
+  shippingAddressLine1?: string;
+
+  @Field({ nullable: true })
+  shippingAddressLine2?: string;
+
+  @Field({ nullable: true })
+  shippingCity?: string;
+
+  @Field({ nullable: true })
+  shippingState?: string;
+
+  @Field({ nullable: true })
+  shippingPostalCode?: string;
+
+  @Field({ nullable: true })
+  shippingCountry?: string;
+}
+
+/**
+ * Change Password Input Type
+ */
+@InputType()
+export class ChangePasswordInput {
+  @Field()
+  currentPassword!: string;
+
+  @Field()
+  newPassword!: string;
+
+  @Field()
+  confirmPassword!: string;
+}
+
+/**
+ * Invoice Query Input Type
+ */
+@InputType()
+export class InvoiceQueryInput {
+  @Field({ nullable: true })
+  status?: string;
+
+  @Field({ nullable: true })
+  invoiceDateFrom?: Date;
+
+  @Field({ nullable: true })
+  invoiceDateTo?: Date;
+
+  @Field({ nullable: true })
+  dueDateFrom?: Date;
+
+  @Field({ nullable: true })
+  dueDateTo?: Date;
+
+  @Field({ nullable: true })
+  search?: string;
+
+  @Field(() => Int, { nullable: true, defaultValue: 1 })
+  page?: number;
+
+  @Field(() => Int, { nullable: true, defaultValue: 20 })
+  limit?: number;
+
+  @Field({ nullable: true, defaultValue: 'invoiceDate' })
+  sortBy?: string;
+
+  @Field({ nullable: true, defaultValue: 'desc' })
+  sortOrder?: string;
+}
 
 /**
  * Portal customer GraphQL type
@@ -8,64 +290,49 @@ import { ApiProperty } from '@nestjs/swagger';
 @ObjectType()
 export class PortalCustomerType {
   @Field(() => ID)
-  @ApiProperty({ description: 'Unique customer identifier' })
   id!: string;
 
   @Field()
-  @ApiProperty({ description: 'Tenant identifier' })
   tenantId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Company name' })
   companyName!: string;
 
   @Field()
-  @ApiProperty({ description: 'First name' })
   firstName!: string;
 
   @Field()
-  @ApiProperty({ description: 'Last name' })
   lastName!: string;
 
   @Field()
-  @ApiProperty({ description: 'Email address' })
   email!: string;
 
   @Field()
-  @ApiProperty({ description: 'Phone number' })
   phone!: string;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Credit limit' })
   creditLimit!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Available credit' })
   availableCredit!: number;
 
   @Field()
-  @ApiProperty({ description: 'Payment terms' })
   paymentTerms!: string;
 
   @Field()
-  @ApiProperty({ description: 'Pricing tier' })
   pricingTier!: string;
 
   // Field resolvers
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Account manager', required: false })
   accountManager?: any;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Sales representative', required: false })
   salesRep?: any;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Credit utilization percentage' })
   creditUtilization!: number;
 
-  @Field(() => [ContractType], { nullable: true })
-  @ApiProperty({ description: 'Active contracts', required: false })
+  @Field(() => [ContractGraphQLType], { nullable: true })
   activeContracts?: any[];
 }
 
@@ -76,43 +343,33 @@ export class PortalCustomerType {
 @ObjectType()
 export class PortalProductType {
   @Field(() => ID)
-  @ApiProperty({ description: 'Product identifier' })
   id!: string;
 
   @Field()
-  @ApiProperty({ description: 'Product SKU' })
   sku!: string;
 
   @Field()
-  @ApiProperty({ description: 'Product name' })
   name!: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Product description', required: false })
   description?: string;
 
   @Field()
-  @ApiProperty({ description: 'Product category' })
   category!: string;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Base price' })
   basePrice!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Customer-specific price' })
   customerPrice!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Discount percentage' })
   discountPercentage!: number;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Available quantity' })
   availableQuantity!: number;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Minimum order quantity' })
   minimumOrderQuantity!: number;
 }
 
@@ -123,51 +380,39 @@ export class PortalProductType {
 @ObjectType()
 export class PortalOrderType {
   @Field(() => ID)
-  @ApiProperty({ description: 'Order identifier' })
   id!: string;
 
   @Field()
-  @ApiProperty({ description: 'Order number' })
   orderNumber!: string;
 
-  @Field()
-  @ApiProperty({ description: 'Order status' })
-  status!: string;
+  @Field(() => PortalOrderStatus)
+  status!: PortalOrderStatus;
 
   @Field()
-  @ApiProperty({ description: 'Order date' })
   orderDate!: Date;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Requested delivery date', required: false })
   requestedDeliveryDate?: Date;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Confirmed delivery date', required: false })
   confirmedDeliveryDate?: Date;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Subtotal amount' })
   subtotal!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Tax amount' })
   taxAmount!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Shipping amount' })
   shippingAmount!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Total amount' })
   totalAmount!: number;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Tracking number', required: false })
   trackingNumber?: string;
 
   @Field(() => [PortalOrderItemType])
-  @ApiProperty({ type: [PortalOrderItemType], description: 'Order items' })
   items!: PortalOrderItemType[];
 }
 
@@ -177,35 +422,27 @@ export class PortalOrderType {
 @ObjectType()
 export class PortalOrderItemType {
   @Field(() => ID)
-  @ApiProperty({ description: 'Order item identifier' })
   id!: string;
 
   @Field(() => ID)
-  @ApiProperty({ description: 'Product identifier' })
   productId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Product SKU' })
   sku!: string;
 
   @Field()
-  @ApiProperty({ description: 'Product name' })
   productName!: string;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Quantity ordered' })
   quantity!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Unit price' })
   unitPrice!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Line total' })
   lineTotal!: number;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Quantity shipped' })
   quantityShipped!: number;
 }
 
@@ -215,16 +452,13 @@ export class PortalOrderItemType {
 @ObjectType()
 export class PortalDashboardType {
   @Field(() => PortalCustomerType)
-  @ApiProperty({ type: PortalCustomerType, description: 'Customer information' })
   customer!: PortalCustomerType;
 
   @Field(() => [PortalOrderType])
-  @ApiProperty({ type: [PortalOrderType], description: 'Recent orders' })
   recentOrders!: PortalOrderType[];
 
   @Field()
-  @ApiProperty({ description: 'Dashboard summary' })
-  summary!: any;
+  summary!: string; // JSON string
 }
 
 /**
@@ -233,11 +467,9 @@ export class PortalDashboardType {
 @ObjectType()
 export class PortalOrdersResponse {
   @Field(() => [PortalOrderType])
-  @ApiProperty({ type: [PortalOrderType], description: 'List of orders' })
   orders!: PortalOrderType[];
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Total count of orders' })
   total!: number;
 }
 
@@ -247,11 +479,9 @@ export class PortalOrdersResponse {
 @ObjectType()
 export class PortalProductCatalogResponse {
   @Field(() => [PortalProductType])
-  @ApiProperty({ type: [PortalProductType], description: 'List of products' })
   products!: PortalProductType[];
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Total count of products' })
   total!: number;
 }
 
@@ -261,13 +491,47 @@ export class PortalProductCatalogResponse {
 @ObjectType()
 export class PortalAuthResponse {
   @Field(() => PortalCustomerType)
-  @ApiProperty({ type: PortalCustomerType, description: 'Customer information' })
   customer!: PortalCustomerType;
 
   @Field()
-  @ApiProperty({ description: 'JWT access token' })
   accessToken!: string;
 }
 
-// Re-export ContractType for use in portal types
-class ContractType {}
+/**
+ * Portal Registration Response Type
+ */
+@ObjectType()
+export class PortalRegistrationResponse {
+  @Field(() => PortalCustomerType)
+  customer!: PortalCustomerType;
+
+  @Field()
+  message!: string;
+}
+
+/**
+ * Account Update Response Type
+ */
+@ObjectType()
+export class AccountUpdateResponse {
+  @Field(() => PortalCustomerType)
+  customer!: PortalCustomerType;
+
+  @Field()
+  message!: string;
+}
+
+/**
+ * Password Change Response Type
+ */
+@ObjectType()
+export class PasswordChangeResponse {
+  @Field()
+  success!: boolean;
+
+  @Field()
+  message!: string;
+}
+
+// Import ContractGraphQLType for use in portal types
+import { ContractGraphQLType } from './contract.types';

@@ -514,3 +514,294 @@ export class B2BWorkflowService {
     };
   }
 }
+
+  // Additional methods needed for WorkflowResolver
+
+  async getWorkflows(
+    tenantId: string,
+    query: any
+  ): Promise<{ workflows: any[]; total: number }> {
+    try {
+      // In a real implementation, this would query a workflows table
+      // For now, return empty results as this is a simplified implementation
+      return {
+        workflows: [],
+        total: 0,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get workflows:`, error);
+      throw error;
+    }
+  }
+
+  async getPendingApprovalsWithDetails(
+    tenantId: string,
+    approverId: string,
+    entityType?: string
+  ): Promise<{
+    approvals: any[];
+    total: number;
+    byEntityType: any[];
+  }> {
+    try {
+      // In a real implementation, this would query workflows and return detailed approval info
+      return {
+        approvals: [],
+        total: 0,
+        byEntityType: [],
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get pending approvals with details:`, error);
+      throw error;
+    }
+  }
+
+  async getWorkflowHistory(
+    tenantId: string,
+    entityId: string,
+    entityType: string
+  ): Promise<{ history: any[]; total: number }> {
+    try {
+      // In a real implementation, this would query workflow history/audit logs
+      return {
+        history: [],
+        total: 0,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get workflow history:`, error);
+      throw error;
+    }
+  }
+
+  async getWorkflowAnalytics(
+    tenantId: string,
+    startDate?: Date,
+    endDate?: Date,
+    entityType?: string
+  ): Promise<any> {
+    try {
+      // In a real implementation, this would calculate analytics from workflows
+      return {
+        totalWorkflows: 0,
+        pendingWorkflows: 0,
+        approvedWorkflows: 0,
+        rejectedWorkflows: 0,
+        averageApprovalTime: 0,
+        approvalRate: 0,
+        byEntityType: [],
+        expiringWorkflows: 0,
+        overdueWorkflows: 0,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get workflow analytics:`, error);
+      throw error;
+    }
+  }
+
+  async getWorkflowSteps(tenantId: string, workflowId: string): Promise<any[]> {
+    try {
+      const workflow = await this.getWorkflow(tenantId, workflowId);
+      if (!workflow) {
+        return [];
+      }
+
+      // Convert ApprovalStep[] to ApprovalStepType[]
+      return workflow.approvals.map((approval, index) => ({
+        id: `${workflowId}-step-${approval.stepNumber}`,
+        workflowId,
+        stepOrder: approval.stepNumber,
+        stepName: `Approval Step ${approval.stepNumber}`,
+        stepDescription: `Approval required from ${approval.approverName}`,
+        approverId: approval.approverId,
+        status: approval.status,
+        approvedAt: approval.approvedAt,
+        rejectedAt: approval.status === 'rejected' ? approval.approvedAt : null,
+        approvalNotes: approval.notes,
+        rejectionReason: approval.status === 'rejected' ? approval.notes : null,
+        createdAt: workflow.createdAt,
+        updatedAt: approval.approvedAt || workflow.createdAt,
+        attachments: null,
+      }));
+    } catch (error) {
+      this.logger.error(`Failed to get workflow steps:`, error);
+      return [];
+    }
+  }
+
+  async getCurrentApprovalStep(tenantId: string, workflowId: string): Promise<any | null> {
+    try {
+      const workflow = await this.getWorkflow(tenantId, workflowId);
+      if (!workflow || workflow.status !== 'pending') {
+        return null;
+      }
+
+      const currentApproval = workflow.approvals.find(
+        approval => approval.stepNumber === workflow.currentStep
+      );
+
+      if (!currentApproval) {
+        return null;
+      }
+
+      return {
+        id: `${workflowId}-step-${currentApproval.stepNumber}`,
+        workflowId,
+        stepOrder: currentApproval.stepNumber,
+        stepName: `Approval Step ${currentApproval.stepNumber}`,
+        stepDescription: `Approval required from ${currentApproval.approverName}`,
+        approverId: currentApproval.approverId,
+        status: currentApproval.status,
+        approvedAt: currentApproval.approvedAt,
+        rejectedAt: null,
+        approvalNotes: currentApproval.notes,
+        rejectionReason: null,
+        createdAt: workflow.createdAt,
+        updatedAt: workflow.createdAt,
+        attachments: null,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get current approval step:`, error);
+      return null;
+    }
+  }
+
+  async getWorkflowEntity(
+    tenantId: string,
+    entityType: string,
+    entityId: string
+  ): Promise<any | null> {
+    try {
+      if (entityType === 'b2b_order') {
+        const [order] = await this.drizzle.getDb()
+          .select()
+          .from(b2bOrders)
+          .where(and(
+            eq(b2bOrders.tenantId, tenantId),
+            eq(b2bOrders.id, entityId)
+          ));
+        return order || null;
+      } else if (entityType === 'quote') {
+        const [quote] = await this.drizzle.getDb()
+          .select()
+          .from(quotes)
+          .where(and(
+            eq(quotes.tenantId, tenantId),
+            eq(quotes.id, entityId)
+          ));
+        return quote || null;
+      }
+
+      return null;
+    } catch (error) {
+      this.logger.error(`Failed to get workflow entity:`, error);
+      return null;
+    }
+  }
+
+  async reassignApproval(
+    tenantId: string,
+    workflowId: string,
+    stepId: string,
+    currentApproverId: string,
+    newApproverId: string,
+    reassignmentReason: string,
+    notes?: string
+  ): Promise<{ step: any; workflow: any }> {
+    try {
+      const workflow = await this.getWorkflow(tenantId, workflowId);
+      if (!workflow) {
+        throw new Error(`Workflow ${workflowId} not found`);
+      }
+
+      // Find the step to reassign
+      const stepNumber = parseInt(stepId.split('-step-')[1]);
+      const step = workflow.approvals.find(
+        approval => approval.stepNumber === stepNumber && approval.approverId === currentApproverId
+      );
+
+      if (!step) {
+        throw new Error(`Step not found or not assigned to current user`);
+      }
+
+      if (step.status !== 'pending') {
+        throw new Error(`Step already processed`);
+      }
+
+      // Update the step
+      step.approverId = newApproverId;
+      step.notes = notes || reassignmentReason;
+
+      // Update workflow
+      await this.cacheService.set(
+        `workflow:${tenantId}:${workflowId}`,
+        workflow,
+        { ttl: 86400 }
+      );
+
+      // Get updated step data
+      const updatedStep = {
+        id: stepId,
+        workflowId,
+        stepOrder: step.stepNumber,
+        stepName: `Approval Step ${step.stepNumber}`,
+        stepDescription: `Approval required from ${step.approverName}`,
+        approverId: step.approverId,
+        status: step.status,
+        approvedAt: step.approvedAt,
+        rejectedAt: null,
+        approvalNotes: step.notes,
+        rejectionReason: null,
+        reassignedFrom: currentApproverId,
+        reassignedTo: newApproverId,
+        reassignmentReason,
+        createdAt: workflow.createdAt,
+        updatedAt: new Date(),
+        attachments: null,
+      };
+
+      // Emit event
+      this.eventEmitter.emit('workflow.step-reassigned', {
+        tenantId,
+        workflowId,
+        stepNumber: step.stepNumber,
+        reassignedFrom: currentApproverId,
+        reassignedTo: newApproverId,
+        reassignmentReason,
+      });
+
+      this.logger.log(`Reassigned workflow step ${stepId} from ${currentApproverId} to ${newApproverId}`);
+
+      return {
+        step: updatedStep,
+        workflow: this.convertWorkflowToGraphQLType(workflow),
+      };
+    } catch (error) {
+      this.logger.error(`Failed to reassign approval:`, error);
+      throw error;
+    }
+  }
+
+  private convertWorkflowToGraphQLType(workflow: ApprovalWorkflow): any {
+    return {
+      id: workflow.id,
+      tenantId: '', // Would be set from context
+      workflowName: `${workflow.entityType} Approval`,
+      workflowDescription: `Approval workflow for ${workflow.entityType} ${workflow.entityId}`,
+      entityType: workflow.entityType,
+      entityId: workflow.entityId,
+      status: workflow.status,
+      initiatedBy: workflow.createdBy,
+      initiatedAt: workflow.createdAt,
+      completedAt: workflow.status === 'approved' || workflow.status === 'rejected' ? new Date() : null,
+      expiresAt: null,
+      totalSteps: workflow.totalSteps,
+      completedSteps: workflow.approvals.filter(a => a.status !== 'pending').length,
+      currentStep: workflow.currentStep,
+      completionNotes: null,
+      cancellationReason: null,
+      createdAt: workflow.createdAt,
+      updatedAt: workflow.createdAt,
+      metadata: null,
+    };
+  }
+}

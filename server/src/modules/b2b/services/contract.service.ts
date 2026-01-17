@@ -8,7 +8,12 @@ import {
   users
 } from '../../database/schema';
 import { eq, and, or, gte, lte, desc, asc, sql, isNull, ilike, inArray } from 'drizzle-orm';
-import { CreateContractDto, UpdateContractDto, ContractQueryDto, ContractStatus } from '../dto/contract.dto';
+import { 
+  CreateContractInput, 
+  UpdateContractInput, 
+  ContractQueryInput, 
+  ContractStatus 
+} from '../types/contract.types';
 
 export interface Contract {
   id: string;

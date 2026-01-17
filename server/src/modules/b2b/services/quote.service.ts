@@ -11,7 +11,15 @@ import {
   products
 } from '../../database/schema';
 import { eq, and, or, gte, lte, desc, asc, sql, isNull, ilike, inArray } from 'drizzle-orm';
-import { CreateQuoteDto, UpdateQuoteDto, QuoteQueryDto, QuoteItemDto } from '../dto/quote.dto';
+import { 
+  CreateQuoteInput, 
+  UpdateQuoteInput, 
+  QuoteQueryInput, 
+  QuoteItemInput,
+  ApproveQuoteInput,
+  RejectQuoteInput,
+  SendQuoteInput
+} from '../types/quote.types';
 import { B2BPricingService } from './b2b-pricing.service';
 import { B2BWorkflowService } from './b2b-workflow.service';
 
@@ -79,7 +87,7 @@ export class QuoteService {
     private readonly workflowService: B2BWorkflowService,
   ) {}
 
-  async createQuote(tenantId: string, data: CreateQuoteDto, userId: string): Promise<Quote> {
+  async createQuote(tenantId: string, data: CreateQuoteInput, userId: string): Promise<Quote> {
     try {
       // Validate quote data
       await this.validateQuoteData(tenantId, data);
@@ -233,7 +241,7 @@ export class QuoteService {
     }
   }
 
-  async findQuotes(tenantId: string, query: QuoteQueryDto): Promise<{ quotes: Quote[]; total: number }> {
+  async findQuotes(tenantId: string, query: QuoteQueryInput): Promise<{ quotes: Quote[]; total: number }> {
     try {
       const cacheKey = `quotes:${tenantId}:${JSON.stringify(query)}`;
       
@@ -357,7 +365,7 @@ export class QuoteService {
     }
   }
 
-  async updateQuote(tenantId: string, quoteId: string, data: UpdateQuoteDto, userId: string): Promise<Quote> {
+  async updateQuote(tenantId: string, quoteId: string, data: UpdateQuoteInput, userId: string): Promise<Quote> {
     try {
       // Check if quote exists and can be updated
       const existingQuote = await this.findQuoteById(tenantId, quoteId);
@@ -534,7 +542,7 @@ export class QuoteService {
     }
   }
 
-  private async validateQuoteData(tenantId: string, data: CreateQuoteDto): Promise<void> {
+  private async validateQuoteData(tenantId: string, data: CreateQuoteInput): Promise<void> {
     // Validate customer exists
     const [customer] = await this.drizzle.getDb()
       .select()
@@ -628,7 +636,7 @@ export class QuoteService {
     return `${prefix}${nextNumber.toString().padStart(6, '0')}`;
   }
 
-  private async calculateItemPricing(tenantId: string, customerId: string, items: QuoteItemDto[]): Promise<any[]> {
+  private async calculateItemPricing(tenantId: string, customerId: string, items: QuoteItemInput[]): Promise<any[]> {
     const pricedItems = [];
 
     for (const item of items) {
@@ -761,6 +769,137 @@ export class QuoteService {
       }
     } catch (error) {
       this.logger.warn(`Failed to invalidate quote caches for tenant ${tenantId}:`, error);
+    }
+  }
+
+  async approveQuote(tenantId: string, quoteId: string, approvalNotes: string, userId: string): Promise<Quote> {
+    try {
+      const existingQuote = await this.findQuoteById(tenantId, quoteId);
+      
+      if (existingQuote.status !== 'pending_approval') {
+        throw new BadRequestException('Quote is not pending approval');
+      }
+
+      const [updatedQuote] = await this.drizzle.getDb()
+        .update(quotes)
+        .set({
+          status: 'approved',
+          approvedBy: userId,
+          approvedAt: new Date(),
+          approvalNotes,
+          updatedBy: userId,
+        })
+        .where(and(
+          eq(quotes.tenantId, tenantId),
+          eq(quotes.id, quoteId)
+        ))
+        .returning();
+
+      // Clear caches
+      await this.invalidateQuoteCaches(tenantId, quoteId);
+
+      // Emit event
+      this.eventEmitter.emit('quote.approved', {
+        tenantId,
+        quoteId,
+        customerId: existingQuote.customerId,
+        totalAmount: existingQuote.totalAmount,
+        approvedBy: userId,
+      });
+
+      return this.findQuoteById(tenantId, quoteId);
+    } catch (error) {
+      this.logger.error(`Failed to approve quote ${quoteId}:`, error);
+      throw error;
+    }
+  }
+
+  async rejectQuote(tenantId: string, quoteId: string, rejectionReason: string, userId: string): Promise<Quote> {
+    try {
+      const existingQuote = await this.findQuoteById(tenantId, quoteId);
+      
+      if (existingQuote.status !== 'pending_approval') {
+        throw new BadRequestException('Quote is not pending approval');
+      }
+
+      const [updatedQuote] = await this.drizzle.getDb()
+        .update(quotes)
+        .set({
+          status: 'rejected',
+          approvalNotes: rejectionReason,
+          updatedBy: userId,
+        })
+        .where(and(
+          eq(quotes.tenantId, tenantId),
+          eq(quotes.id, quoteId)
+        ))
+        .returning();
+
+      // Clear caches
+      await this.invalidateQuoteCaches(tenantId, quoteId);
+
+      // Emit event
+      this.eventEmitter.emit('quote.rejected', {
+        tenantId,
+        quoteId,
+        customerId: existingQuote.customerId,
+        rejectionReason,
+        rejectedBy: userId,
+      });
+
+      return this.findQuoteById(tenantId, quoteId);
+    } catch (error) {
+      this.logger.error(`Failed to reject quote ${quoteId}:`, error);
+      throw error;
+    }
+  }
+
+  async sendQuote(tenantId: string, quoteId: string, input: SendQuoteInput, userId: string): Promise<Quote> {
+    try {
+      const existingQuote = await this.findQuoteById(tenantId, quoteId);
+      
+      if (existingQuote.status !== 'approved') {
+        throw new BadRequestException('Quote must be approved before sending');
+      }
+
+      // Update quote status to sent
+      const [updatedQuote] = await this.drizzle.getDb()
+        .update(quotes)
+        .set({
+          status: 'sent',
+          metadata: {
+            ...existingQuote.metadata,
+            sentTo: input.recipients,
+            sentAt: new Date(),
+            sentBy: userId,
+            emailSubject: input.emailSubject,
+            emailMessage: input.emailMessage,
+          },
+          updatedBy: userId,
+        })
+        .where(and(
+          eq(quotes.tenantId, tenantId),
+          eq(quotes.id, quoteId)
+        ))
+        .returning();
+
+      // Clear caches
+      await this.invalidateQuoteCaches(tenantId, quoteId);
+
+      // Emit event for email sending (would integrate with email service)
+      this.eventEmitter.emit('quote.sent', {
+        tenantId,
+        quoteId,
+        customerId: existingQuote.customerId,
+        recipients: input.recipients,
+        emailSubject: input.emailSubject,
+        sentBy: userId,
+      });
+
+      return this.findQuoteById(tenantId, quoteId);
+    } catch (error) {
+      this.logger.error(`Failed to send quote ${quoteId}:`, error);
+      throw error;
     }
   }
 }

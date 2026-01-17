@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args, Context } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Context, ID } from '@nestjs/graphql';
 import { UseGuards, Logger } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
@@ -6,8 +6,21 @@ import { FeatureGuard } from '../../tenant/guards/feature.guard';
 import { RequirePermission } from '../../auth/decorators/auth.decorators';
 import { RequireFeature } from '../../tenant/decorators/tenant.decorators';
 import { QuoteService } from '../services/quote.service';
+import {
+  CreateQuoteInput,
+  UpdateQuoteInput,
+  QuoteQueryInput,
+  ApproveQuoteInput,
+  RejectQuoteInput,
+  SendQuoteInput,
+  QuoteType,
+  QuotesResponse,
+  QuoteApprovalResponse,
+  QuoteSendResponse,
+  QuoteConversionResponse
+} from '../types/quote.types';
 
-@Resolver('Quote')
+@Resolver(() => QuoteType)
 @UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
 @RequireFeature('quote-management')
 export class QuoteResolver {
@@ -17,20 +30,19 @@ export class QuoteResolver {
     private readonly quoteService: QuoteService,
   ) {}
 
-  @Query('quotes')
+  @Query(() => QuotesResponse)
   @RequirePermission('quote:read')
   async getQuotes(
-    @Args('query') query: any,
+    @Args('query') query: QuoteQueryInput,
     @Context() context: any,
-  ) {
+  ): Promise<QuotesResponse> {
     try {
       const tenantId = context.req.user.tenantId;
+      const result = await this.quoteService.findQuotes(tenantId, query);
       
-      // This would be implemented with actual quote service methods
-      // For now, return a placeholder response
       return {
-        quotes: [],
-        total: 0,
+        quotes: result.quotes,
+        total: result.total,
       };
     } catch (error) {
       this.logger.error(`Failed to get quotes:`, error);
@@ -38,102 +50,93 @@ export class QuoteResolver {
     }
   }
 
-  @Query('quote')
+  @Query(() => QuoteType)
   @RequirePermission('quote:read')
   async getQuote(
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @Context() context: any,
-  ) {
+  ): Promise<QuoteType> {
     try {
       const tenantId = context.req.user.tenantId;
-      
-      // This would be implemented with actual quote service methods
-      // For now, return a placeholder response
-      return {
-        id,
-        quoteNumber: 'QUO-2024-000001',
-        status: 'draft',
-        message: 'Quote management GraphQL resolver coming soon',
-      };
+      return await this.quoteService.findQuoteById(tenantId, id);
     } catch (error) {
       this.logger.error(`Failed to get quote ${id}:`, error);
       throw error;
     }
   }
 
-  @Mutation('createQuote')
+  @Mutation(() => QuoteType)
   @RequirePermission('quote:create')
   async createQuote(
-    @Args('input') input: any,
+    @Args('input') input: CreateQuoteInput,
     @Context() context: any,
-  ) {
+  ): Promise<QuoteType> {
     try {
       const tenantId = context.req.user.tenantId;
       const userId = context.req.user.id;
       
-      // This would be implemented with actual quote service methods
-      // For now, return a placeholder response
-      this.logger.log(`Quote creation via GraphQL requested by user ${userId}`);
+      const quote = await this.quoteService.createQuote(
+        tenantId,
+        input,
+        userId,
+      );
       
-      return {
-        id: 'placeholder-id',
-        quoteNumber: 'QUO-2024-000001',
-        status: 'draft',
-        message: 'Quote creation GraphQL resolver coming soon',
-      };
+      this.logger.log(`Created quote ${quote.quoteNumber} via GraphQL`);
+      return quote;
     } catch (error) {
       this.logger.error(`Failed to create quote via GraphQL:`, error);
       throw error;
     }
   }
 
-  @Mutation('updateQuote')
+  @Mutation(() => QuoteType)
   @RequirePermission('quote:update')
   async updateQuote(
-    @Args('id') id: string,
-    @Args('input') input: any,
+    @Args('id', { type: () => ID }) id: string,
+    @Args('input') input: UpdateQuoteInput,
     @Context() context: any,
-  ) {
+  ): Promise<QuoteType> {
     try {
       const tenantId = context.req.user.tenantId;
       const userId = context.req.user.id;
       
-      // This would be implemented with actual quote service methods
-      // For now, return a placeholder response
-      this.logger.log(`Quote update via GraphQL requested for ${id} by user ${userId}`);
-      
-      return {
+      const quote = await this.quoteService.updateQuote(
+        tenantId,
         id,
-        quoteNumber: 'QUO-2024-000001',
-        status: 'draft',
-        message: 'Quote update GraphQL resolver coming soon',
-      };
+        input,
+        userId,
+      );
+      
+      this.logger.log(`Updated quote ${id} via GraphQL`);
+      return quote;
     } catch (error) {
       this.logger.error(`Failed to update quote ${id} via GraphQL:`, error);
       throw error;
     }
   }
 
-  @Mutation('approveQuote')
+  @Mutation(() => QuoteApprovalResponse)
   @RequirePermission('quote:approve')
   async approveQuote(
-    @Args('id') id: string,
-    @Args('approvalNotes') approvalNotes: string,
+    @Args('id', { type: () => ID }) id: string,
+    @Args('input') input: ApproveQuoteInput,
     @Context() context: any,
-  ) {
+  ): Promise<QuoteApprovalResponse> {
     try {
       const tenantId = context.req.user.tenantId;
       const userId = context.req.user.id;
       
-      // This would be implemented with actual quote service methods
-      // For now, return a placeholder response
-      this.logger.log(`Quote approval via GraphQL requested for ${id} by user ${userId}`);
-      
-      return {
+      const quote = await this.quoteService.approveQuote(
+        tenantId,
         id,
-        quoteNumber: 'QUO-2024-000001',
-        status: 'approved',
-        message: 'Quote approval GraphQL resolver coming soon',
+        input.approvalNotes,
+        userId,
+      );
+      
+      this.logger.log(`Approved quote ${id} via GraphQL`);
+      return {
+        quote,
+        message: 'Quote approved successfully',
       };
     } catch (error) {
       this.logger.error(`Failed to approve quote ${id} via GraphQL:`, error);
@@ -141,30 +144,86 @@ export class QuoteResolver {
     }
   }
 
-  @Mutation('convertQuoteToOrder')
-  @RequirePermission('quote:convert')
-  async convertQuoteToOrder(
-    @Args('id') id: string,
+  @Mutation(() => QuoteApprovalResponse)
+  @RequirePermission('quote:approve')
+  async rejectQuote(
+    @Args('id', { type: () => ID }) id: string,
+    @Args('input') input: RejectQuoteInput,
     @Context() context: any,
-  ) {
+  ): Promise<QuoteApprovalResponse> {
     try {
       const tenantId = context.req.user.tenantId;
       const userId = context.req.user.id;
       
-      // This would be implemented with actual quote service methods
-      // For now, return a placeholder response
-      this.logger.log(`Quote conversion via GraphQL requested for ${id} by user ${userId}`);
+      const quote = await this.quoteService.rejectQuote(
+        tenantId,
+        id,
+        input.rejectionReason,
+        userId,
+      );
       
+      this.logger.log(`Rejected quote ${id} via GraphQL`);
       return {
-        quote: {
-          id,
-          status: 'converted',
-        },
-        order: {
-          id: 'new-order-id',
-          orderNumber: 'ORD-2024-000001',
-        },
-        message: 'Quote conversion GraphQL resolver coming soon',
+        quote,
+        message: 'Quote rejected successfully',
+      };
+    } catch (error) {
+      this.logger.error(`Failed to reject quote ${id} via GraphQL:`, error);
+      throw error;
+    }
+  }
+
+  @Mutation(() => QuoteSendResponse)
+  @RequirePermission('quote:send')
+  async sendQuote(
+    @Args('id', { type: () => ID }) id: string,
+    @Args('input') input: SendQuoteInput,
+    @Context() context: any,
+  ): Promise<QuoteSendResponse> {
+    try {
+      const tenantId = context.req.user.tenantId;
+      const userId = context.req.user.id;
+      
+      const quote = await this.quoteService.sendQuote(
+        tenantId,
+        id,
+        input,
+        userId,
+      );
+      
+      this.logger.log(`Sent quote ${id} via GraphQL`);
+      return {
+        quote,
+        message: 'Quote sent successfully',
+        sentTo: input.recipients,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to send quote ${id} via GraphQL:`, error);
+      throw error;
+    }
+  }
+
+  @Mutation(() => QuoteConversionResponse)
+  @RequirePermission('quote:convert')
+  async convertQuoteToOrder(
+    @Args('id', { type: () => ID }) id: string,
+    @Context() context: any,
+  ): Promise<QuoteConversionResponse> {
+    try {
+      const tenantId = context.req.user.tenantId;
+      const userId = context.req.user.id;
+      
+      const result = await this.quoteService.convertQuoteToOrder(
+        tenantId,
+        id,
+        userId,
+      );
+      
+      this.logger.log(`Converted quote ${id} to order via GraphQL`);
+      return {
+        quote: result.quote,
+        order: result.order,
+        message: 'Quote converted to order successfully',
       };
     } catch (error) {
       this.logger.error(`Failed to convert quote ${id} via GraphQL:`, error);

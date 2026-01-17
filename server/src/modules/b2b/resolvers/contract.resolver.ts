@@ -10,6 +10,18 @@ import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { ContractService } from '../services/contract.service';
 import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 import { BaseResolver } from '../../../common/graphql/base.resolver';
+import {
+  CreateContractInput,
+  UpdateContractInput,
+  ContractQueryInput,
+  ApproveContractInput,
+  SignContractInput,
+  RenewContractInput,
+  ContractGraphQLType,
+  ContractListResponse,
+  ContractApprovalResponse,
+  ContractRenewalResponse
+} from '../types/contract.types';
 
 /**
  * GraphQL resolver for B2B contract lifecycle management
@@ -25,7 +37,7 @@ import { BaseResolver } from '../../../common/graphql/base.resolver';
  * @requires TenantGuard - Tenant isolation enforced
  * @requires PermissionsGuard - Permission-based access control
  */
-@Resolver('Contract')
+@Resolver(() => ContractGraphQLType)
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class ContractResolver extends BaseResolver {
   private readonly logger = new Logger(ContractResolver.name);
@@ -42,14 +54,14 @@ export class ContractResolver extends BaseResolver {
    * Query: Get a single contract by ID
    * @permission contract:read
    */
-  @Query('contract')
+  @Query(() => ContractGraphQLType)
   @UseGuards(PermissionsGuard)
   @Permissions('contract:read')
   async getContract(
     @Args('id', { type: () => ID }) id: string,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<ContractGraphQLType> {
     try {
       this.logger.debug(`Fetching contract ${id} for tenant ${tenantId}`);
       return await this.contractService.findContractById(tenantId, id);
@@ -63,14 +75,14 @@ export class ContractResolver extends BaseResolver {
    * Query: Get paginated list of contracts with filtering
    * @permission contract:read
    */
-  @Query('contracts')
+  @Query(() => ContractListResponse)
   @UseGuards(PermissionsGuard)
   @Permissions('contract:read')
   async getContracts(
-    @Args('query') query: any,
+    @Args('query') query: ContractQueryInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<ContractListResponse> {
     try {
       this.logger.debug(`Fetching contracts for tenant ${tenantId} with query:`, query);
       const result = await this.contractService.findContracts(tenantId, query);
@@ -89,14 +101,14 @@ export class ContractResolver extends BaseResolver {
    * Query: Get contracts expiring within specified days
    * @permission contract:read
    */
-  @Query('expiringContracts')
+  @Query(() => [ContractGraphQLType])
   @UseGuards(PermissionsGuard)
   @Permissions('contract:read')
   async getExpiringContracts(
     @Args('days') days: number,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<ContractGraphQLType[]> {
     try {
       this.logger.debug(`Fetching contracts expiring within ${days} days for tenant ${tenantId}`);
       return await this.contractService.getExpiringContracts(tenantId, days);
@@ -110,14 +122,14 @@ export class ContractResolver extends BaseResolver {
    * Mutation: Create a new contract
    * @permission contract:create
    */
-  @Mutation('createContract')
+  @Mutation(() => ContractGraphQLType)
   @UseGuards(PermissionsGuard)
   @Permissions('contract:create')
   async createContract(
-    @Args('input') input: any,
+    @Args('input') input: CreateContractInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<ContractGraphQLType> {
     try {
       this.logger.log(`Creating contract for tenant ${tenantId} by user ${user.id}`);
       
@@ -139,15 +151,15 @@ export class ContractResolver extends BaseResolver {
    * Mutation: Update an existing contract
    * @permission contract:update
    */
-  @Mutation('updateContract')
+  @Mutation(() => ContractGraphQLType)
   @UseGuards(PermissionsGuard)
   @Permissions('contract:update')
   async updateContract(
     @Args('id', { type: () => ID }) id: string,
-    @Args('input') input: any,
+    @Args('input') input: UpdateContractInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<ContractGraphQLType> {
     try {
       this.logger.log(`Updating contract ${id} for tenant ${tenantId} by user ${user.id}`);
       
@@ -170,29 +182,69 @@ export class ContractResolver extends BaseResolver {
    * Mutation: Approve a contract
    * @permission contract:approve
    */
-  @Mutation('approveContract')
+  @Mutation(() => ContractApprovalResponse)
   @UseGuards(PermissionsGuard)
   @Permissions('contract:approve')
   async approveContract(
     @Args('id', { type: () => ID }) id: string,
-    @Args('approvalNotes') approvalNotes: string,
+    @Args('input') input: ApproveContractInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<ContractApprovalResponse> {
     try {
       this.logger.log(`Approving contract ${id} for tenant ${tenantId} by user ${user.id}`);
       
       const contract = await this.contractService.approveContract(
         tenantId,
         id,
-        approvalNotes,
+        input.approvalNotes,
         user.id,
       );
 
       this.logger.log(`Approved contract ${id}`);
-      return contract;
+      return {
+        contract,
+        message: 'Contract approved successfully',
+      };
     } catch (error) {
       this.logger.error(`Failed to approve contract ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mutation: Sign a contract
+   * @permission contract:sign
+   */
+  @Mutation(() => ContractGraphQLType)
+  @UseGuards(PermissionsGuard)
+  @Permissions('contract:sign')
+  async signContract(
+    @Args('id', { type: () => ID }) id: string,
+    @Args('input') input: SignContractInput,
+    @CurrentUser() user: any,
+    @CurrentTenant() tenantId: string,
+  ): Promise<ContractGraphQLType> {
+    try {
+      this.logger.log(`Signing contract ${id} for tenant ${tenantId} by user ${user.id}`);
+      
+      const contract = await this.contractService.updateContract(
+        tenantId,
+        id,
+        {
+          customerSignedAt: input.customerSignedAt || new Date(),
+          metadata: JSON.stringify({
+            signedBy: user.id,
+            signedAt: new Date(),
+          }),
+        },
+        user.id,
+      );
+
+      this.logger.log(`Signed contract ${id}`);
+      return contract;
+    } catch (error) {
+      this.logger.error(`Failed to sign contract ${id}:`, error);
       throw error;
     }
   }
@@ -201,31 +253,32 @@ export class ContractResolver extends BaseResolver {
    * Mutation: Renew a contract with new terms
    * @permission contract:renew
    */
-  @Mutation('renewContract')
+  @Mutation(() => ContractRenewalResponse)
   @UseGuards(PermissionsGuard)
   @Permissions('contract:renew')
   async renewContract(
     @Args('id', { type: () => ID }) id: string,
-    @Args('newEndDate') newEndDate: Date,
-    @Args('contractValue', { nullable: true }) contractValue: number,
-    @Args('pricingTerms', { nullable: true }) pricingTerms: any,
+    @Args('input') input: RenewContractInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<ContractRenewalResponse> {
     try {
       this.logger.log(`Renewing contract ${id} for tenant ${tenantId} by user ${user.id}`);
       
       const contract = await this.contractService.renewContract(
         tenantId,
         id,
-        newEndDate,
-        contractValue,
-        pricingTerms,
+        input.newEndDate,
+        input.contractValue,
+        input.pricingTerms ? JSON.parse(input.pricingTerms) : undefined,
         user.id,
       );
 
-      this.logger.log(`Renewed contract ${id} with new end date ${newEndDate}`);
-      return contract;
+      this.logger.log(`Renewed contract ${id} with new end date ${input.newEndDate}`);
+      return {
+        contract,
+        message: 'Contract renewed successfully',
+      };
     } catch (error) {
       this.logger.error(`Failed to renew contract ${id}:`, error);
       throw error;
@@ -278,7 +331,7 @@ export class ContractResolver extends BaseResolver {
    */
   @ResolveField('customer')
   async getCustomer(
-    @Parent() contract: any,
+    @Parent() contract: ContractGraphQLType,
     @CurrentTenant() tenantId: string,
   ) {
     try {
@@ -295,30 +348,12 @@ export class ContractResolver extends BaseResolver {
   }
 
   /**
-   * Field Resolver: Load pricing agreements for contract
-   * Returns pricing terms and agreements associated with the contract
-   */
-  @ResolveField('pricingAgreements')
-  async getPricingAgreements(
-    @Parent() contract: any,
-    @CurrentTenant() tenantId: string,
-  ) {
-    try {
-      // Return pricing terms from contract
-      return contract.pricingTerms || {};
-    } catch (error) {
-      this.logger.error(`Failed to load pricing agreements for contract ${contract.id}:`, error);
-      throw error;
-    }
-  }
-
-  /**
    * Field Resolver: Load sales representative for contract
    * Uses DataLoader for batch loading
    */
   @ResolveField('salesRep')
   async getSalesRep(
-    @Parent() contract: any,
+    @Parent() contract: ContractGraphQLType,
     @CurrentTenant() tenantId: string,
   ) {
     try {
@@ -343,7 +378,7 @@ export class ContractResolver extends BaseResolver {
    */
   @ResolveField('accountManager')
   async getAccountManager(
-    @Parent() contract: any,
+    @Parent() contract: ContractGraphQLType,
     @CurrentTenant() tenantId: string,
   ) {
     try {
@@ -360,6 +395,48 @@ export class ContractResolver extends BaseResolver {
       this.logger.error(`Failed to load account manager for contract ${contract.id}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Field Resolver: Check if contract is expired
+   */
+  @ResolveField('isExpired')
+  async getIsExpired(
+    @Parent() contract: ContractGraphQLType,
+  ): Promise<boolean> {
+    return new Date() > new Date(contract.endDate);
+  }
+
+  /**
+   * Field Resolver: Calculate days until expiration
+   */
+  @ResolveField('daysUntilExpiration')
+  async getDaysUntilExpiration(
+    @Parent() contract: ContractGraphQLType,
+  ): Promise<number> {
+    const now = new Date();
+    const endDate = new Date(contract.endDate);
+    const diffTime = endDate.getTime() - now.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
+
+  /**
+   * Field Resolver: Check if contract requires renewal notice
+   */
+  @ResolveField('requiresRenewalNotice')
+  async getRequiresRenewalNotice(
+    @Parent() contract: ContractGraphQLType,
+  ): Promise<boolean> {
+    if (!contract.autoRenewal || !contract.renewalNoticeDays) {
+      return false;
+    }
+    
+    const now = new Date();
+    const endDate = new Date(contract.endDate);
+    const diffTime = endDate.getTime() - now.getTime();
+    const daysUntilExpiration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return daysUntilExpiration <= contract.renewalNoticeDays;
   }
 
   /**

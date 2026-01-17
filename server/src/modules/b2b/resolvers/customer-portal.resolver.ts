@@ -9,6 +9,26 @@ import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { CustomerPortalService } from '../services/customer-portal.service';
 import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 import { BaseResolver } from '../../../common/graphql/base.resolver';
+import {
+  CustomerPortalLoginInput,
+  CustomerPortalRegistrationInput,
+  CreatePortalOrderInput,
+  PortalOrderQueryInput,
+  ProductCatalogQueryInput,
+  UpdateAccountInfoInput,
+  ChangePasswordInput,
+  InvoiceQueryInput,
+  PortalCustomerType,
+  PortalOrderType,
+  PortalProductType,
+  PortalDashboardType,
+  PortalOrdersResponse,
+  PortalProductCatalogResponse,
+  PortalAuthResponse,
+  PortalRegistrationResponse,
+  AccountUpdateResponse,
+  PasswordChangeResponse
+} from '../types/customer-portal.types';
 
 /**
  * GraphQL resolver for B2B customer portal operations
@@ -24,7 +44,7 @@ import { BaseResolver } from '../../../common/graphql/base.resolver';
  * @requires TenantGuard - Tenant isolation enforced
  * @requires PermissionsGuard - Customer-specific permissions
  */
-@Resolver('CustomerPortal')
+@Resolver(() => PortalCustomerType)
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class CustomerPortalResolver extends BaseResolver {
   private readonly logger = new Logger(CustomerPortalResolver.name);
@@ -41,13 +61,13 @@ export class CustomerPortalResolver extends BaseResolver {
    * Returns overview information for the authenticated customer
    * @permission portal:read
    */
-  @Query('portalDashboard')
+  @Query(() => PortalDashboardType)
   @UseGuards(PermissionsGuard)
   @Permissions('portal:read')
   async getPortalDashboard(
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<PortalDashboardType> {
     try {
       this.logger.debug(`Fetching portal dashboard for customer ${user.id}`);
       
@@ -65,11 +85,11 @@ export class CustomerPortalResolver extends BaseResolver {
       return {
         customer,
         recentOrders: recentOrders.orders,
-        summary: {
+        summary: JSON.stringify({
           totalOrders: recentOrders.total,
           availableCredit: customer.availableCredit,
           creditLimit: customer.creditLimit,
-        },
+        }),
       };
     } catch (error) {
       this.logger.error(`Failed to get portal dashboard:`, error);
@@ -81,14 +101,14 @@ export class CustomerPortalResolver extends BaseResolver {
    * Query: Get customer's orders with filtering and pagination
    * @permission portal:read
    */
-  @Query('portalOrders')
+  @Query(() => PortalOrdersResponse)
   @UseGuards(PermissionsGuard)
   @Permissions('portal:read')
   async getPortalOrders(
-    @Args('query') query: any,
+    @Args('query') query: PortalOrderQueryInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<PortalOrdersResponse> {
     try {
       this.logger.debug(`Fetching portal orders for customer ${user.id}`);
       
@@ -108,14 +128,14 @@ export class CustomerPortalResolver extends BaseResolver {
    * Query: Get a specific order by ID
    * @permission portal:read
    */
-  @Query('portalOrder')
+  @Query(() => PortalOrderType)
   @UseGuards(PermissionsGuard)
   @Permissions('portal:read')
   async getPortalOrder(
     @Args('id', { type: () => ID }) id: string,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<PortalOrderType> {
     try {
       this.logger.debug(`Fetching portal order ${id} for customer ${user.id}`);
       return await this.customerPortalService.getOrderById(tenantId, user.id, id);
@@ -126,44 +146,17 @@ export class CustomerPortalResolver extends BaseResolver {
   }
 
   /**
-   * Query: Get customer's invoices
-   * Returns billing and invoice information
-   * @permission portal:read
-   */
-  @Query('portalInvoices')
-  @UseGuards(PermissionsGuard)
-  @Permissions('portal:read')
-  async getPortalInvoices(
-    @Args('query') query: any,
-    @CurrentUser() user: any,
-    @CurrentTenant() tenantId: string,
-  ) {
-    try {
-      this.logger.debug(`Fetching portal invoices for customer ${user.id}`);
-      
-      // Placeholder implementation - would integrate with financial module
-      return {
-        invoices: [],
-        total: 0,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to get portal invoices:`, error);
-      throw error;
-    }
-  }
-
-  /**
    * Query: Get product catalog with customer-specific pricing
    * @permission portal:read
    */
-  @Query('portalProductCatalog')
+  @Query(() => PortalProductCatalogResponse)
   @UseGuards(PermissionsGuard)
   @Permissions('portal:read')
   async getPortalProductCatalog(
-    @Args('query') query: any,
+    @Args('query') query: ProductCatalogQueryInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<PortalProductCatalogResponse> {
     try {
       this.logger.debug(`Fetching product catalog for customer ${user.id}`);
       
@@ -187,13 +180,13 @@ export class CustomerPortalResolver extends BaseResolver {
    * Query: Get customer profile information
    * @permission portal:read
    */
-  @Query('portalProfile')
+  @Query(() => PortalCustomerType)
   @UseGuards(PermissionsGuard)
   @Permissions('portal:read')
   async getPortalProfile(
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<PortalCustomerType> {
     try {
       this.logger.debug(`Fetching portal profile for customer ${user.id}`);
       return await this.customerPortalService.getCustomerProfile(tenantId, user.id);
@@ -207,14 +200,14 @@ export class CustomerPortalResolver extends BaseResolver {
    * Mutation: Submit a new order through the portal
    * @permission portal:order
    */
-  @Mutation('submitPortalOrder')
+  @Mutation(() => PortalOrderType)
   @UseGuards(PermissionsGuard)
   @Permissions('portal:order')
   async submitPortalOrder(
-    @Args('input') input: any,
+    @Args('input') input: CreatePortalOrderInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<PortalOrderType> {
     try {
       this.logger.log(`Submitting portal order for customer ${user.id}`);
       
@@ -236,14 +229,14 @@ export class CustomerPortalResolver extends BaseResolver {
    * Mutation: Update customer account information
    * @permission portal:update
    */
-  @Mutation('updatePortalAccount')
+  @Mutation(() => AccountUpdateResponse)
   @UseGuards(PermissionsGuard)
   @Permissions('portal:update')
   async updatePortalAccount(
-    @Args('input') input: any,
+    @Args('input') input: UpdateAccountInfoInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<AccountUpdateResponse> {
     try {
       this.logger.log(`Updating portal account for customer ${user.id}`);
       
@@ -254,7 +247,10 @@ export class CustomerPortalResolver extends BaseResolver {
       );
 
       this.logger.log(`Updated portal account for customer ${user.id}`);
-      return customer;
+      return {
+        customer,
+        message: 'Account updated successfully',
+      };
     } catch (error) {
       this.logger.error(`Failed to update portal account:`, error);
       throw error;
@@ -265,14 +261,14 @@ export class CustomerPortalResolver extends BaseResolver {
    * Mutation: Change customer password
    * @permission portal:update
    */
-  @Mutation('changePortalPassword')
+  @Mutation(() => PasswordChangeResponse)
   @UseGuards(PermissionsGuard)
   @Permissions('portal:update')
   async changePortalPassword(
-    @Args('input') input: any,
+    @Args('input') input: ChangePasswordInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<PasswordChangeResponse> {
     try {
       this.logger.log(`Changing password for customer ${user.id}`);
       
@@ -297,11 +293,11 @@ export class CustomerPortalResolver extends BaseResolver {
    * Mutation: Register a new customer portal account
    * Public endpoint - no authentication required
    */
-  @Mutation('registerPortalAccount')
+  @Mutation(() => PortalRegistrationResponse)
   async registerPortalAccount(
-    @Args('input') input: any,
+    @Args('input') input: CustomerPortalRegistrationInput,
     @Args('tenantId') tenantId: string,
-  ) {
+  ): Promise<PortalRegistrationResponse> {
     try {
       this.logger.log(`Registering new portal account for ${input.email}`);
       
@@ -310,7 +306,7 @@ export class CustomerPortalResolver extends BaseResolver {
       this.logger.log(`Registered portal account for ${input.email}`);
       return {
         customer: result.customer,
-        accessToken: result.accessToken,
+        message: 'Account registered successfully',
       };
     } catch (error) {
       this.logger.error(`Failed to register portal account:`, error);
@@ -322,11 +318,11 @@ export class CustomerPortalResolver extends BaseResolver {
    * Mutation: Login to customer portal
    * Public endpoint - no authentication required
    */
-  @Mutation('loginPortal')
+  @Mutation(() => PortalAuthResponse)
   async loginPortal(
-    @Args('input') input: any,
+    @Args('input') input: CustomerPortalLoginInput,
     @Args('tenantId') tenantId: string,
-  ) {
+  ): Promise<PortalAuthResponse> {
     try {
       this.logger.log(`Portal login attempt for ${input.email}`);
       

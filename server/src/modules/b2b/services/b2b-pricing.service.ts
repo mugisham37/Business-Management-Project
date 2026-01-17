@@ -8,7 +8,7 @@ import {
   products,
   customers
 } from '../../database/schema';
-import { eq, and, or, gte, lte, desc, isNull } from 'drizzle-orm';
+import { eq, and, or, gte, lte, desc, isNull, ilike, sql } from 'drizzle-orm';
 
 export interface PricingRule {
   id: string;
@@ -460,6 +460,284 @@ export class B2BPricingService {
       }
     } catch (error) {
       this.logger.warn(`Failed to invalidate pricing caches for tenant ${tenantId}:`, error);
+    }
+  }
+}
+  // Additional methods needed for PricingResolver
+
+  async getPricingRules(
+    tenantId: string,
+    query: any
+  ): Promise<{ rules: PricingRule[]; total: number }> {
+    try {
+      const conditions = [
+        eq(customerPricingRules.tenantId, tenantId),
+        isNull(customerPricingRules.deletedAt)
+      ];
+
+      // Add filters based on query
+      if (query.customerId) {
+        conditions.push(eq(customerPricingRules.customerId, query.customerId));
+      }
+
+      if (query.ruleType) {
+        conditions.push(eq(customerPricingRules.ruleType, query.ruleType));
+      }
+
+      if (query.isActive !== undefined) {
+        conditions.push(eq(customerPricingRules.isActive, query.isActive));
+      }
+
+      if (query.search) {
+        conditions.push(
+          or(
+            ilike(customerPricingRules.description, `%${query.search}%`),
+            ilike(customerPricingRules.ruleType, `%${query.search}%`)
+          )!
+        );
+      }
+
+      // Get total count
+      const [{ count }] = await this.drizzle.getDb()
+        .select({ count: sql<number>`count(*)` })
+        .from(customerPricingRules)
+        .where(and(...conditions));
+
+      // Get paginated results
+      const offset = ((query.page || 1) - 1) * (query.limit || 20);
+      const rules = await this.drizzle.getDb()
+        .select()
+        .from(customerPricingRules)
+        .where(and(...conditions))
+        .orderBy(desc(customerPricingRules.priority), desc(customerPricingRules.createdAt))
+        .limit(query.limit || 20)
+        .offset(offset);
+
+      return {
+        rules: rules.map(rule => ({
+          id: rule.id,
+          ruleType: rule.ruleType,
+          targetId: rule.targetId,
+          targetType: rule.targetType,
+          discountType: rule.discountType,
+          discountValue: parseFloat(rule.discountValue),
+          minimumQuantity: rule.minimumQuantity,
+          maximumQuantity: rule.maximumQuantity,
+          minimumAmount: rule.minimumAmount ? parseFloat(rule.minimumAmount) : null,
+          effectiveDate: rule.effectiveDate,
+          expirationDate: rule.expirationDate,
+          priority: rule.priority,
+          description: rule.description,
+        })),
+        total: count,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get pricing rules:`, error);
+      throw error;
+    }
+  }
+
+  async getApplicablePricingRulesForQuery(
+    tenantId: string,
+    customerId: string,
+    productId?: string,
+    quantity?: number
+  ): Promise<PricingRule[]> {
+    try {
+      return await this.getApplicablePricingRules(
+        tenantId,
+        customerId,
+        productId || '',
+        quantity || 1,
+        0 // totalAmount not needed for this query
+      );
+    } catch (error) {
+      this.logger.error(`Failed to get applicable pricing rules:`, error);
+      return [];
+    }
+  }
+
+  async updatePricingRule(
+    tenantId: string,
+    ruleId: string,
+    updateData: Partial<{
+      ruleType: string;
+      targetId: string;
+      targetType: string;
+      discountType: string;
+      discountValue: number;
+      minimumQuantity: number;
+      maximumQuantity: number;
+      minimumAmount: number;
+      effectiveDate: Date;
+      expirationDate: Date;
+      priority: number;
+      description: string;
+      isActive: boolean;
+    }>,
+    userId: string
+  ): Promise<PricingRule> {
+    try {
+      const updateValues: any = {
+        updatedBy: userId,
+        updatedAt: new Date(),
+      };
+
+      // Only update provided fields
+      if (updateData.ruleType !== undefined) updateValues.ruleType = updateData.ruleType;
+      if (updateData.targetId !== undefined) updateValues.targetId = updateData.targetId;
+      if (updateData.targetType !== undefined) updateValues.targetType = updateData.targetType;
+      if (updateData.discountType !== undefined) updateValues.discountType = updateData.discountType;
+      if (updateData.discountValue !== undefined) updateValues.discountValue = updateData.discountValue.toString();
+      if (updateData.minimumQuantity !== undefined) updateValues.minimumQuantity = updateData.minimumQuantity;
+      if (updateData.maximumQuantity !== undefined) updateValues.maximumQuantity = updateData.maximumQuantity;
+      if (updateData.minimumAmount !== undefined) updateValues.minimumAmount = updateData.minimumAmount?.toString();
+      if (updateData.effectiveDate !== undefined) updateValues.effectiveDate = updateData.effectiveDate;
+      if (updateData.expirationDate !== undefined) updateValues.expirationDate = updateData.expirationDate;
+      if (updateData.priority !== undefined) updateValues.priority = updateData.priority;
+      if (updateData.description !== undefined) updateValues.description = updateData.description;
+      if (updateData.isActive !== undefined) updateValues.isActive = updateData.isActive;
+
+      const [updatedRule] = await this.drizzle.getDb()
+        .update(customerPricingRules)
+        .set(updateValues)
+        .where(and(
+          eq(customerPricingRules.tenantId, tenantId),
+          eq(customerPricingRules.id, ruleId),
+          isNull(customerPricingRules.deletedAt)
+        ))
+        .returning();
+
+      if (!updatedRule) {
+        throw new Error(`Pricing rule ${ruleId} not found`);
+      }
+
+      // Clear pricing caches
+      await this.invalidatePricingCaches(tenantId, updatedRule.customerId);
+
+      return {
+        id: updatedRule.id,
+        ruleType: updatedRule.ruleType,
+        targetId: updatedRule.targetId,
+        targetType: updatedRule.targetType,
+        discountType: updatedRule.discountType,
+        discountValue: parseFloat(updatedRule.discountValue),
+        minimumQuantity: updatedRule.minimumQuantity,
+        maximumQuantity: updatedRule.maximumQuantity,
+        minimumAmount: updatedRule.minimumAmount ? parseFloat(updatedRule.minimumAmount) : null,
+        effectiveDate: updatedRule.effectiveDate,
+        expirationDate: updatedRule.expirationDate,
+        priority: updatedRule.priority,
+        description: updatedRule.description,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to update pricing rule ${ruleId}:`, error);
+      throw error;
+    }
+  }
+
+  async deletePricingRule(
+    tenantId: string,
+    ruleId: string,
+    userId: string
+  ): Promise<boolean> {
+    try {
+      const [deletedRule] = await this.drizzle.getDb()
+        .update(customerPricingRules)
+        .set({
+          deletedAt: new Date(),
+          deletedBy: userId,
+        })
+        .where(and(
+          eq(customerPricingRules.tenantId, tenantId),
+          eq(customerPricingRules.id, ruleId),
+          isNull(customerPricingRules.deletedAt)
+        ))
+        .returning();
+
+      if (!deletedRule) {
+        return false;
+      }
+
+      // Clear pricing caches
+      await this.invalidatePricingCaches(tenantId, deletedRule.customerId);
+
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to delete pricing rule ${ruleId}:`, error);
+      return false;
+    }
+  }
+
+  async setPricingRuleActive(
+    tenantId: string,
+    ruleId: string,
+    isActive: boolean,
+    userId: string
+  ): Promise<PricingRule> {
+    try {
+      const [updatedRule] = await this.drizzle.getDb()
+        .update(customerPricingRules)
+        .set({
+          isActive,
+          updatedBy: userId,
+          updatedAt: new Date(),
+        })
+        .where(and(
+          eq(customerPricingRules.tenantId, tenantId),
+          eq(customerPricingRules.id, ruleId),
+          isNull(customerPricingRules.deletedAt)
+        ))
+        .returning();
+
+      if (!updatedRule) {
+        throw new Error(`Pricing rule ${ruleId} not found`);
+      }
+
+      // Clear pricing caches
+      await this.invalidatePricingCaches(tenantId, updatedRule.customerId);
+
+      return {
+        id: updatedRule.id,
+        ruleType: updatedRule.ruleType,
+        targetId: updatedRule.targetId,
+        targetType: updatedRule.targetType,
+        discountType: updatedRule.discountType,
+        discountValue: parseFloat(updatedRule.discountValue),
+        minimumQuantity: updatedRule.minimumQuantity,
+        maximumQuantity: updatedRule.maximumQuantity,
+        minimumAmount: updatedRule.minimumAmount ? parseFloat(updatedRule.minimumAmount) : null,
+        effectiveDate: updatedRule.effectiveDate,
+        expirationDate: updatedRule.expirationDate,
+        priority: updatedRule.priority,
+        description: updatedRule.description,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to set pricing rule ${ruleId} active status:`, error);
+      throw error;
+    }
+  }
+
+  async getPricingAnalytics(
+    tenantId: string,
+    startDate?: Date,
+    endDate?: Date,
+    customerId?: string
+  ): Promise<any> {
+    try {
+      // In a real implementation, this would calculate analytics from pricing usage
+      return {
+        totalRules: 0,
+        activeRules: 0,
+        averageDiscount: 0,
+        totalSavings: 0,
+        topCustomers: [],
+        topProducts: [],
+        discountTrends: [],
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get pricing analytics:`, error);
+      throw error;
     }
   }
 }

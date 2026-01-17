@@ -9,6 +9,21 @@ import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { TerritoryService } from '../services/territory.service';
 import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 import { BaseResolver } from '../../../common/graphql/base.resolver';
+import {
+  CreateTerritoryInput,
+  UpdateTerritoryInput,
+  TerritoryQueryInput,
+  AssignCustomerToTerritoryInput,
+  BulkAssignCustomersInput,
+  TerritoryPerformanceQueryInput,
+  TerritoryGraphQLType,
+  TerritoryListResponse,
+  TerritoryCustomersResponse,
+  TerritoryCustomerAssignmentType,
+  BulkAssignmentResponse,
+  TerritoryAssignmentResponse,
+  TerritoryPerformanceType
+} from '../types/territory.types';
 
 /**
  * GraphQL resolver for B2B territory management
@@ -24,7 +39,7 @@ import { BaseResolver } from '../../../common/graphql/base.resolver';
  * @requires TenantGuard - Tenant isolation enforced
  * @requires PermissionsGuard - Permission-based access control
  */
-@Resolver('Territory')
+@Resolver(() => TerritoryGraphQLType)
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class TerritoryResolver extends BaseResolver {
   private readonly logger = new Logger(TerritoryResolver.name);
@@ -40,14 +55,14 @@ export class TerritoryResolver extends BaseResolver {
    * Query: Get a single territory by ID
    * @permission territory:read
    */
-  @Query('territory')
+  @Query(() => TerritoryGraphQLType)
   @UseGuards(PermissionsGuard)
   @Permissions('territory:read')
   async getTerritory(
     @Args('id', { type: () => ID }) id: string,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<TerritoryGraphQLType> {
     try {
       this.logger.debug(`Fetching territory ${id} for tenant ${tenantId}`);
       return await this.territoryService.findTerritoryById(tenantId, id);
@@ -61,14 +76,14 @@ export class TerritoryResolver extends BaseResolver {
    * Query: Get paginated list of territories with filtering
    * @permission territory:read
    */
-  @Query('territories')
+  @Query(() => TerritoryListResponse)
   @UseGuards(PermissionsGuard)
   @Permissions('territory:read')
   async getTerritories(
-    @Args('query') query: any,
+    @Args('query') query: TerritoryQueryInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<TerritoryListResponse> {
     try {
       this.logger.debug(`Fetching territories for tenant ${tenantId} with query:`, query);
       const result = await this.territoryService.findTerritories(tenantId, query);
@@ -88,23 +103,22 @@ export class TerritoryResolver extends BaseResolver {
    * Returns revenue, customer count, and target achievement
    * @permission territory:read
    */
-  @Query('territoryPerformance')
+  @Query(() => TerritoryPerformanceType)
   @UseGuards(PermissionsGuard)
   @Permissions('territory:read')
   async getTerritoryPerformance(
     @Args('id', { type: () => ID }) id: string,
-    @Args('startDate') startDate: Date,
-    @Args('endDate') endDate: Date,
+    @Args('query') query: TerritoryPerformanceQueryInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<TerritoryPerformanceType> {
     try {
-      this.logger.debug(`Fetching territory performance for ${id} from ${startDate} to ${endDate}`);
+      this.logger.debug(`Fetching territory performance for ${id}`);
       return await this.territoryService.getTerritoryPerformance(
         tenantId,
         id,
-        startDate,
-        endDate,
+        query.startDate || new Date(new Date().getFullYear(), 0, 1),
+        query.endDate || new Date(),
       );
     } catch (error) {
       this.logger.error(`Failed to get territory performance for ${id}:`, error);
@@ -116,14 +130,14 @@ export class TerritoryResolver extends BaseResolver {
    * Query: Get customers assigned to a territory
    * @permission territory:read
    */
-  @Query('territoryCustomers')
+  @Query(() => TerritoryCustomersResponse)
   @UseGuards(PermissionsGuard)
   @Permissions('territory:read')
   async getTerritoryCustomers(
     @Args('id', { type: () => ID }) id: string,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<TerritoryCustomersResponse> {
     try {
       this.logger.debug(`Fetching customers for territory ${id}`);
       const customers = await this.territoryService.getTerritoryCustomers(tenantId, id);
@@ -142,14 +156,14 @@ export class TerritoryResolver extends BaseResolver {
    * Mutation: Create a new territory
    * @permission territory:create
    */
-  @Mutation('createTerritory')
+  @Mutation(() => TerritoryGraphQLType)
   @UseGuards(PermissionsGuard)
   @Permissions('territory:create')
   async createTerritory(
-    @Args('input') input: any,
+    @Args('input') input: CreateTerritoryInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<TerritoryGraphQLType> {
     try {
       this.logger.log(`Creating territory for tenant ${tenantId} by user ${user.id}`);
       
@@ -171,15 +185,15 @@ export class TerritoryResolver extends BaseResolver {
    * Mutation: Update an existing territory
    * @permission territory:update
    */
-  @Mutation('updateTerritory')
+  @Mutation(() => TerritoryGraphQLType)
   @UseGuards(PermissionsGuard)
   @Permissions('territory:update')
   async updateTerritory(
     @Args('id', { type: () => ID }) id: string,
-    @Args('input') input: any,
+    @Args('input') input: UpdateTerritoryInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<TerritoryGraphQLType> {
     try {
       this.logger.log(`Updating territory ${id} for tenant ${tenantId} by user ${user.id}`);
       
@@ -202,31 +216,30 @@ export class TerritoryResolver extends BaseResolver {
    * Mutation: Assign a customer to a territory
    * @permission territory:assign
    */
-  @Mutation('assignCustomerToTerritory')
+  @Mutation(() => TerritoryAssignmentResponse)
   @UseGuards(PermissionsGuard)
   @Permissions('territory:assign')
   async assignCustomerToTerritory(
     @Args('territoryId', { type: () => ID }) territoryId: string,
-    @Args('customerId', { type: () => ID }) customerId: string,
-    @Args('assignmentReason', { nullable: true }) assignmentReason: string,
+    @Args('input') input: AssignCustomerToTerritoryInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<TerritoryAssignmentResponse> {
     try {
-      this.logger.log(`Assigning customer ${customerId} to territory ${territoryId} by user ${user.id}`);
+      this.logger.log(`Assigning customer ${input.customerId} to territory ${territoryId} by user ${user.id}`);
       
       const assignment = await this.territoryService.assignCustomerToTerritory(
         tenantId,
         territoryId,
-        {
-          customerId,
-          assignmentReason,
-        },
+        input,
         user.id,
       );
 
-      this.logger.log(`Assigned customer ${customerId} to territory ${territoryId}`);
-      return assignment;
+      this.logger.log(`Assigned customer ${input.customerId} to territory ${territoryId}`);
+      return {
+        assignment,
+        message: 'Customer assigned to territory successfully',
+      };
     } catch (error) {
       this.logger.error(`Failed to assign customer to territory:`, error);
       throw error;
@@ -237,30 +250,26 @@ export class TerritoryResolver extends BaseResolver {
    * Mutation: Bulk assign multiple customers to a territory
    * @permission territory:assign
    */
-  @Mutation('bulkAssignCustomersToTerritory')
+  @Mutation(() => BulkAssignmentResponse)
   @UseGuards(PermissionsGuard)
   @Permissions('territory:assign')
   async bulkAssignCustomersToTerritory(
     @Args('territoryId', { type: () => ID }) territoryId: string,
-    @Args('customerIds', { type: () => [ID] }) customerIds: string[],
-    @Args('assignmentReason', { nullable: true }) assignmentReason: string,
+    @Args('input') input: BulkAssignCustomersInput,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<BulkAssignmentResponse> {
     try {
-      this.logger.log(`Bulk assigning ${customerIds.length} customers to territory ${territoryId} by user ${user.id}`);
+      this.logger.log(`Bulk assigning ${input.customerIds.length} customers to territory ${territoryId} by user ${user.id}`);
       
       const assignments = await this.territoryService.bulkAssignCustomers(
         tenantId,
         territoryId,
-        {
-          customerIds,
-          assignmentReason,
-        },
+        input,
         user.id,
       );
 
-      this.logger.log(`Bulk assigned ${customerIds.length} customers to territory ${territoryId}`);
+      this.logger.log(`Bulk assigned ${input.customerIds.length} customers to territory ${territoryId}`);
       return {
         assignments,
         count: assignments.length,
@@ -275,7 +284,7 @@ export class TerritoryResolver extends BaseResolver {
    * Mutation: Activate or deactivate a territory
    * @permission territory:update
    */
-  @Mutation('setTerritoryActive')
+  @Mutation(() => TerritoryGraphQLType)
   @UseGuards(PermissionsGuard)
   @Permissions('territory:update')
   async setTerritoryActive(
@@ -283,7 +292,7 @@ export class TerritoryResolver extends BaseResolver {
     @Args('isActive') isActive: boolean,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<TerritoryGraphQLType> {
     try {
       this.logger.log(`Setting territory ${id} active status to ${isActive} by user ${user.id}`);
       
@@ -308,7 +317,7 @@ export class TerritoryResolver extends BaseResolver {
    */
   @ResolveField('customers')
   async getCustomers(
-    @Parent() territory: any,
+    @Parent() territory: TerritoryGraphQLType,
     @CurrentTenant() tenantId: string,
   ) {
     try {
@@ -326,7 +335,7 @@ export class TerritoryResolver extends BaseResolver {
    */
   @ResolveField('salesRep')
   async getSalesRep(
-    @Parent() territory: any,
+    @Parent() territory: TerritoryGraphQLType,
     @CurrentTenant() tenantId: string,
   ) {
     try {
@@ -351,7 +360,7 @@ export class TerritoryResolver extends BaseResolver {
    */
   @ResolveField('secondarySalesReps')
   async getSecondarySalesReps(
-    @Parent() territory: any,
+    @Parent() territory: TerritoryGraphQLType,
     @CurrentTenant() tenantId: string,
   ) {
     try {
@@ -376,7 +385,7 @@ export class TerritoryResolver extends BaseResolver {
    */
   @ResolveField('manager')
   async getManager(
-    @Parent() territory: any,
+    @Parent() territory: TerritoryGraphQLType,
     @CurrentTenant() tenantId: string,
   ) {
     try {
@@ -401,9 +410,9 @@ export class TerritoryResolver extends BaseResolver {
    */
   @ResolveField('customerCount')
   async getCustomerCount(
-    @Parent() territory: any,
+    @Parent() territory: TerritoryGraphQLType,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<number> {
     try {
       const customers = await this.territoryService.getTerritoryCustomers(tenantId, territory.id);
       return customers.length;
@@ -419,9 +428,9 @@ export class TerritoryResolver extends BaseResolver {
    */
   @ResolveField('targetAchievement')
   async getTargetAchievement(
-    @Parent() territory: any,
+    @Parent() territory: TerritoryGraphQLType,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<number> {
     try {
       // Calculate year-to-date performance
       const startDate = new Date(new Date().getFullYear(), 0, 1);
@@ -447,9 +456,9 @@ export class TerritoryResolver extends BaseResolver {
    */
   @ResolveField('currentRevenue')
   async getCurrentRevenue(
-    @Parent() territory: any,
+    @Parent() territory: TerritoryGraphQLType,
     @CurrentTenant() tenantId: string,
-  ) {
+  ): Promise<number> {
     try {
       // Calculate year-to-date performance
       const startDate = new Date(new Date().getFullYear(), 0, 1);
