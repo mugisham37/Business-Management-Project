@@ -100,6 +100,64 @@ export class BackupVerificationService {
   }
 
   /**
+   * Verify backup with detailed results for GraphQL
+   */
+  async verifyBackupWithDetails(backup: BackupEntity, options?: {
+    deepVerification?: boolean;
+    verifyEncryption?: boolean;
+    verifyStructure?: boolean;
+  }): Promise<any> {
+    this.logger.log(`Starting detailed verification for backup ${backup.id}`);
+
+    try {
+      // Update status to verifying
+      await this.backupRepository.update(backup.id, {
+        status: BackupStatus.VERIFYING,
+      });
+
+      const result = await this.performDetailedVerification(backup, options);
+
+      // Update backup status based on verification result
+      await this.backupRepository.update(backup.id, {
+        status: result.isValid ? BackupStatus.VERIFIED : BackupStatus.VERIFICATION_FAILED,
+        isVerified: result.isValid,
+        verifiedAt: result.isValid ? new Date() : undefined,
+      });
+
+      return {
+        backupId: backup.id,
+        isValid: result.isValid,
+        verifiedAt: new Date(),
+        errorMessage: result.errors.length > 0 ? result.errors.join('; ') : undefined,
+        checksumValid: result.checksumMatch,
+        structureValid: result.structureValid,
+        encryptionValid: result.encryptionValid,
+        sizeValid: result.sizeMatch,
+      };
+
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Update status to verification failed
+      await this.backupRepository.update(backup.id, {
+        status: BackupStatus.VERIFICATION_FAILED,
+        isVerified: false,
+      });
+
+      return {
+        backupId: backup.id,
+        isValid: false,
+        verifiedAt: new Date(),
+        errorMessage,
+        checksumValid: false,
+        structureValid: false,
+        encryptionValid: false,
+        sizeValid: false,
+      };
+    }
+  }
+
+  /**
    * Perform comprehensive backup verification
    */
   private async performVerification(backup: BackupEntity): Promise<Omit<VerificationResult, 'verificationDuration'>> {
@@ -190,6 +248,111 @@ export class BackupVerificationService {
   }
 
   /**
+   * Perform detailed verification with options
+   */
+  private async performDetailedVerification(backup: BackupEntity, options?: {
+    deepVerification?: boolean;
+    verifyEncryption?: boolean;
+    verifyStructure?: boolean;
+  }): Promise<Omit<VerificationResult, 'verificationDuration'>> {
+    const errors: string[] = [];
+    let checksumMatch = false;
+    let encryptionValid = false;
+    let structureValid = false;
+    let sizeMatch = false;
+
+    try {
+      // 1. Check if backup exists in storage
+      const exists = await this.storageService.backupExists(backup.storagePath, backup.storageLocation);
+      if (!exists) {
+        errors.push('Backup file not found in storage');
+        return {
+          isValid: false,
+          checksumMatch: false,
+          encryptionValid: false,
+          structureValid: false,
+          sizeMatch: false,
+          errors,
+        };
+      }
+
+      // 2. Get storage metadata
+      const metadata = await this.storageService.getBackupMetadata(backup.storagePath, backup.storageLocation);
+      
+      // 3. Verify file size
+      if (metadata.size && backup.sizeBytes) {
+        sizeMatch = metadata.size === backup.sizeBytes;
+        if (!sizeMatch) {
+          errors.push(`Size mismatch: expected ${backup.sizeBytes}, got ${metadata.size}`);
+        }
+      }
+
+      // 4. Skip detailed verification if not requested
+      if (!options?.deepVerification) {
+        checksumMatch = true; // Assume valid for quick verification
+        encryptionValid = true;
+        structureValid = true;
+      } else {
+        // Download backup for detailed verification
+        const tempDir = this.configService.get('TEMP_DIR', '/tmp');
+        const tempFilePath = path.join(tempDir, `verify_${backup.id}_${Date.now()}`);
+
+        try {
+          await this.storageService.downloadBackup(backup.storagePath, backup.storageLocation, tempFilePath);
+
+          // 5. Verify checksum
+          const actualChecksum = await this.calculateFileChecksum(tempFilePath);
+          checksumMatch = actualChecksum === backup.checksum;
+          if (!checksumMatch) {
+            errors.push(`Checksum mismatch: expected ${backup.checksum}, got ${actualChecksum}`);
+          }
+
+          // 6. Verify encryption if enabled and requested
+          if (options?.verifyEncryption !== false && backup.encryptionKeyId) {
+            encryptionValid = await this.verifyEncryption(tempFilePath, backup);
+            if (!encryptionValid) {
+              errors.push('Encryption verification failed');
+            }
+          } else {
+            encryptionValid = true;
+          }
+
+          // 7. Verify backup structure if requested
+          if (options?.verifyStructure !== false) {
+            structureValid = await this.verifyBackupStructure(tempFilePath, backup);
+            if (!structureValid) {
+              errors.push('Backup structure verification failed');
+            }
+          } else {
+            structureValid = true;
+          }
+
+        } finally {
+          // Clean up temporary file
+          if (fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+          }
+        }
+      }
+
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      errors.push(`Verification error: ${errorMessage}`);
+    }
+
+    const isValid = checksumMatch && encryptionValid && structureValid && sizeMatch && errors.length === 0;
+
+    return {
+      isValid,
+      checksumMatch,
+      encryptionValid,
+      structureValid,
+      sizeMatch,
+      errors,
+    };
+  }
+
+  /**
    * Verify backup encryption
    */
   private async verifyEncryption(filePath: string, backup: BackupEntity): Promise<boolean> {
@@ -242,120 +405,6 @@ export class BackupVerificationService {
       this.logger.error(`Structure verification failed: ${errorMessage}`);
       return false;
     }
-  }
-
-  /**
-   * Batch verify multiple backups
-   */
-  async batchVerifyBackups(backupIds: string[]): Promise<Map<string, VerificationResult>> {
-    this.logger.log(`Starting batch verification for ${backupIds.length} backups`);
-
-    const results = new Map<string, VerificationResult>();
-    const verificationPromises = backupIds.map(async (backupId) => {
-      try {
-        const result = await this.verifyBackup(backupId);
-        results.set(backupId, result);
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        results.set(backupId, {
-          isValid: false,
-          checksumMatch: false,
-          encryptionValid: false,
-          structureValid: false,
-          sizeMatch: false,
-          errors: [errorMessage],
-          verificationDuration: 0,
-        });
-      }
-    });
-
-    await Promise.all(verificationPromises);
-
-    this.logger.log(`Batch verification completed for ${backupIds.length} backups`);
-    return results;
-  }
-
-  /**
-   * Schedule automatic verification for all unverified backups
-   */
-  async scheduleAutomaticVerification(): Promise<void> {
-    this.logger.log('Starting automatic verification of unverified backups');
-
-    try {
-      const unverifiedBackups = await this.backupRepository.findUnverified();
-      
-      for (const backup of unverifiedBackups) {
-        // Skip if backup is too recent (allow some time for upload to complete)
-        const completedAt = backup.completedAt;
-        if (!completedAt) {
-          continue;
-        }
-        const backupAge = Date.now() - completedAt.getTime();
-        if (backupAge < 5 * 60 * 1000) { // 5 minutes
-          continue;
-        }
-
-        await this.verifyBackup(backup.id);
-      }
-
-      this.logger.log(`Automatic verification completed for ${unverifiedBackups.length} backups`);
-
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(`Automatic verification failed: ${errorMessage}`, errorStack);
-    }
-  }
-
-  /**
-   * Generate backup integrity report
-   */
-  async generateIntegrityReport(tenantId: string, startDate?: Date, endDate?: Date): Promise<BackupIntegrityCheck[]> {
-    this.logger.log(`Generating integrity report for tenant ${tenantId}`);
-
-    const backups = await this.backupRepository.findMany({
-      tenantId,
-      ...(startDate !== undefined && { startDate }),
-      ...(endDate !== undefined && { endDate }),
-    });
-
-    const integrityChecks: BackupIntegrityCheck[] = [];
-
-    for (const backup of backups.backups) {
-      try {
-        const verification = await this.performVerification(backup);
-        
-        // Get actual file info from storage
-        const metadata = await this.storageService.getBackupMetadata(backup.storagePath, backup.storageLocation);
-        
-        integrityChecks.push({
-          backupId: backup.id,
-          expectedChecksum: backup.checksum,
-          actualChecksum: verification.checksumMatch ? backup.checksum : 'MISMATCH',
-          expectedSize: backup.sizeBytes,
-          actualSize: metadata.size || 0,
-          encryptionKeyValid: verification.encryptionValid,
-          structureValid: verification.structureValid,
-          errors: verification.errors,
-        });
-
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        integrityChecks.push({
-          backupId: backup.id,
-          expectedChecksum: backup.checksum,
-          actualChecksum: 'ERROR',
-          expectedSize: backup.sizeBytes,
-          actualSize: 0,
-          encryptionKeyValid: false,
-          structureValid: false,
-          errors: [errorMessage],
-        });
-      }
-    }
-
-    this.logger.log(`Integrity report generated for ${integrityChecks.length} backups`);
-    return integrityChecks;
   }
 
   /**

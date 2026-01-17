@@ -175,13 +175,18 @@ export class BackupSchedulerService {
   /**
    * Update scheduled backup job
    */
-  async updateScheduledJob(jobId: string, updates: Partial<ScheduledBackupConfig>): Promise<void> {
+  async updateScheduledJob(jobId: string, updates: Partial<ScheduledBackupConfig>, tenantId?: string): Promise<void> {
     this.logger.log(`Updating scheduled backup job ${jobId}`);
 
     try {
       const job = await this.backupJobRepository.findById(jobId);
       if (!job) {
         throw new Error(`Backup job ${jobId} not found`);
+      }
+
+      // Verify tenant access if provided
+      if (tenantId && job.tenantId !== tenantId) {
+        throw new Error(`Access denied to backup job ${jobId}`);
       }
 
       // Update job configuration

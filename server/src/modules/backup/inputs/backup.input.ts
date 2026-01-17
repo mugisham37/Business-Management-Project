@@ -1,5 +1,6 @@
 import { InputType, Field, ID } from '@nestjs/graphql';
 import { IsEnum, IsOptional, IsBoolean, IsNumber, IsArray, IsString, IsDateString, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
 
 import { BackupType, BackupStatus, BackupStorageLocation } from '../entities/backup.entity';
 
@@ -273,4 +274,100 @@ export class BackupVerificationInput {
   @IsOptional()
   @IsBoolean()
   verifyStructure?: boolean;
+}
+
+@InputType()
+export class BackupPaginationInput {
+  @Field({ nullable: true, defaultValue: 50 })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  @Type(() => Number)
+  limit?: number;
+
+  @Field({ nullable: true, defaultValue: 0 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  offset?: number;
+}
+
+@InputType()
+export class RecoveryEstimateInput {
+  @Field()
+  @IsDateString()
+  targetDateTime!: string;
+}
+
+@InputType()
+export class BackupStorageUsageInput {
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+}
+
+@InputType()
+export class BackupIntegrityReportInput {
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+}
+
+@InputType()
+export class BatchVerificationInput {
+  @Field(() => [ID])
+  @IsArray()
+  @IsString({ each: true })
+  backupIds!: string[];
+
+  @Field({ nullable: true, defaultValue: false })
+  @IsOptional()
+  @IsBoolean()
+  deepVerification?: boolean;
+
+  @Field({ nullable: true, defaultValue: true })
+  @IsOptional()
+  @IsBoolean()
+  verifyEncryption?: boolean;
+
+  @Field({ nullable: true, defaultValue: true })
+  @IsOptional()
+  @IsBoolean()
+  verifyStructure?: boolean;
+}
+
+@InputType()
+export class EncryptionKeyRotationInput {
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+@InputType()
+export class BackupCleanupInput {
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  dryRun?: boolean;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  maxBackupsToDelete?: number;
 }

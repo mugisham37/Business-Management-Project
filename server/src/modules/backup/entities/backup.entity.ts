@@ -142,6 +142,34 @@ export class BackupEntity {
   @Field({ nullable: true })
   @ApiProperty({ description: 'User who initiated backup', required: false })
   createdBy?: string | undefined;
+
+  // Computed fields (resolved by GraphQL field resolvers)
+  @Field(() => Number, { nullable: true })
+  duration?: number;
+
+  @Field(() => Number)
+  ageInDays?: number;
+
+  @Field(() => Number)
+  daysUntilExpiration?: number;
+
+  @Field(() => String)
+  humanReadableSize?: string;
+
+  @Field(() => String)
+  statusDescription?: string;
+
+  @Field(() => Number)
+  healthScore?: number;
+
+  @Field(() => [BackupEntity])
+  relatedBackups?: BackupEntity[];
+
+  @Field(() => [String])
+  dependencies?: string[];
+
+  @Field(() => Number)
+  estimatedRestoreTimeMinutes?: number;
 }
 
 @ObjectType()
