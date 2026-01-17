@@ -1,5 +1,4 @@
 import { ObjectType, Field, ID, Float, Int } from '@nestjs/graphql';
-import { ApiProperty } from '@nestjs/swagger';
 import { BaseEntity, Edge, Connection, PageInfo } from '../../../common/graphql/base.types';
 import { PaymentMethodEnum, TransactionStatusEnum } from './pos.types';
 
@@ -7,147 +6,294 @@ import { PaymentMethodEnum, TransactionStatusEnum } from './pos.types';
 @ObjectType({ description: 'Transaction line item' })
 export class TransactionItem {
   @Field(() => ID)
-  @ApiProperty({ description: 'Item ID' })
   id!: string;
 
   @Field(() => ID)
-  @ApiProperty({ description: 'Product ID' })
   productId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Product SKU' })
   productSku!: string;
 
   @Field()
-  @ApiProperty({ description: 'Product name' })
   productName!: string;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Quantity' })
   quantity!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Unit price' })
   unitPrice!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Line total' })
   lineTotal!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Discount amount' })
   discountAmount!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Tax amount' })
   taxAmount!: number;
+
+  @Field({ nullable: true })
+  variantInfo?: Record<string, any>;
+
+  @Field({ nullable: true })
+  metadata?: Record<string, any>;
 }
 
 // Payment Record Type
 @ObjectType({ description: 'Payment record for a transaction' })
 export class PaymentRecord {
   @Field(() => ID)
-  @ApiProperty({ description: 'Payment ID' })
   id!: string;
 
   @Field(() => PaymentMethodEnum)
-  @ApiProperty({ enum: PaymentMethodEnum, description: 'Payment method' })
   paymentMethod!: PaymentMethodEnum;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Payment amount' })
   amount!: number;
 
   @Field()
-  @ApiProperty({ description: 'Payment status' })
   status!: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Payment provider', required: false })
   paymentProvider?: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Provider transaction ID', required: false })
   providerTransactionId?: string;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Processed at', required: false })
   processedAt?: Date;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Refunded amount' })
   refundedAmount!: number;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Refunded at', required: false })
   refundedAt?: Date;
+
+  @Field({ nullable: true })
+  failureReason?: string;
+
+  @Field({ nullable: true })
+  metadata?: Record<string, any>;
 }
 
 // Transaction Type
 @ObjectType({ description: 'POS transaction' })
 export class Transaction extends BaseEntity {
   @Field(() => ID)
-  @ApiProperty({ description: 'Transaction ID' })
   id!: string;
 
   @Field()
-  @ApiProperty({ description: 'Transaction number' })
   transactionNumber!: string;
 
   @Field(() => ID, { nullable: true })
-  @ApiProperty({ description: 'Customer ID', required: false })
   customerId?: string;
 
   @Field(() => ID)
-  @ApiProperty({ description: 'Location ID' })
   locationId!: string;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Subtotal' })
   subtotal!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Tax amount' })
   taxAmount!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Discount amount' })
   discountAmount!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Tip amount' })
   tipAmount!: number;
 
   @Field(() => Float)
-  @ApiProperty({ description: 'Total amount' })
   total!: number;
 
   @Field(() => TransactionStatusEnum)
-  @ApiProperty({ enum: TransactionStatusEnum, description: 'Transaction status' })
   status!: TransactionStatusEnum;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Item count' })
   itemCount!: number;
 
   @Field(() => PaymentMethodEnum)
-  @ApiProperty({ enum: PaymentMethodEnum, description: 'Payment method' })
   paymentMethod!: PaymentMethodEnum;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Transaction notes', required: false })
   notes?: string;
 
+  @Field({ nullable: true })
+  paymentReference?: string;
+
+  @Field()
+  isOfflineTransaction!: boolean;
+
+  @Field({ nullable: true })
+  offlineTimestamp?: Date;
+
+  @Field({ nullable: true })
+  syncedAt?: Date;
+
+  @Field({ nullable: true })
+  metadata?: Record<string, any>;
+
   @Field(() => [TransactionItem])
-  @ApiProperty({ type: [TransactionItem], description: 'Transaction items' })
   items!: TransactionItem[];
+
+  @Field(() => [PaymentRecord])
+  payments!: PaymentRecord[];
+}
+
+// Payment Result Type
+@ObjectType({ description: 'Payment processing result' })
+export class PaymentResult {
+  @Field()
+  success!: boolean;
+
+  @Field()
+  paymentId!: string;
+
+  @Field({ nullable: true })
+  providerTransactionId?: string;
+
+  @Field({ nullable: true })
+  error?: string;
+
+  @Field({ nullable: true })
+  metadata?: Record<string, any>;
+}
+
+// Receipt Result Types
+@ObjectType({ description: 'Receipt delivery result' })
+export class ReceiptResult {
+  @Field()
+  success!: boolean;
+
+  @Field()
+  receiptId!: string;
+
+  @Field()
+  deliveryMethod!: string;
+
+  @Field({ nullable: true })
+  error?: string;
+}
+
+@ObjectType({ description: 'Email delivery result' })
+export class EmailResult {
+  @Field()
+  success!: boolean;
+
+  @Field({ nullable: true })
+  messageId?: string;
+
+  @Field({ nullable: true })
+  error?: string;
+}
+
+@ObjectType({ description: 'SMS delivery result' })
+export class SmsResult {
+  @Field()
+  success!: boolean;
+
+  @Field({ nullable: true })
+  messageId?: string;
+
+  @Field({ nullable: true })
+  error?: string;
+}
+
+@ObjectType({ description: 'Print result' })
+export class PrintResult {
+  @Field()
+  success!: boolean;
+
+  @Field({ nullable: true })
+  printJobId?: string;
+
+  @Field({ nullable: true })
+  error?: string;
+}
+
+// Reconciliation Types
+@ObjectType({ description: 'Payment method breakdown' })
+export class PaymentMethodBreakdown {
+  @Field(() => Int)
+  count!: number;
+
+  @Field(() => Float)
+  amount!: number;
+}
+
+@ObjectType({ description: 'Reconciliation summary' })
+export class ReconciliationSummary {
+  @Field(() => Float)
+  expectedAmount!: number;
+
+  @Field(() => Float)
+  actualAmount!: number;
+
+  @Field(() => Float)
+  variance!: number;
+
+  @Field(() => Float)
+  variancePercentage!: number;
+}
+
+@ObjectType({ description: 'Reconciliation discrepancy' })
+export class ReconciliationDiscrepancy {
+  @Field()
+  type!: string;
+
+  @Field({ nullable: true })
+  transactionId?: string;
+
+  @Field(() => Float, { nullable: true })
+  expectedAmount?: number;
+
+  @Field(() => Float, { nullable: true })
+  actualAmount?: number;
+
+  @Field()
+  description!: string;
+}
+
+@ObjectType({ description: 'Reconciliation report' })
+export class ReconciliationReport {
+  @Field()
+  reconciliationId!: string;
+
+  @Field()
+  tenantId!: string;
+
+  @Field({ nullable: true })
+  locationId?: string;
+
+  @Field()
+  startDate!: Date;
+
+  @Field()
+  endDate!: Date;
+
+  @Field(() => Int)
+  totalTransactions!: number;
+
+  @Field(() => Float)
+  totalAmount!: number;
+
+  @Field({ nullable: true })
+  paymentMethodBreakdown?: Record<string, PaymentMethodBreakdown>;
+
+  @Field(() => [ReconciliationDiscrepancy])
+  discrepancies!: ReconciliationDiscrepancy[];
+
+  @Field(() => ReconciliationSummary)
+  summary!: ReconciliationSummary;
+
+  @Field()
+  generatedAt!: Date;
 }
 
 // Transaction Edge
 @ObjectType()
 export class TransactionEdge extends Edge<Transaction> {
   @Field(() => Transaction)
-  @ApiProperty({ type: Transaction })
   node!: Transaction;
 }
 
@@ -155,10 +301,8 @@ export class TransactionEdge extends Edge<Transaction> {
 @ObjectType()
 export class TransactionConnection extends Connection<Transaction> {
   @Field(() => [TransactionEdge])
-  @ApiProperty({ type: [TransactionEdge] })
   edges!: TransactionEdge[];
 
   @Field(() => PageInfo)
-  @ApiProperty({ type: PageInfo })
   pageInfo!: PageInfo;
 }

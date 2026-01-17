@@ -4,13 +4,14 @@ import { TransactionRepository } from '../repositories/transaction.repository';
 import { PaymentRepository } from '../repositories/payment.repository';
 import { TransactionValidationService } from './transaction-validation.service';
 import { 
-  CreateTransactionDto, 
-  UpdateTransactionDto, 
-  VoidTransactionDto, 
-  RefundTransactionDto,
-  TransactionResponseDto 
-} from '../dto/transaction.dto';
-import { Transaction, TransactionWithItems, PaymentRecord } from '../entities/transaction.entity';
+  CreateTransactionInput, 
+  UpdateTransactionInput, 
+  VoidTransactionInput, 
+  RefundTransactionInput
+} from '../inputs/transaction.input';
+import { Transaction } from '../types/transaction.types';
+import { Transaction as TransactionEntity, TransactionWithItems, PaymentRecord } from '../entities/transaction.entity';
+import { UpdateTransactionDto, VoidTransactionDto, RefundTransactionDto, TransactionResponseDto } from '../types/shared.types';
 
 @Injectable()
 export class TransactionService {
@@ -23,7 +24,7 @@ export class TransactionService {
 
   async createTransaction(
     tenantId: string,
-    transactionData: CreateTransactionDto,
+    transactionData: CreateTransactionInput,
     userId: string,
   ): Promise<TransactionWithItems> {
     // Validate transaction data

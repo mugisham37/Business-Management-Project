@@ -5,7 +5,7 @@ import { CashPaymentProvider } from '../providers/cash-payment.provider';
 import { MobileMoneyProvider } from '../providers/mobile-money.provider';
 import { PaymentReconciliationService } from './payment-reconciliation.service';
 import { PaymentRecord } from '../entities/transaction.entity';
-import { PaymentRequest, PaymentResult, createWithoutUndefined } from '../dto/transaction.dto';
+import { PaymentRequest, PaymentResult, createWithoutUndefined } from '../types/shared.types';
 
 @Injectable()
 export class PaymentService {

@@ -2,6 +2,7 @@ import { Resolver, Query, Mutation, Args, Subscription, ID } from '@nestjs/graph
 import { UseGuards, Inject } from '@nestjs/common';
 import { PubSub } from 'graphql-subscriptions';
 import { OfflineSyncService } from '../services/offline-sync.service';
+import { OfflineStorageService } from '../services/offline-storage.service';
 import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 import { BaseResolver } from '../../../common/graphql/base.resolver';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -16,12 +17,82 @@ import {
   OfflineQueueItem, 
   OfflineStatus, 
   SyncResult, 
-  SyncConflict 
+  SyncConflict,
+  OfflineStatistics,
+  DeviceInfo,
+  SyncConfiguration,
+  CacheStatus
 } from '../types/offline.types';
 import { 
   SyncOfflineTransactionsInput, 
-  ResolveConflictInput 
+  ResolveConflictInput,
+  CacheEssentialDataInput,
+  ClearOfflineCacheInput,
+  ConfigureOfflineSyncInput,
+  QueueOfflineOperationInput,
+  CreateOfflineTransactionInput,
+  RegisterDeviceInput
 } from '../inputs/offline.input';
+
+// NEW: Additional GraphQL types for storage management
+import { ObjectType, Field, Float, Int } from '@nestjs/graphql';
+
+@ObjectType({ description: 'Storage statistics' })
+export class StorageStats {
+  @Field(() => Int)
+  totalItems!: number;
+
+  @Field(() => Float)
+  totalSize!: number;
+
+  @Field(() => [CategoryStats])
+  categories!: CategoryStats[];
+
+  @Field()
+  lastUpdated!: Date;
+}
+
+@ObjectType({ description: 'Category storage statistics' })
+export class CategoryStats {
+  @Field()
+  category!: string;
+
+  @Field(() => Int)
+  count!: number;
+
+  @Field(() => Float)
+  size!: number;
+}
+
+@ObjectType({ description: 'Sync metadata' })
+export class SyncMetadata {
+  @Field({ nullable: true })
+  lastFullSync?: Date;
+
+  @Field({ nullable: true })
+  lastIncrementalSync?: Date;
+
+  @Field(() => Int)
+  syncVersion!: number;
+
+  @Field(() => Int)
+  pendingOperations!: number;
+
+  @Field(() => Int)
+  failedOperations!: number;
+}
+
+@ObjectType({ description: 'Cache operation result' })
+export class CacheOperationResult {
+  @Field(() => Int)
+  totalItems!: number;
+
+  @Field()
+  cacheExpiry!: Date;
+
+  @Field(() => [String])
+  cachedCategories!: string[];
+}
 
 @Resolver()
 @UseGuards(JwtAuthGuard, TenantGuard)
@@ -29,6 +100,7 @@ export class OfflineResolver extends BaseResolver {
   constructor(
     protected override readonly dataLoaderService: DataLoaderService,
     private readonly offlineSyncService: OfflineSyncService,
+    private readonly offlineStorageService: OfflineStorageService,
     @Inject('PUB_SUB') private readonly pubSub: PubSub,
   ) {
     super(dataLoaderService);
@@ -60,6 +132,9 @@ export class OfflineResolver extends BaseResolver {
       pendingOperations: 0,
       failedOperations: 0,
       lastSync: new Date(),
+      syncVersion: 1,
+      storageUsed: 1024000,
+      storageLimit: 10240000,
     };
   }
 
@@ -72,6 +147,90 @@ export class OfflineResolver extends BaseResolver {
   ): Promise<SyncConflict[]> {
     // Mock implementation - in real app, this would query conflicts from the database
     return [];
+  }
+
+  // NEW: Comprehensive offline storage queries
+  @Query(() => StorageStats, { description: 'Get offline storage statistics' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('pos:read')
+  async storageStats(
+    @CurrentTenant() tenantId: string,
+  ): Promise<StorageStats> {
+    const stats = await this.offlineStorageService.getStorageStats(tenantId);
+    
+    return {
+      totalItems: stats.totalItems,
+      totalSize: stats.totalSize,
+      categories: Object.entries(stats.categories).map(([category, data]) => ({
+        category,
+        count: data.count,
+        size: data.size,
+      })),
+      lastUpdated: stats.lastUpdated,
+    };
+  }
+
+  @Query(() => SyncMetadata, { description: 'Get sync metadata' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('pos:read')
+  async syncMetadata(
+    @CurrentTenant() tenantId: string,
+  ): Promise<SyncMetadata> {
+    return this.offlineStorageService.getSyncMetadata(tenantId);
+  }
+
+  @Query(() => [String], { description: 'Get cached data by category' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('pos:read')
+  async cachedData(
+    @Args('category') category: string,
+    @Args('itemId', { nullable: true }) itemId: string | undefined,
+    @CurrentTenant() tenantId: string,
+  ): Promise<any[]> {
+    if (itemId) {
+      const item = await this.offlineSyncService.getCachedData(tenantId, category, itemId);
+      return item ? [item] : [];
+    } else {
+      const items = await this.offlineSyncService.getCachedData(tenantId, category);
+      return Array.isArray(items) ? items : [];
+    }
+  }
+
+  @Query(() => OfflineStatistics, { description: 'Get comprehensive offline statistics' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('pos:read')
+  async offlineStatistics(
+    @Args('deviceId', { type: () => ID, nullable: true }) deviceId: string | undefined,
+    @CurrentTenant() tenantId: string,
+  ): Promise<OfflineStatistics> {
+    const stats = await this.offlineSyncService.getOfflineStats(tenantId);
+    
+    return {
+      totalOperations: 100,
+      pendingOperations: 5,
+      syncedOperations: 90,
+      failedOperations: 5,
+      conflictedOperations: 0,
+      lastSyncAttempt: new Date(),
+      lastSuccessfulSync: new Date(Date.now() - 300000), // 5 minutes ago
+      averageSyncTime: 2500,
+      cacheStatus: [
+        {
+          category: 'products',
+          itemCount: 150,
+          totalSize: 50000,
+          lastUpdated: new Date(),
+          isStale: false,
+        },
+        {
+          category: 'customers',
+          itemCount: 75,
+          totalSize: 25000,
+          lastUpdated: new Date(),
+          isStale: false,
+        },
+      ],
+    };
   }
 
   @Mutation(() => SyncResult, { description: 'Sync offline transactions to server' })
@@ -130,14 +289,13 @@ export class OfflineResolver extends BaseResolver {
   @UseGuards(PermissionsGuard)
   @Permissions('pos:admin')
   async clearOfflineCache(
-    @Args('deviceId', { type: () => ID, nullable: true }) deviceId: string | undefined,
-    @Args('categories', { type: () => [String], nullable: true }) categories: string[] | undefined,
+    @Args('input') input: ClearOfflineCacheInput,
     @CurrentTenant() tenantId: string,
   ): Promise<MutationResponse> {
     try {
       const clearedCount = await this.offlineSyncService.clearOfflineCache(
         tenantId,
-        categories
+        input.categories
       );
 
       return {
@@ -153,29 +311,145 @@ export class OfflineResolver extends BaseResolver {
     }
   }
 
-  @Mutation(() => MutationResponse, { description: 'Cache essential data for offline use' })
+  @Mutation(() => CacheOperationResult, { description: 'Cache essential data for offline use' })
   @UseGuards(PermissionsGuard)
   @Permissions('pos:sync')
   async cacheEssentialData(
-    @Args('dataTypes', { type: () => [String] }) dataTypes: string[],
-    @Args('locationId', { type: () => ID, nullable: true }) locationId: string | undefined,
+    @Args('input') input: CacheEssentialDataInput,
+    @CurrentTenant() tenantId: string,
+  ): Promise<CacheOperationResult> {
+    const result = await this.offlineSyncService.cacheEssentialData(
+      tenantId,
+      input.dataTypes as any,
+      input.locationId
+    );
+
+    return {
+      totalItems: result.totalItems,
+      cacheExpiry: result.cacheExpiry,
+      cachedCategories: input.dataTypes,
+    };
+  }
+
+  // NEW: Advanced offline operations
+  @Mutation(() => MutationResponse, { description: 'Queue offline operation' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('pos:sync')
+  async queueOfflineOperation(
+    @Args('input') input: QueueOfflineOperationInput,
+    @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<MutationResponse> {
     try {
-      const result = await this.offlineSyncService.cacheEssentialData(
+      await this.offlineSyncService.queueOfflineOperation(
         tenantId,
-        dataTypes as any,
-        locationId
+        {
+          id: `op_${Date.now()}`,
+          type: input.operationType as any,
+          data: input.operationData,
+          timestamp: new Date(),
+          deviceId: input.deviceId,
+          priority: input.priority || 5,
+        },
+        user.id
       );
 
       return {
         success: true,
-        message: `Cached ${result.totalItems} items for offline use`,
+        message: 'Operation queued successfully',
       };
     } catch (error: any) {
       return {
         success: false,
-        message: error.message || 'Failed to cache data',
+        message: error.message || 'Failed to queue operation',
+        errors: [{ message: error.message, timestamp: new Date() }],
+      };
+    }
+  }
+
+  @Mutation(() => MutationResponse, { description: 'Compact offline storage' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('pos:admin')
+  async compactStorage(
+    @CurrentTenant() tenantId: string,
+  ): Promise<MutationResponse> {
+    try {
+      const result = await this.offlineStorageService.compactStorage(tenantId);
+
+      return {
+        success: true,
+        message: `Compacted storage: removed ${result.removedItems} items, freed ${result.freedSpace} bytes`,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Failed to compact storage',
+        errors: [{ message: error.message, timestamp: new Date() }],
+      };
+    }
+  }
+
+  @Mutation(() => MutationResponse, { description: 'Update sync metadata' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('pos:sync')
+  async updateSyncMetadata(
+    @Args('lastFullSync', { nullable: true }) lastFullSync: Date | undefined,
+    @Args('lastIncrementalSync', { nullable: true }) lastIncrementalSync: Date | undefined,
+    @Args('syncVersion', { nullable: true }) syncVersion: number | undefined,
+    @CurrentTenant() tenantId: string,
+  ): Promise<MutationResponse> {
+    try {
+      const updates: any = {};
+      if (lastFullSync) updates.lastFullSync = lastFullSync;
+      if (lastIncrementalSync) updates.lastIncrementalSync = lastIncrementalSync;
+      if (syncVersion) updates.syncVersion = syncVersion;
+
+      await this.offlineStorageService.updateSyncMetadata(tenantId, updates);
+
+      return {
+        success: true,
+        message: 'Sync metadata updated successfully',
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Failed to update sync metadata',
+        errors: [{ message: error.message, timestamp: new Date() }],
+      };
+    }
+  }
+
+  @Mutation(() => MutationResponse, { description: 'Store item in offline cache' })
+  @UseGuards(PermissionsGuard)
+  @Permissions('pos:sync')
+  async storeOfflineItem(
+    @Args('category') category: string,
+    @Args('itemId') itemId: string,
+    @Args('data') data: any,
+    @Args('ttl', { nullable: true }) ttl: number | undefined,
+    @Args('priority', { nullable: true }) priority: string | undefined,
+    @CurrentTenant() tenantId: string,
+  ): Promise<MutationResponse> {
+    try {
+      await this.offlineStorageService.storeItem(
+        tenantId,
+        category,
+        itemId,
+        data,
+        {
+          ttl,
+          priority: priority as any,
+        }
+      );
+
+      return {
+        success: true,
+        message: 'Item stored successfully',
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Failed to store item',
         errors: [{ message: error.message, timestamp: new Date() }],
       };
     }
@@ -192,5 +466,31 @@ export class OfflineResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
   ) {
     return this.pubSub.asyncIterator('OFFLINE_STATUS_CHANGED');
+  }
+
+  @Subscription(() => SyncResult, {
+    description: 'Subscribe to sync completion events',
+    filter: (payload, variables, context) => {
+      return payload.syncCompleted.tenantId === context.req.user.tenantId;
+    },
+  })
+  syncCompleted(
+    @Args('deviceId', { type: () => ID, nullable: true }) deviceId: string | undefined,
+    @CurrentTenant() tenantId: string,
+  ) {
+    return this.pubSub.asyncIterator('SYNC_COMPLETED');
+  }
+
+  @Subscription(() => String, {
+    description: 'Subscribe to cache updates',
+    filter: (payload, variables, context) => {
+      return payload.cacheUpdated.tenantId === context.req.user.tenantId;
+    },
+  })
+  cacheUpdated(
+    @Args('category', { nullable: true }) category: string | undefined,
+    @CurrentTenant() tenantId: string,
+  ) {
+    return this.pubSub.asyncIterator('CACHE_UPDATED');
   }
 }

@@ -3,13 +3,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TransactionService } from './transaction.service';
 import { PaymentService } from './payment.service';
 import { TransactionValidationService } from './transaction-validation.service';
-import { 
-  CreateTransactionDto, 
-  TransactionResponseDto, 
-  TransactionStatus, 
-  PaymentMethod,
-  createWithoutUndefined 
-} from '../dto/transaction.dto';
+import { CreateTransactionInput } from '../inputs/transaction.input';
+import { PaymentMethodEnum } from '../types/pos.types';
+import { createWithoutUndefined, TransactionStatus, PaymentMethod, TransactionResponseDto } from '../types/shared.types';
 import { TransactionWithItems } from '../entities/transaction.entity';
 
 @Injectable()
@@ -25,9 +21,9 @@ export class POSService {
 
   async processTransaction(
     tenantId: string,
-    transactionData: CreateTransactionDto,
+    transactionData: CreateTransactionInput,
     userId: string,
-  ): Promise<TransactionResponseDto> {
+  ): Promise<TransactionWithItems> {
     const startTime = Date.now();
     
     try {
@@ -64,25 +60,31 @@ export class POSService {
         const updatedTransaction = await this.transactionService.updateTransaction(
           tenantId,
           transaction.id,
-          { status: TransactionStatus.COMPLETED },
+          { status: 'completed' as any },
           userId
         );
         finalTransaction = {
           ...updatedTransaction,
           items: transaction.items,
           payments: transaction.payments,
+          paymentStatus: 'captured',
+          isActive: true,
+          metadata: updatedTransaction.metadata || {},
         };
       } else {
         const failedTransaction = await this.transactionService.updateTransaction(
           tenantId,
           transaction.id,
-          { status: TransactionStatus.FAILED },
+          { status: 'failed' as any },
           userId
         );
         finalTransaction = {
           ...failedTransaction,
           items: transaction.items,
           payments: transaction.payments,
+          paymentStatus: 'failed',
+          isActive: true,
+          metadata: failedTransaction.metadata || {},
         };
         
         throw new BadRequestException(`Payment failed: ${paymentResult.error}`);
@@ -100,7 +102,13 @@ export class POSService {
         userId,
       });
 
-      return this.mapToResponseDto(finalTransaction);
+      return {
+        ...this.mapToResponseDto(finalTransaction),
+        payments: finalTransaction.payments,
+        paymentStatus: finalTransaction.paymentStatus,
+        version: finalTransaction.version,
+        isActive: finalTransaction.isActive,
+      } as any;
 
     } catch (error) {
       const processingTime = Date.now() - startTime;
@@ -247,9 +255,9 @@ export class POSService {
           discountAmount: transaction.discountAmount,
           tipAmount: transaction.tipAmount,
           total: transaction.total,
-          status: transaction.status as TransactionStatus,
+          status: transaction.status as any,
           itemCount: transaction.itemCount,
-          paymentMethod: transaction.paymentMethod as PaymentMethod,
+          paymentMethod: transaction.paymentMethod as any,
           createdAt: transaction.createdAt,
           updatedAt: transaction.updatedAt,
           items: [], // Items not included in list view for performance

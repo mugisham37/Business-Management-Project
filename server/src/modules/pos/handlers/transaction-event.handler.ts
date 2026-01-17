@@ -1,35 +1,84 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ReceiptService } from '../services/receipt.service';
+import { OfflineSyncService } from '../services/offline-sync.service';
+import { CacheService } from '../../cache/cache.service';
+import { TransactionWithItems } from '../entities/transaction.entity';
+
+export interface TransactionCreatedEvent {
+  tenantId: string;
+  transaction: TransactionWithItems;
+  userId: string;
+}
+
+export interface TransactionUpdatedEvent {
+  tenantId: string;
+  transactionId: string;
+  updates: any;
+  userId: string;
+}
+
+export interface TransactionVoidedEvent {
+  tenantId: string;
+  transaction: any;
+  voidData: any;
+  userId: string;
+}
+
+export interface TransactionRefundedEvent {
+  tenantId: string;
+  transaction: any;
+  refundData: any;
+  refundAmount: number;
+  userId: string;
+}
+
+export interface TransactionFailedEvent {
+  tenantId: string;
+  transactionData: any;
+  userId: string;
+  error: string;
+}
+
+export interface POSTransactionCompletedEvent {
+  tenantId: string;
+  transaction: TransactionWithItems;
+  paymentResult: any;
+  processingTime: number;
+  userId: string;
+}
+
+export interface POSTransactionFailedEvent {
+  tenantId: string;
+  transactionData: any;
+  error: string;
+  processingTime: number;
+  userId: string;
+}
 
 @Injectable()
 export class TransactionEventHandler {
   private readonly logger = new Logger(TransactionEventHandler.name);
 
-  constructor(private readonly eventEmitter: EventEmitter2) {}
+  constructor(
+    private readonly receiptService: ReceiptService,
+    private readonly offlineSyncService: OfflineSyncService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   @OnEvent('transaction.created')
-  async handleTransactionCreated(payload: {
-    tenantId: string;
-    transaction: any;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Transaction created: ${payload.transaction.transactionNumber} for tenant ${payload.tenantId}`);
+  async handleTransactionCreated(event: TransactionCreatedEvent): Promise<void> {
+    this.logger.log(`Handling transaction created event for transaction ${event.transaction.id}`);
 
     try {
-      // Update inventory levels
-      await this.updateInventoryLevels(payload);
+      // Update transaction cache
+      await this.updateTransactionCache(event.tenantId, event.transaction);
 
-      // Update business metrics
-      await this.updateBusinessMetrics(payload);
+      // Update location statistics
+      await this.updateLocationStats(event.tenantId, event.transaction.locationId, 'created');
 
-      // Send real-time notifications
-      await this.sendRealtimeNotifications(payload);
-
-      // Update customer loyalty points (if customer is associated)
-      if (payload.transaction.customerId) {
-        await this.updateCustomerLoyalty(payload);
-      }
+      // Log transaction creation for audit
+      this.logger.log(`Transaction ${event.transaction.id} created successfully for tenant ${event.tenantId}`);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -37,53 +86,36 @@ export class TransactionEventHandler {
     }
   }
 
-  @OnEvent('transaction.completed')
-  async handleTransactionCompleted(payload: {
-    tenantId: string;
-    transaction: any;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Transaction completed: ${payload.transaction.transactionNumber}`);
+  @OnEvent('transaction.updated')
+  async handleTransactionUpdated(event: TransactionUpdatedEvent): Promise<void> {
+    this.logger.log(`Handling transaction updated event for transaction ${event.transactionId}`);
 
     try {
-      // Finalize inventory updates
-      await this.finalizeInventoryUpdates(payload);
+      // Invalidate transaction cache
+      await this.invalidateTransactionCache(event.tenantId, event.transactionId);
 
-      // Update sales analytics
-      await this.updateSalesAnalytics(payload);
-
-      // Trigger automatic receipt generation if configured
-      await this.triggerAutoReceipt(payload);
+      // Log transaction update for audit
+      this.logger.log(`Transaction ${event.transactionId} updated for tenant ${event.tenantId}`);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Error handling transaction completed event: ${errorMessage}`);
+      this.logger.error(`Error handling transaction updated event: ${errorMessage}`);
     }
   }
 
   @OnEvent('transaction.voided')
-  async handleTransactionVoided(payload: {
-    tenantId: string;
-    transaction: any;
-    voidData: any;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Transaction voided: ${payload.transaction.transactionNumber}`);
+  async handleTransactionVoided(event: TransactionVoidedEvent): Promise<void> {
+    this.logger.log(`Handling transaction voided event for transaction ${event.transaction.id}`);
 
     try {
-      // Reverse inventory changes
-      await this.reverseInventoryChanges(payload);
+      // Update location statistics
+      await this.updateLocationStats(event.tenantId, event.transaction.locationId, 'voided');
 
-      // Update business metrics
-      await this.updateMetricsForVoid(payload);
+      // Invalidate related caches
+      await this.invalidateTransactionCache(event.tenantId, event.transaction.id);
 
-      // Send void notifications
-      await this.sendVoidNotifications(payload);
-
-      // Reverse customer loyalty points
-      if (payload.transaction.customerId) {
-        await this.reverseLoyaltyPoints(payload);
-      }
+      // Log void for audit
+      this.logger.log(`Transaction ${event.transaction.id} voided: ${event.voidData.reason}`);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -92,29 +124,18 @@ export class TransactionEventHandler {
   }
 
   @OnEvent('transaction.refunded')
-  async handleTransactionRefunded(payload: {
-    tenantId: string;
-    transaction: any;
-    refundData: any;
-    refundAmount: number;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Transaction refunded: ${payload.transaction.transactionNumber}, amount: $${payload.refundAmount}`);
+  async handleTransactionRefunded(event: TransactionRefundedEvent): Promise<void> {
+    this.logger.log(`Handling transaction refunded event for transaction ${event.transaction.id}`);
 
     try {
-      // Handle partial inventory returns if applicable
-      await this.handleRefundInventory(payload);
+      // Update location statistics
+      await this.updateLocationStats(event.tenantId, event.transaction.locationId, 'refunded', event.refundAmount);
 
-      // Update business metrics
-      await this.updateMetricsForRefund(payload);
+      // Invalidate related caches
+      await this.invalidateTransactionCache(event.tenantId, event.transaction.id);
 
-      // Send refund notifications
-      await this.sendRefundNotifications(payload);
-
-      // Adjust customer loyalty points
-      if (payload.transaction.customerId) {
-        await this.adjustLoyaltyForRefund(payload);
-      }
+      // Log refund for audit
+      this.logger.log(`Transaction ${event.transaction.id} refunded: $${event.refundAmount} - ${event.refundData.reason}`);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -122,25 +143,38 @@ export class TransactionEventHandler {
     }
   }
 
-  @OnEvent('pos.transaction.completed')
-  async handlePOSTransactionCompleted(payload: {
-    tenantId: string;
-    transaction: any;
-    paymentResult: any;
-    processingTime: number;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`POS transaction completed in ${payload.processingTime}ms`);
+  @OnEvent('transaction.failed')
+  async handleTransactionFailed(event: TransactionFailedEvent): Promise<void> {
+    this.logger.log(`Handling transaction failed event for tenant ${event.tenantId}`);
 
     try {
-      // Log performance metrics
-      await this.logPerformanceMetrics(payload);
+      // Update failure statistics
+      await this.updateFailureStats(event.tenantId, event.error);
 
-      // Update real-time dashboards
-      await this.updateRealtimeDashboards(payload);
+      // Log failure for monitoring
+      this.logger.error(`Transaction failed for tenant ${event.tenantId}: ${event.error}`);
 
-      // Trigger post-transaction workflows
-      await this.triggerPostTransactionWorkflows(payload);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error handling transaction failed event: ${errorMessage}`);
+    }
+  }
+
+  @OnEvent('pos.transaction.completed')
+  async handlePOSTransactionCompleted(event: POSTransactionCompletedEvent): Promise<void> {
+    this.logger.log(`Handling POS transaction completed event for transaction ${event.transaction.id}`);
+
+    try {
+      // Auto-generate receipt if configured
+      await this.handleAutoReceipt(event.tenantId, event.transaction);
+
+      // Update performance metrics
+      await this.updatePerformanceMetrics(event.tenantId, event.processingTime);
+
+      // Update daily sales cache
+      await this.updateDailySalesCache(event.tenantId, event.transaction);
+
+      this.logger.log(`POS transaction ${event.transaction.id} completed in ${event.processingTime}ms`);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -149,24 +183,15 @@ export class TransactionEventHandler {
   }
 
   @OnEvent('pos.transaction.failed')
-  async handlePOSTransactionFailed(payload: {
-    tenantId: string;
-    transactionData: any;
-    error: string;
-    processingTime: number;
-    userId: string;
-  }): Promise<void> {
-    this.logger.error(`POS transaction failed in ${payload.processingTime}ms: ${payload.error}`);
+  async handlePOSTransactionFailed(event: POSTransactionFailedEvent): Promise<void> {
+    this.logger.log(`Handling POS transaction failed event for tenant ${event.tenantId}`);
 
     try {
-      // Log failure metrics
-      await this.logFailureMetrics(payload);
+      // Update failure metrics
+      await this.updateFailureStats(event.tenantId, event.error);
 
-      // Send failure notifications
-      await this.sendFailureNotifications(payload);
-
-      // Trigger failure recovery workflows
-      await this.triggerFailureRecovery(payload);
+      // Log detailed failure information
+      this.logger.error(`POS transaction failed for tenant ${event.tenantId} after ${event.processingTime}ms: ${event.error}`);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -174,436 +199,328 @@ export class TransactionEventHandler {
     }
   }
 
-  // Private helper methods for inventory integration
-  private async updateInventoryLevels(payload: {
-    tenantId: string;
-    transaction: any;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Updating inventory levels for transaction ${payload.transaction.id}`);
+  @OnEvent('pos.transaction.voided')
+  async handlePOSTransactionVoided(event: any): Promise<void> {
+    this.logger.log(`Handling POS transaction voided event for transaction ${event.transactionId}`);
 
-    // Emit inventory update events for each transaction item
-    for (const item of payload.transaction.items) {
-      this.eventEmitter.emit('inventory.stock.reduced', {
-        tenantId: payload.tenantId,
-        productId: item.productId,
-        locationId: payload.transaction.locationId,
-        quantity: item.quantity,
-        reason: 'sale',
-        transactionId: payload.transaction.id,
-        userId: payload.userId,
-      });
+    try {
+      // Update void statistics
+      await this.updateVoidStats(event.tenantId, event.reason);
+
+      this.logger.log(`POS transaction ${event.transactionId} voided: ${event.reason}`);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error handling POS transaction voided event: ${errorMessage}`);
     }
   }
 
-  private async finalizeInventoryUpdates(payload: {
-    tenantId: string;
-    transaction: any;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Finalizing inventory updates for transaction ${payload.transaction.id}`);
+  @OnEvent('pos.transaction.refunded')
+  async handlePOSTransactionRefunded(event: any): Promise<void> {
+    this.logger.log(`Handling POS transaction refunded event for transaction ${event.transactionId}`);
 
-    // Emit inventory finalization events
-    this.eventEmitter.emit('inventory.transaction.finalized', {
-      tenantId: payload.tenantId,
-      transactionId: payload.transaction.id,
-      locationId: payload.transaction.locationId,
-      items: payload.transaction.items,
-      userId: payload.userId,
-    });
-  }
+    try {
+      // Update refund statistics
+      await this.updateRefundStats(event.tenantId, event.amount, event.reason);
 
-  private async reverseInventoryChanges(payload: {
-    tenantId: string;
-    transaction: any;
-    voidData: any;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Reversing inventory changes for voided transaction ${payload.transaction.id}`);
+      this.logger.log(`POS transaction ${event.transactionId} refunded: $${event.amount} - ${event.reason}`);
 
-    // Emit inventory restoration events for each transaction item
-    for (const item of payload.transaction.items) {
-      this.eventEmitter.emit('inventory.stock.restored', {
-        tenantId: payload.tenantId,
-        productId: item.productId,
-        locationId: payload.transaction.locationId,
-        quantity: item.quantity,
-        reason: 'void',
-        transactionId: payload.transaction.id,
-        voidReason: payload.voidData.reason,
-        userId: payload.userId,
-      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error handling POS transaction refunded event: ${errorMessage}`);
     }
   }
 
-  private async handleRefundInventory(payload: {
-    tenantId: string;
-    transaction: any;
-    refundData: any;
-    refundAmount: number;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Handling inventory for refunded transaction ${payload.transaction.id}`);
+  @OnEvent('offline.operation.queued')
+  async handleOfflineOperationQueued(event: any): Promise<void> {
+    this.logger.log(`Handling offline operation queued event: ${event.operation.type}`);
 
-    // For partial refunds, we might need to restore some inventory
-    // This depends on business rules - for now, we'll emit an event for the inventory service to handle
-    this.eventEmitter.emit('inventory.refund.processed', {
-      tenantId: payload.tenantId,
-      transactionId: payload.transaction.id,
-      locationId: payload.transaction.locationId,
-      refundAmount: payload.refundAmount,
-      totalAmount: payload.transaction.total,
-      items: payload.transaction.items,
-      refundReason: payload.refundData.reason,
-      userId: payload.userId,
-    });
+    try {
+      // Update offline queue statistics
+      await this.updateOfflineStats(event.tenantId, 'queued');
+
+      this.logger.log(`Offline operation ${event.queueId} queued for sync`);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error handling offline operation queued event: ${errorMessage}`);
+    }
   }
 
-  // Business metrics methods
-  private async updateBusinessMetrics(payload: {
-    tenantId: string;
-    transaction: any;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Updating business metrics for transaction ${payload.transaction.id}`);
+  @OnEvent('offline.sync.completed')
+  async handleOfflineSyncCompleted(event: any): Promise<void> {
+    this.logger.log(`Handling offline sync completed event for tenant ${event.tenantId}`);
 
-    this.eventEmitter.emit('metrics.transaction.created', {
-      tenantId: payload.tenantId,
-      transactionId: payload.transaction.id,
-      locationId: payload.transaction.locationId,
-      amount: payload.transaction.total,
-      itemCount: payload.transaction.itemCount,
-      paymentMethod: payload.transaction.paymentMethod,
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
+    try {
+      // Update sync statistics
+      await this.updateSyncStats(event.tenantId, event.result);
+
+      this.logger.log(`Offline sync completed: ${event.result.processedOperations} processed, ${event.result.failedOperations} failed`);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error handling offline sync completed event: ${errorMessage}`);
+    }
   }
 
-  private async updateSalesAnalytics(payload: {
-    tenantId: string;
-    transaction: any;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Updating sales analytics for transaction ${payload.transaction.id}`);
+  @OnEvent('offline.sync.failed')
+  async handleOfflineSyncFailed(event: any): Promise<void> {
+    this.logger.log(`Handling offline sync failed event for operation ${event.operation.queueId}`);
 
-    this.eventEmitter.emit('analytics.sale.completed', {
-      tenantId: payload.tenantId,
-      transactionId: payload.transaction.id,
-      locationId: payload.transaction.locationId,
-      customerId: payload.transaction.customerId,
-      amount: payload.transaction.total,
-      items: payload.transaction.items,
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
+    try {
+      // Update failure statistics
+      await this.updateOfflineStats(event.tenantId, 'failed');
+
+      this.logger.error(`Offline sync failed for operation ${event.operation.queueId}: ${event.error}`);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error handling offline sync failed event: ${errorMessage}`);
+    }
   }
 
-  private async updateMetricsForVoid(payload: {
-    tenantId: string;
-    transaction: any;
-    voidData: any;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Updating metrics for voided transaction ${payload.transaction.id}`);
-
-    this.eventEmitter.emit('metrics.transaction.voided', {
-      tenantId: payload.tenantId,
-      transactionId: payload.transaction.id,
-      locationId: payload.transaction.locationId,
-      amount: payload.transaction.total,
-      voidReason: payload.voidData.reason,
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
+  private async updateTransactionCache(tenantId: string, transaction: TransactionWithItems): Promise<void> {
+    const cacheKey = `transaction:${tenantId}:${transaction.id}`;
+    await this.cacheService.set(cacheKey, transaction, 3600); // Cache for 1 hour
   }
 
-  private async updateMetricsForRefund(payload: {
-    tenantId: string;
-    transaction: any;
-    refundData: any;
-    refundAmount: number;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Updating metrics for refunded transaction ${payload.transaction.id}`);
-
-    this.eventEmitter.emit('metrics.transaction.refunded', {
-      tenantId: payload.tenantId,
-      transactionId: payload.transaction.id,
-      locationId: payload.transaction.locationId,
-      originalAmount: payload.transaction.total,
-      refundAmount: payload.refundAmount,
-      refundReason: payload.refundData.reason,
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
+  private async invalidateTransactionCache(tenantId: string, transactionId: string): Promise<void> {
+    const cacheKey = `transaction:${tenantId}:${transactionId}`;
+    await this.cacheService.del(cacheKey);
   }
 
-  // Real-time notification methods
-  private async sendRealtimeNotifications(payload: {
-    tenantId: string;
-    transaction: any;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Sending real-time notifications for transaction ${payload.transaction.id}`);
+  private async updateLocationStats(
+    tenantId: string,
+    locationId: string,
+    action: 'created' | 'voided' | 'refunded',
+    amount?: number,
+  ): Promise<void> {
+    const statsKey = `location_stats:${tenantId}:${locationId}:${new Date().toISOString().split('T')[0]}`;
+    
+    try {
+      const currentStats = await this.cacheService.get<any>(statsKey) || {
+        date: new Date().toISOString().split('T')[0],
+        transactionCount: 0,
+        voidCount: 0,
+        refundCount: 0,
+        refundAmount: 0,
+      };
 
-    this.eventEmitter.emit('realtime.transaction.created', {
-      tenantId: payload.tenantId,
-      locationId: payload.transaction.locationId,
-      transaction: {
-        id: payload.transaction.id,
-        transactionNumber: payload.transaction.transactionNumber,
-        total: payload.transaction.total,
-        itemCount: payload.transaction.itemCount,
-        paymentMethod: payload.transaction.paymentMethod,
-        timestamp: new Date(),
-      },
-      userId: payload.userId,
-    });
+      switch (action) {
+        case 'created':
+          currentStats.transactionCount++;
+          break;
+        case 'voided':
+          currentStats.voidCount++;
+          break;
+        case 'refunded':
+          currentStats.refundCount++;
+          if (amount) {
+            currentStats.refundAmount += amount;
+          }
+          break;
+      }
+
+      await this.cacheService.set(statsKey, currentStats, 86400); // Cache for 24 hours
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error updating location stats: ${errorMessage}`);
+    }
   }
 
-  private async sendVoidNotifications(payload: {
-    tenantId: string;
-    transaction: any;
-    voidData: any;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Sending void notifications for transaction ${payload.transaction.id}`);
+  private async updateFailureStats(tenantId: string, error: string): Promise<void> {
+    const statsKey = `failure_stats:${tenantId}:${new Date().toISOString().split('T')[0]}`;
+    
+    try {
+      const currentStats = await this.cacheService.get<any>(statsKey) || {
+        date: new Date().toISOString().split('T')[0],
+        totalFailures: 0,
+        errorTypes: {},
+      };
 
-    this.eventEmitter.emit('realtime.transaction.voided', {
-      tenantId: payload.tenantId,
-      locationId: payload.transaction.locationId,
-      transactionId: payload.transaction.id,
-      transactionNumber: payload.transaction.transactionNumber,
-      amount: payload.transaction.total,
-      voidReason: payload.voidData.reason,
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
+      currentStats.totalFailures++;
+      
+      // Categorize error types
+      const errorType = this.categorizeError(error);
+      currentStats.errorTypes[errorType] = (currentStats.errorTypes[errorType] || 0) + 1;
+
+      await this.cacheService.set(statsKey, currentStats, 86400);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error updating failure stats: ${errorMessage}`);
+    }
   }
 
-  private async sendRefundNotifications(payload: {
-    tenantId: string;
-    transaction: any;
-    refundData: any;
-    refundAmount: number;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Sending refund notifications for transaction ${payload.transaction.id}`);
+  private async updatePerformanceMetrics(tenantId: string, processingTime: number): Promise<void> {
+    const metricsKey = `performance_metrics:${tenantId}:${new Date().toISOString().split('T')[0]}`;
+    
+    try {
+      const currentMetrics = await this.cacheService.get<any>(metricsKey) || {
+        date: new Date().toISOString().split('T')[0],
+        totalTransactions: 0,
+        totalProcessingTime: 0,
+        averageProcessingTime: 0,
+        minProcessingTime: Infinity,
+        maxProcessingTime: 0,
+      };
 
-    this.eventEmitter.emit('realtime.transaction.refunded', {
-      tenantId: payload.tenantId,
-      locationId: payload.transaction.locationId,
-      transactionId: payload.transaction.id,
-      transactionNumber: payload.transaction.transactionNumber,
-      originalAmount: payload.transaction.total,
-      refundAmount: payload.refundAmount,
-      refundReason: payload.refundData.reason,
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
+      currentMetrics.totalTransactions++;
+      currentMetrics.totalProcessingTime += processingTime;
+      currentMetrics.averageProcessingTime = currentMetrics.totalProcessingTime / currentMetrics.totalTransactions;
+      currentMetrics.minProcessingTime = Math.min(currentMetrics.minProcessingTime, processingTime);
+      currentMetrics.maxProcessingTime = Math.max(currentMetrics.maxProcessingTime, processingTime);
+
+      await this.cacheService.set(metricsKey, currentMetrics, 86400);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error updating performance metrics: ${errorMessage}`);
+    }
   }
 
-  private async sendFailureNotifications(payload: {
-    tenantId: string;
-    transactionData: any;
-    error: string;
-    processingTime: number;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Sending failure notifications for failed transaction`);
+  private async updateDailySalesCache(tenantId: string, transaction: TransactionWithItems): Promise<void> {
+    const salesKey = `daily_sales:${tenantId}:${transaction.locationId}:${new Date().toISOString().split('T')[0]}`;
+    
+    try {
+      const currentSales = await this.cacheService.get<any>(salesKey) || {
+        date: new Date().toISOString().split('T')[0],
+        locationId: transaction.locationId,
+        totalSales: 0,
+        transactionCount: 0,
+        averageTransactionValue: 0,
+      };
 
-    this.eventEmitter.emit('realtime.transaction.failed', {
-      tenantId: payload.tenantId,
-      locationId: payload.transactionData.locationId,
-      error: payload.error,
-      processingTime: payload.processingTime,
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
+      currentSales.totalSales += transaction.total;
+      currentSales.transactionCount++;
+      currentSales.averageTransactionValue = currentSales.totalSales / currentSales.transactionCount;
+
+      await this.cacheService.set(salesKey, currentSales, 86400);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error updating daily sales cache: ${errorMessage}`);
+    }
   }
 
-  // Customer loyalty methods
-  private async updateCustomerLoyalty(payload: {
-    tenantId: string;
-    transaction: any;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Updating customer loyalty for transaction ${payload.transaction.id}`);
+  private async updateVoidStats(tenantId: string, reason: string): Promise<void> {
+    const statsKey = `void_stats:${tenantId}:${new Date().toISOString().split('T')[0]}`;
+    
+    try {
+      const currentStats = await this.cacheService.get<any>(statsKey) || {
+        date: new Date().toISOString().split('T')[0],
+        totalVoids: 0,
+        voidReasons: {},
+      };
 
-    this.eventEmitter.emit('loyalty.points.earned', {
-      tenantId: payload.tenantId,
-      customerId: payload.transaction.customerId,
-      transactionId: payload.transaction.id,
-      amount: payload.transaction.total,
-      pointsEarned: Math.floor(payload.transaction.total), // 1 point per dollar
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
+      currentStats.totalVoids++;
+      currentStats.voidReasons[reason] = (currentStats.voidReasons[reason] || 0) + 1;
+
+      await this.cacheService.set(statsKey, currentStats, 86400);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error updating void stats: ${errorMessage}`);
+    }
   }
 
-  private async reverseLoyaltyPoints(payload: {
-    tenantId: string;
-    transaction: any;
-    voidData: any;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Reversing loyalty points for voided transaction ${payload.transaction.id}`);
+  private async updateRefundStats(tenantId: string, amount: number, reason: string): Promise<void> {
+    const statsKey = `refund_stats:${tenantId}:${new Date().toISOString().split('T')[0]}`;
+    
+    try {
+      const currentStats = await this.cacheService.get<any>(statsKey) || {
+        date: new Date().toISOString().split('T')[0],
+        totalRefunds: 0,
+        totalRefundAmount: 0,
+        refundReasons: {},
+      };
 
-    this.eventEmitter.emit('loyalty.points.reversed', {
-      tenantId: payload.tenantId,
-      customerId: payload.transaction.customerId,
-      transactionId: payload.transaction.id,
-      amount: payload.transaction.total,
-      pointsReversed: Math.floor(payload.transaction.total),
-      voidReason: payload.voidData.reason,
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
+      currentStats.totalRefunds++;
+      currentStats.totalRefundAmount += amount;
+      currentStats.refundReasons[reason] = (currentStats.refundReasons[reason] || 0) + 1;
+
+      await this.cacheService.set(statsKey, currentStats, 86400);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error updating refund stats: ${errorMessage}`);
+    }
   }
 
-  private async adjustLoyaltyForRefund(payload: {
-    tenantId: string;
-    transaction: any;
-    refundData: any;
-    refundAmount: number;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Adjusting loyalty points for refunded transaction ${payload.transaction.id}`);
+  private async updateOfflineStats(tenantId: string, action: 'queued' | 'failed'): Promise<void> {
+    const statsKey = `offline_stats:${tenantId}:${new Date().toISOString().split('T')[0]}`;
+    
+    try {
+      const currentStats = await this.cacheService.get<any>(statsKey) || {
+        date: new Date().toISOString().split('T')[0],
+        queuedOperations: 0,
+        failedOperations: 0,
+      };
 
-    this.eventEmitter.emit('loyalty.points.adjusted', {
-      tenantId: payload.tenantId,
-      customerId: payload.transaction.customerId,
-      transactionId: payload.transaction.id,
-      originalAmount: payload.transaction.total,
-      refundAmount: payload.refundAmount,
-      pointsAdjusted: Math.floor(payload.refundAmount),
-      refundReason: payload.refundData.reason,
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
+      if (action === 'queued') {
+        currentStats.queuedOperations++;
+      } else if (action === 'failed') {
+        currentStats.failedOperations++;
+      }
+
+      await this.cacheService.set(statsKey, currentStats, 86400);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error updating offline stats: ${errorMessage}`);
+    }
   }
 
-  // Receipt and workflow methods
-  private async triggerAutoReceipt(payload: {
-    tenantId: string;
-    transaction: any;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Triggering auto receipt for transaction ${payload.transaction.id}`);
+  private async updateSyncStats(tenantId: string, result: any): Promise<void> {
+    const statsKey = `sync_stats:${tenantId}:${new Date().toISOString().split('T')[0]}`;
+    
+    try {
+      const currentStats = await this.cacheService.get<any>(statsKey) || {
+        date: new Date().toISOString().split('T')[0],
+        syncAttempts: 0,
+        successfulSyncs: 0,
+        processedOperations: 0,
+        failedOperations: 0,
+      };
 
-    // Check if auto-receipt is enabled for this tenant/location
-    this.eventEmitter.emit('receipt.auto.trigger', {
-      tenantId: payload.tenantId,
-      transactionId: payload.transaction.id,
-      locationId: payload.transaction.locationId,
-      customerId: payload.transaction.customerId,
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
+      currentStats.syncAttempts++;
+      if (result.success) {
+        currentStats.successfulSyncs++;
+      }
+      currentStats.processedOperations += result.processedOperations;
+      currentStats.failedOperations += result.failedOperations;
+
+      await this.cacheService.set(statsKey, currentStats, 86400);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error updating sync stats: ${errorMessage}`);
+    }
   }
 
-  private async logPerformanceMetrics(payload: {
-    tenantId: string;
-    transaction: any;
-    paymentResult: any;
-    processingTime: number;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Logging performance metrics for transaction ${payload.transaction.id}`);
-
-    this.eventEmitter.emit('metrics.performance.logged', {
-      tenantId: payload.tenantId,
-      transactionId: payload.transaction.id,
-      locationId: payload.transaction.locationId,
-      processingTime: payload.processingTime,
-      paymentMethod: payload.transaction.paymentMethod,
-      paymentProvider: payload.paymentResult.paymentProvider,
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
+  private async handleAutoReceipt(tenantId: string, transaction: TransactionWithItems): Promise<void> {
+    try {
+      // Check if auto-receipt is enabled for this tenant/location
+      const configKey = `pos_config:${tenantId}:${transaction.locationId}`;
+      const config = await this.cacheService.get<any>(configKey);
+      
+      if (config?.autoPrintReceipts) {
+        // Auto-print receipt
+        await this.receiptService.printReceipt(tenantId, transaction);
+        this.logger.log(`Auto-printed receipt for transaction ${transaction.id}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error handling auto-receipt: ${errorMessage}`);
+    }
   }
 
-  private async logFailureMetrics(payload: {
-    tenantId: string;
-    transactionData: any;
-    error: string;
-    processingTime: number;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Logging failure metrics for failed transaction`);
-
-    this.eventEmitter.emit('metrics.failure.logged', {
-      tenantId: payload.tenantId,
-      locationId: payload.transactionData.locationId,
-      error: payload.error,
-      processingTime: payload.processingTime,
-      paymentMethod: payload.transactionData.paymentMethod,
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
-  }
-
-  private async updateRealtimeDashboards(payload: {
-    tenantId: string;
-    transaction: any;
-    paymentResult: any;
-    processingTime: number;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Updating real-time dashboards for transaction ${payload.transaction.id}`);
-
-    this.eventEmitter.emit('dashboard.realtime.update', {
-      tenantId: payload.tenantId,
-      locationId: payload.transaction.locationId,
-      transactionData: {
-        id: payload.transaction.id,
-        total: payload.transaction.total,
-        itemCount: payload.transaction.itemCount,
-        paymentMethod: payload.transaction.paymentMethod,
-        processingTime: payload.processingTime,
-      },
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
-  }
-
-  private async triggerPostTransactionWorkflows(payload: {
-    tenantId: string;
-    transaction: any;
-    paymentResult: any;
-    processingTime: number;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Triggering post-transaction workflows for transaction ${payload.transaction.id}`);
-
-    this.eventEmitter.emit('workflow.post.transaction', {
-      tenantId: payload.tenantId,
-      transactionId: payload.transaction.id,
-      locationId: payload.transaction.locationId,
-      customerId: payload.transaction.customerId,
-      amount: payload.transaction.total,
-      paymentMethod: payload.transaction.paymentMethod,
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
-  }
-
-  private async triggerFailureRecovery(payload: {
-    tenantId: string;
-    transactionData: any;
-    error: string;
-    processingTime: number;
-    userId: string;
-  }): Promise<void> {
-    this.logger.log(`Triggering failure recovery workflows`);
-
-    this.eventEmitter.emit('workflow.failure.recovery', {
-      tenantId: payload.tenantId,
-      locationId: payload.transactionData.locationId,
-      error: payload.error,
-      transactionData: payload.transactionData,
-      timestamp: new Date(),
-      userId: payload.userId,
-    });
+  private categorizeError(error: string): string {
+    const errorLower = error.toLowerCase();
+    
+    if (errorLower.includes('payment') || errorLower.includes('card') || errorLower.includes('declined')) {
+      return 'payment_error';
+    } else if (errorLower.includes('network') || errorLower.includes('connection') || errorLower.includes('timeout')) {
+      return 'network_error';
+    } else if (errorLower.includes('validation') || errorLower.includes('invalid')) {
+      return 'validation_error';
+    } else if (errorLower.includes('inventory') || errorLower.includes('stock')) {
+      return 'inventory_error';
+    } else {
+      return 'unknown_error';
+    }
   }
 }

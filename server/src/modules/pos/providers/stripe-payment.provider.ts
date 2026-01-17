@@ -1,80 +1,95 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { 
-  PaymentProvider, 
-  PaymentProviderRequest, 
-  PaymentProviderResult, 
-  RefundResult, 
-  ValidationResult 
-} from './payment-provider.interface';
+import { Injectable, Logger } from '@nestjs/common';
+import { PaymentProviderResult } from '../types/shared.types';
+
+export interface StripePaymentRequest {
+  amount: number;
+  paymentReference?: string;
+  metadata?: Record<string, any>;
+}
 
 @Injectable()
-export class StripePaymentProvider implements PaymentProvider {
+export class StripePaymentProvider {
   private readonly logger = new Logger(StripePaymentProvider.name);
-  private readonly stripeSecretKey: string;
-  private readonly stripePublishableKey: string;
+  private readonly providerName = 'stripe';
 
-  constructor(private readonly configService: ConfigService) {
-    this.stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY') || '';
-    this.stripePublishableKey = this.configService.get<string>('STRIPE_PUBLISHABLE_KEY') || '';
+  constructor() {
+    // In a real implementation, this would initialize the Stripe SDK
+    this.logger.log('Stripe payment provider initialized');
   }
 
   getProviderName(): string {
-    return 'stripe';
+    return this.providerName;
   }
 
-  async processPayment(request: PaymentProviderRequest): Promise<PaymentProviderResult> {
-    this.logger.log(`Processing Stripe payment of $${request.amount}`);
+  async processPayment(request: StripePaymentRequest): Promise<PaymentProviderResult> {
+    this.logger.log(`Processing Stripe payment for amount ${request.amount}`);
 
     try {
-      // In a real implementation, this would use the Stripe SDK
-      // For now, we'll simulate the Stripe API call
-      
-      const paymentIntent = await this.createPaymentIntent(request);
-      
-      // Simulate payment processing
-      const isSuccessful = await this.simulatePaymentProcessing(request);
-      
-      if (isSuccessful) {
+      // Simulate Stripe API call
+      await this.simulateStripeApiCall();
+
+      // In a real implementation, this would:
+      // 1. Create a PaymentIntent with Stripe
+      // 2. Confirm the payment
+      // 3. Handle the response
+
+      const paymentIntentId = `pi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Simulate success/failure (90% success rate)
+      const isSuccess = Math.random() > 0.1;
+
+      if (isSuccess) {
+        this.logger.log(`Stripe payment successful: ${paymentIntentId}`);
+        
         return {
           success: true,
-          providerTransactionId: paymentIntent.id,
+          providerTransactionId: paymentIntentId,
           providerResponse: {
-            paymentIntentId: paymentIntent.id,
+            id: paymentIntentId,
             status: 'succeeded',
-            amount: request.amount,
+            amount: request.amount * 100, // Stripe uses cents
             currency: 'usd',
-            paymentMethod: paymentIntent.paymentMethod,
-            processedAt: new Date().toISOString(),
+            payment_method: 'card_1234567890',
+            created: Math.floor(Date.now() / 1000),
           },
           metadata: {
-            processingTime: paymentIntent.processingTime,
-            fees: this.calculateStripeFees(request.amount),
+            provider: this.providerName,
+            processingTime: Math.floor(Math.random() * 2000) + 500, // 500-2500ms
           },
         };
       } else {
+        const errorCode = ['card_declined', 'insufficient_funds', 'expired_card'][Math.floor(Math.random() * 3)];
+        const errorMessage = this.getErrorMessage(errorCode);
+
+        this.logger.error(`Stripe payment failed: ${errorMessage}`);
+        
         return {
           success: false,
-          error: 'Payment declined by card issuer',
+          error: errorMessage,
           providerResponse: {
-            paymentIntentId: paymentIntent.id,
-            status: 'payment_failed',
-            failureCode: 'card_declined',
-            failureMessage: 'Your card was declined.',
+            error: {
+              code: errorCode,
+              message: errorMessage,
+              type: 'card_error',
+            },
+          },
+          metadata: {
+            provider: this.providerName,
+            errorCode,
           },
         };
       }
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Stripe payment processing failed: ${errorMessage}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown Stripe error occurred';
+      this.logger.error(`Stripe payment processing error: ${errorMessage}`);
       
       return {
         success: false,
         error: errorMessage,
-        providerResponse: {
-          error: errorMessage,
-          timestamp: new Date().toISOString(),
+        metadata: {
+          provider: this.providerName,
+          errorType: 'processing_error',
         },
       };
     }
@@ -82,68 +97,83 @@ export class StripePaymentProvider implements PaymentProvider {
 
   async voidPayment(providerTransactionId: string): Promise<void> {
     this.logger.log(`Voiding Stripe payment ${providerTransactionId}`);
-    
+
     try {
-      // In a real implementation, this would call Stripe's cancel API
-      await this.simulateStripeCancel(providerTransactionId);
-      
+      // Simulate Stripe void/cancel API call
+      await this.simulateStripeApiCall();
+
+      // In a real implementation, this would:
+      // 1. Cancel the PaymentIntent if it's not captured yet
+      // 2. Or create a refund if it's already captured
+
+      this.logger.log(`Stripe payment ${providerTransactionId} voided successfully`);
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Failed to void Stripe payment: ${errorMessage}`);
-      throw new BadRequestException(`Void failed: ${errorMessage}`);
+      this.logger.error(`Failed to void Stripe payment ${providerTransactionId}: ${errorMessage}`);
+      throw error;
     }
   }
 
-  async refundPayment(providerTransactionId: string, amount: number): Promise<RefundResult> {
-    this.logger.log(`Refunding Stripe payment ${providerTransactionId}, amount: $${amount}`);
+  async refundPayment(
+    providerTransactionId: string,
+    amount: number,
+  ): Promise<{ providerTransactionId?: string; providerResponse?: Record<string, any> }> {
+    this.logger.log(`Refunding Stripe payment ${providerTransactionId} for amount ${amount}`);
 
     try {
-      // In a real implementation, this would call Stripe's refund API
-      const refund = await this.simulateStripeRefund(providerTransactionId, amount);
-      
+      // Simulate Stripe refund API call
+      await this.simulateStripeApiCall();
+
+      // In a real implementation, this would:
+      // 1. Create a refund with Stripe
+      // 2. Handle the response
+
+      const refundId = `re_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      this.logger.log(`Stripe refund successful: ${refundId}`);
+
       return {
-        success: true,
-        providerTransactionId: refund.id,
+        providerTransactionId: refundId,
         providerResponse: {
-          refundId: refund.id,
-          originalPaymentIntent: providerTransactionId,
-          amount: amount,
-          currency: 'usd',
+          id: refundId,
           status: 'succeeded',
-          refundedAt: new Date().toISOString(),
+          amount: amount * 100, // Stripe uses cents
+          currency: 'usd',
+          payment_intent: providerTransactionId,
+          created: Math.floor(Date.now() / 1000),
         },
       };
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Stripe refund failed: ${errorMessage}`);
-      
-      return {
-        success: false,
-        error: errorMessage,
-      };
+      this.logger.error(`Failed to refund Stripe payment ${providerTransactionId}: ${errorMessage}`);
+      throw error;
     }
   }
 
-  async validatePayment(amount: number, metadata?: Record<string, any>): Promise<ValidationResult> {
-    // Validate Stripe configuration
-    if (!this.stripeSecretKey) {
+  async validatePayment(
+    amount: number,
+    metadata?: Record<string, any>,
+  ): Promise<{ valid: boolean; error?: string }> {
+    this.logger.debug(`Validating Stripe payment for amount ${amount}`);
+
+    // Basic validation rules
+    if (amount <= 0) {
       return {
         valid: false,
-        error: 'Stripe is not configured',
+        error: 'Payment amount must be greater than 0',
       };
     }
 
-    // Validate amount (Stripe minimum is $0.50)
     if (amount < 0.50) {
       return {
         valid: false,
-        error: 'Minimum payment amount is $0.50 for card payments',
+        error: 'Stripe minimum payment amount is $0.50',
       };
     }
 
-    // Validate maximum amount (Stripe limit varies by country, using $999,999 as default)
-    if (amount > 999999) {
+    if (amount > 999999.99) {
       return {
         valid: false,
         error: 'Payment amount exceeds maximum limit',
@@ -161,64 +191,100 @@ export class StripePaymentProvider implements PaymentProvider {
       }
     }
 
-    return {
-      valid: true,
-    };
+    return { valid: true };
   }
 
-  private async createPaymentIntent(request: PaymentProviderRequest): Promise<any> {
-    // Simulate Stripe PaymentIntent creation
-    const paymentIntentId = `pi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    return {
-      id: paymentIntentId,
-      amount: Math.round(request.amount * 100), // Stripe uses cents
-      currency: 'usd',
-      paymentMethod: request.metadata?.paymentMethodId || 'pm_card_visa',
-      status: 'requires_confirmation',
-      processingTime: Math.floor(Math.random() * 3000) + 1000, // 1-4 seconds
-    };
+  async createPaymentMethod(
+    cardDetails: {
+      number: string;
+      expMonth: number;
+      expYear: number;
+      cvc: string;
+    },
+  ): Promise<{ paymentMethodId: string; last4: string }> {
+    this.logger.log('Creating Stripe payment method');
+
+    try {
+      // Simulate Stripe payment method creation
+      await this.simulateStripeApiCall();
+
+      const paymentMethodId = `pm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const last4 = cardDetails.number.slice(-4);
+
+      this.logger.log(`Created Stripe payment method: ${paymentMethodId}`);
+
+      return {
+        paymentMethodId,
+        last4,
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Failed to create Stripe payment method: ${errorMessage}`);
+      throw error;
+    }
   }
 
-  private async simulatePaymentProcessing(request: PaymentProviderRequest): Promise<boolean> {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 500));
-    
-    // Simulate 95% success rate
-    return Math.random() > 0.05;
-  }
+  async getPaymentStatus(providerTransactionId: string): Promise<{
+    status: string;
+    amount: number;
+    currency: string;
+    metadata?: Record<string, any>;
+  }> {
+    this.logger.debug(`Getting Stripe payment status for ${providerTransactionId}`);
 
-  private async simulateStripeCancel(paymentIntentId: string): Promise<void> {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // In a real implementation, this would make an actual Stripe API call
-    this.logger.log(`Simulated Stripe cancel for ${paymentIntentId}`);
-  }
+    try {
+      // Simulate Stripe retrieve API call
+      await this.simulateStripeApiCall();
 
-  private async simulateStripeRefund(paymentIntentId: string, amount: number): Promise<any> {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const refundId = `re_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    return {
-      id: refundId,
-      paymentIntent: paymentIntentId,
-      amount: Math.round(amount * 100), // Stripe uses cents
-      currency: 'usd',
-      status: 'succeeded',
-    };
+      // In a real implementation, this would retrieve the PaymentIntent from Stripe
+      return {
+        status: 'succeeded',
+        amount: 2500, // $25.00 in cents
+        currency: 'usd',
+        metadata: {
+          provider: this.providerName,
+          retrievedAt: new Date().toISOString(),
+        },
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Failed to get Stripe payment status: ${errorMessage}`);
+      throw error;
+    }
   }
 
   private async validatePaymentMethod(paymentMethodId: string): Promise<boolean> {
-    // In a real implementation, this would validate the payment method with Stripe
-    // For now, just check if it looks like a valid Stripe payment method ID
-    return paymentMethodId.startsWith('pm_') || paymentMethodId.startsWith('card_');
+    try {
+      // Simulate Stripe payment method validation
+      await this.simulateStripeApiCall();
+      
+      // In a real implementation, this would retrieve and validate the payment method
+      return paymentMethodId.startsWith('pm_');
+
+    } catch (error) {
+      this.logger.error(`Error validating payment method: ${error}`);
+      return false;
+    }
   }
 
-  private calculateStripeFees(amount: number): number {
-    // Stripe standard fees: 2.9% + $0.30
-    return Math.round((amount * 0.029 + 0.30) * 100) / 100;
+  private async simulateStripeApiCall(): Promise<void> {
+    // Simulate network delay for Stripe API calls
+    const delay = Math.floor(Math.random() * 1000) + 200; // 200-1200ms
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+
+  private getErrorMessage(errorCode: string): string {
+    const errorMessages: Record<string, string> = {
+      card_declined: 'Your card was declined',
+      insufficient_funds: 'Your card has insufficient funds',
+      expired_card: 'Your card has expired',
+      incorrect_cvc: 'Your card\'s security code is incorrect',
+      processing_error: 'An error occurred processing your card',
+      card_not_supported: 'Your card does not support this type of purchase',
+    };
+
+    return errorMessages[errorCode] || 'Your card could not be processed';
   }
 }

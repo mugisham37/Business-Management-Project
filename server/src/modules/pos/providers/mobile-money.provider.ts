@@ -1,93 +1,99 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { 
-  PaymentProvider, 
-  PaymentProviderRequest, 
-  PaymentProviderResult, 
-  RefundResult, 
-  ValidationResult 
-} from './payment-provider.interface';
+import { Injectable, Logger } from '@nestjs/common';
+import { PaymentProviderResult } from '../types/shared.types';
+
+export interface MobileMoneyPaymentRequest {
+  amount: number;
+  paymentReference?: string;
+  metadata?: Record<string, any>;
+}
 
 @Injectable()
-export class MobileMoneyProvider implements PaymentProvider {
+export class MobileMoneyProvider {
   private readonly logger = new Logger(MobileMoneyProvider.name);
-  private readonly apiKey: string;
-  private readonly apiSecret: string;
-  private readonly supportedProviders = ['mpesa', 'mtn_money', 'airtel_money', 'orange_money'];
+  private readonly providerName = 'mobile_money';
 
-  constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('MOBILE_MONEY_API_KEY') || '';
-    this.apiSecret = this.configService.get<string>('MOBILE_MONEY_API_SECRET') || '';
+  constructor() {
+    // In a real implementation, this would initialize mobile money SDK/API clients
+    // for providers like M-Pesa, MTN Mobile Money, Airtel Money, etc.
+    this.logger.log('Mobile Money payment provider initialized');
   }
 
   getProviderName(): string {
-    return 'mobile_money';
+    return this.providerName;
   }
 
-  async processPayment(request: PaymentProviderRequest): Promise<PaymentProviderResult> {
-    this.logger.log(`Processing mobile money payment of ${request.amount}`);
+  async processPayment(request: MobileMoneyPaymentRequest): Promise<PaymentProviderResult> {
+    this.logger.log(`Processing mobile money payment for amount ${request.amount}`);
 
     try {
-      const mobileProvider = request.metadata?.provider || 'mpesa';
-      const phoneNumber = request.metadata?.phoneNumber;
-
-      if (!phoneNumber) {
-        throw new Error('Phone number is required for mobile money payments');
-      }
-
-      if (!this.supportedProviders.includes(mobileProvider)) {
-        throw new Error(`Unsupported mobile money provider: ${mobileProvider}`);
-      }
-
-      // Initiate mobile money payment
-      const paymentRequest = await this.initiateMobilePayment(request, mobileProvider, phoneNumber);
+      // Determine mobile money provider based on phone number or metadata
+      const provider = this.detectMobileMoneyProvider(request.metadata?.phoneNumber);
       
-      // Poll for payment status (in real implementation, this would be webhook-based)
-      const paymentResult = await this.pollPaymentStatus(paymentRequest.requestId, 30000); // 30 second timeout
-      
-      if (paymentResult.success && paymentResult.transactionId) {
+      // Simulate mobile money API call
+      await this.simulateMobileMoneyApiCall();
+
+      const transactionId = `mm_${provider}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Simulate success/failure (85% success rate for mobile money)
+      const isSuccess = Math.random() > 0.15;
+
+      if (isSuccess) {
+        this.logger.log(`Mobile money payment successful: ${transactionId}`);
+        
         return {
           success: true,
-          providerTransactionId: paymentResult.transactionId,
+          providerTransactionId: transactionId,
           providerResponse: {
-            provider: mobileProvider,
-            phoneNumber: this.maskPhoneNumber(phoneNumber),
-            transactionId: paymentResult.transactionId,
+            id: transactionId,
             status: 'completed',
             amount: request.amount,
-            currency: 'USD', // In real implementation, this would be configurable
-            processedAt: new Date().toISOString(),
-            fees: this.calculateMobileMoneyFees(request.amount, mobileProvider),
+            currency: this.getCurrencyForProvider(provider),
+            payment_method: 'mobile_money',
+            provider: provider,
+            phone_number: this.maskPhoneNumber(request.metadata?.phoneNumber),
+            transaction_code: this.generateTransactionCode(),
+            processed_at: new Date().toISOString(),
           },
           metadata: {
-            processingTime: paymentResult.processingTime,
-            provider: mobileProvider,
+            provider: this.providerName,
+            mobileProvider: provider,
+            processingTime: Math.floor(Math.random() * 5000) + 2000, // 2-7 seconds
           },
         };
       } else {
+        const errorCode = ['insufficient_balance', 'invalid_pin', 'network_error', 'account_blocked'][Math.floor(Math.random() * 4)];
+        const errorMessage = this.getErrorMessage(errorCode);
+
+        this.logger.error(`Mobile money payment failed: ${errorMessage}`);
+        
         return {
           success: false,
-          error: paymentResult.error || 'Mobile money payment failed',
+          error: errorMessage,
           providerResponse: {
-            provider: mobileProvider,
-            phoneNumber: this.maskPhoneNumber(phoneNumber),
-            status: 'failed',
-            failureReason: paymentResult.error,
-            requestId: paymentRequest.requestId,
+            error: {
+              code: errorCode,
+              message: errorMessage,
+              provider: provider,
+            },
+          },
+          metadata: {
+            provider: this.providerName,
+            mobileProvider: provider,
+            errorCode,
           },
         };
       }
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Mobile money payment processing failed: ${errorMessage}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown mobile money error occurred';
+      this.logger.error(`Mobile money payment processing error: ${errorMessage}`);
       
       return {
         success: false,
         error: errorMessage,
-        providerResponse: {
-          error: errorMessage,
-          timestamp: new Date().toISOString(),
+        metadata: {
+          provider: this.providerName,
+          errorType: 'processing_error',
         },
       };
     }
@@ -95,225 +101,313 @@ export class MobileMoneyProvider implements PaymentProvider {
 
   async voidPayment(providerTransactionId: string): Promise<void> {
     this.logger.log(`Voiding mobile money payment ${providerTransactionId}`);
-    
+
     try {
-      // In a real implementation, this would call the mobile money provider's reversal API
-      await this.simulateMobileMoneyReversal(providerTransactionId);
+      // Extract provider from transaction ID
+      const provider = this.extractProviderFromTransactionId(providerTransactionId);
       
+      // Simulate mobile money void/reversal API call
+      await this.simulateMobileMoneyApiCall();
+
+      // In a real implementation, this would:
+      // 1. Call the mobile money provider's reversal API
+      // 2. Handle the response and update transaction status
+
+      this.logger.log(`Mobile money payment ${providerTransactionId} voided successfully`);
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Failed to void mobile money payment: ${errorMessage}`);
-      throw new BadRequestException(`Void failed: ${errorMessage}`);
+      this.logger.error(`Failed to void mobile money payment ${providerTransactionId}: ${errorMessage}`);
+      throw error;
     }
   }
 
-  async refundPayment(providerTransactionId: string, amount: number): Promise<RefundResult> {
-    this.logger.log(`Refunding mobile money payment ${providerTransactionId}, amount: ${amount}`);
+  async refundPayment(
+    providerTransactionId: string,
+    amount: number,
+  ): Promise<{ providerTransactionId?: string; providerResponse?: Record<string, any> }> {
+    this.logger.log(`Refunding mobile money payment ${providerTransactionId} for amount ${amount}`);
 
     try {
-      // In a real implementation, this would call the mobile money provider's refund API
-      const refund = await this.simulateMobileMoneyRefund(providerTransactionId, amount);
+      const provider = this.extractProviderFromTransactionId(providerTransactionId);
       
+      // Simulate mobile money refund API call
+      await this.simulateMobileMoneyApiCall();
+
+      const refundId = `mm_refund_${provider}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      this.logger.log(`Mobile money refund successful: ${refundId}`);
+
       return {
-        success: true,
-        providerTransactionId: refund.refundId,
+        providerTransactionId: refundId,
         providerResponse: {
-          refundId: refund.refundId,
-          originalTransactionId: providerTransactionId,
-          amount: amount,
-          currency: 'USD',
+          id: refundId,
           status: 'completed',
-          refundedAt: new Date().toISOString(),
-          provider: refund.provider,
+          amount: amount,
+          currency: this.getCurrencyForProvider(provider),
+          payment_method: 'mobile_money',
+          provider: provider,
+          original_transaction: providerTransactionId,
+          transaction_code: this.generateTransactionCode(),
+          processed_at: new Date().toISOString(),
         },
       };
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Mobile money refund failed: ${errorMessage}`);
-      
-      return {
-        success: false,
-        error: errorMessage,
-      };
+      this.logger.error(`Failed to refund mobile money payment ${providerTransactionId}: ${errorMessage}`);
+      throw error;
     }
   }
 
-  async validatePayment(amount: number, metadata?: Record<string, any>): Promise<ValidationResult> {
-    // Validate mobile money configuration
-    if (!this.apiKey || !this.apiSecret) {
+  async validatePayment(
+    amount: number,
+    metadata?: Record<string, any>,
+  ): Promise<{ valid: boolean; error?: string }> {
+    this.logger.debug(`Validating mobile money payment for amount ${amount}`);
+
+    // Basic validation rules
+    if (amount <= 0) {
       return {
         valid: false,
-        error: 'Mobile money is not configured',
+        error: 'Payment amount must be greater than 0',
       };
     }
 
-    // Validate amount (minimum $0.10)
-    if (amount < 0.10) {
-      return {
-        valid: false,
-        error: 'Minimum payment amount is $0.10 for mobile money',
-      };
-    }
-
-    // Validate maximum amount (varies by provider, using $1000 as default)
-    if (amount > 1000) {
-      return {
-        valid: false,
-        error: 'Payment amount exceeds maximum limit for mobile money',
-      };
-    }
-
-    // Validate phone number format
-    if (metadata?.phoneNumber) {
-      const isValidPhone = this.validatePhoneNumber(metadata.phoneNumber);
-      if (!isValidPhone) {
-        return {
-          valid: false,
-          error: 'Invalid phone number format',
-        };
-      }
-    } else {
+    // Validate phone number is provided
+    if (!metadata?.phoneNumber) {
       return {
         valid: false,
         error: 'Phone number is required for mobile money payments',
       };
     }
 
-    // Validate mobile money provider
-    if (metadata?.provider && !this.supportedProviders.includes(metadata.provider)) {
+    // Validate phone number format
+    const phoneNumber = metadata.phoneNumber;
+    if (!this.isValidPhoneNumber(phoneNumber)) {
       return {
         valid: false,
-        error: `Unsupported mobile money provider: ${metadata.provider}`,
+        error: 'Invalid phone number format',
       };
     }
 
-    return {
-      valid: true,
-    };
+    // Detect mobile money provider
+    const provider = this.detectMobileMoneyProvider(phoneNumber);
+    if (!provider) {
+      return {
+        valid: false,
+        error: 'Phone number is not associated with a supported mobile money provider',
+      };
+    }
+
+    // Validate amount limits for the provider
+    const limits = this.getProviderLimits(provider);
+    if (amount < limits.min) {
+      return {
+        valid: false,
+        error: `Minimum payment amount for ${provider} is ${limits.currency} ${limits.min}`,
+      };
+    }
+
+    if (amount > limits.max) {
+      return {
+        valid: false,
+        error: `Maximum payment amount for ${provider} is ${limits.currency} ${limits.max}`,
+      };
+    }
+
+    return { valid: true };
   }
 
-  private async initiateMobilePayment(
-    request: PaymentProviderRequest,
-    provider: string,
-    phoneNumber: string,
-  ): Promise<{ requestId: string; status: string }> {
-    // Simulate mobile money payment initiation
-    const requestId = `mm_${provider}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-    
-    // In a real implementation, this would make an API call to the mobile money provider
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call delay
-    
-    return {
-      requestId,
-      status: 'pending',
-    };
-  }
+  async checkAccountStatus(phoneNumber: string): Promise<{
+    isActive: boolean;
+    provider: string;
+    accountName?: string;
+    balance?: number;
+    currency?: string;
+  }> {
+    this.logger.debug(`Checking mobile money account status for ${this.maskPhoneNumber(phoneNumber)}`);
 
-  private async pollPaymentStatus(
-    requestId: string,
-    timeoutMs: number,
-  ): Promise<{ success: boolean; transactionId?: string; error?: string; processingTime: number }> {
-    const startTime = Date.now();
-    const pollInterval = 2000; // Poll every 2 seconds
-    
-    while (Date.now() - startTime < timeoutMs) {
-      // Simulate checking payment status
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
-      
-      // Simulate 85% success rate after some processing time
-      const processingTime = Date.now() - startTime;
-      if (processingTime > 5000) { // After 5 seconds
-        const success = Math.random() > 0.15; // 85% success rate
-        
-        if (success) {
-          return {
-            success: true,
-            transactionId: `mm_tx_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
-            processingTime,
-          };
-        } else {
-          return {
-            success: false,
-            error: 'Payment was declined or cancelled by user',
-            processingTime,
-          };
-        }
+    try {
+      const provider = this.detectMobileMoneyProvider(phoneNumber);
+      if (!provider) {
+        return {
+          isActive: false,
+          provider: 'unknown',
+        };
       }
+
+      // Simulate account status check
+      await this.simulateMobileMoneyApiCall();
+
+      // In a real implementation, this would query the mobile money provider's API
+      return {
+        isActive: true,
+        provider,
+        accountName: 'John Doe', // Would come from API
+        balance: Math.floor(Math.random() * 10000), // Mock balance
+        currency: this.getCurrencyForProvider(provider),
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Failed to check account status: ${errorMessage}`);
+      
+      return {
+        isActive: false,
+        provider: 'unknown',
+      };
     }
+  }
+
+  async initiatePaymentRequest(
+    phoneNumber: string,
+    amount: number,
+    reference: string,
+  ): Promise<{
+    requestId: string;
+    status: 'pending' | 'sent' | 'failed';
+    message: string;
+  }> {
+    this.logger.log(`Initiating payment request to ${this.maskPhoneNumber(phoneNumber)} for amount ${amount}`);
+
+    try {
+      const provider = this.detectMobileMoneyProvider(phoneNumber);
+      if (!provider) {
+        throw new Error('Unsupported mobile money provider');
+      }
+
+      // Simulate payment request initiation
+      await this.simulateMobileMoneyApiCall();
+
+      const requestId = `req_${provider}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      this.logger.log(`Payment request initiated: ${requestId}`);
+
+      return {
+        requestId,
+        status: 'sent',
+        message: `Payment request sent to ${this.maskPhoneNumber(phoneNumber)}. Please check your phone and enter your PIN to complete the payment.`,
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Failed to initiate payment request: ${errorMessage}`);
+      
+      return {
+        requestId: '',
+        status: 'failed',
+        message: errorMessage,
+      };
+    }
+  }
+
+  private detectMobileMoneyProvider(phoneNumber?: string): string {
+    if (!phoneNumber) return '';
+
+    // Remove all non-digit characters
+    const cleanNumber = phoneNumber.replace(/\D/g, '');
+
+    // Detect provider based on phone number patterns
+    // These are simplified patterns - real implementation would be more comprehensive
     
-    // Timeout
-    return {
-      success: false,
-      error: 'Payment request timed out',
-      processingTime: timeoutMs,
+    if (cleanNumber.startsWith('254')) {
+      // Kenya
+      if (cleanNumber.startsWith('2547')) return 'mpesa'; // Safaricom M-Pesa
+      if (cleanNumber.startsWith('2541')) return 'airtel_money'; // Airtel Money
+    } else if (cleanNumber.startsWith('256')) {
+      // Uganda
+      if (cleanNumber.startsWith('2567')) return 'mtn_mobile_money'; // MTN Mobile Money
+      if (cleanNumber.startsWith('2561')) return 'airtel_money'; // Airtel Money
+    } else if (cleanNumber.startsWith('255')) {
+      // Tanzania
+      if (cleanNumber.startsWith('2557')) return 'mpesa'; // Vodacom M-Pesa
+      if (cleanNumber.startsWith('2556')) return 'airtel_money'; // Airtel Money
+    } else if (cleanNumber.startsWith('233')) {
+      // Ghana
+      if (cleanNumber.startsWith('2335')) return 'mtn_mobile_money'; // MTN Mobile Money
+      if (cleanNumber.startsWith('2332')) return 'airtel_money'; // Airtel Money
+    }
+
+    return ''; // Unknown provider
+  }
+
+  private extractProviderFromTransactionId(transactionId: string): string {
+    // Extract provider from transaction ID format: mm_{provider}_{timestamp}_{random}
+    const parts = transactionId.split('_');
+    return parts.length > 2 ? parts[1] : 'unknown';
+  }
+
+  private getCurrencyForProvider(provider: string): string {
+    const currencies: Record<string, string> = {
+      mpesa: 'KES', // Kenyan Shilling
+      mtn_mobile_money: 'UGX', // Ugandan Shilling
+      airtel_money: 'KES', // Varies by country
     };
+
+    return currencies[provider] || 'USD';
   }
 
-  private async simulateMobileMoneyReversal(transactionId: string): Promise<void> {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // In a real implementation, this would make an actual mobile money API call
-    this.logger.log(`Simulated mobile money reversal for ${transactionId}`);
-  }
-
-  private async simulateMobileMoneyRefund(transactionId: string, amount: number): Promise<any> {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    const refundId = `mm_refund_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-    
-    return {
-      refundId,
-      originalTransactionId: transactionId,
-      amount,
-      provider: 'mpesa', // In real implementation, this would be determined from the original transaction
-      status: 'completed',
+  private getProviderLimits(provider: string): { min: number; max: number; currency: string } {
+    const limits: Record<string, { min: number; max: number; currency: string }> = {
+      mpesa: { min: 1, max: 300000, currency: 'KES' },
+      mtn_mobile_money: { min: 500, max: 5000000, currency: 'UGX' },
+      airtel_money: { min: 1, max: 150000, currency: 'KES' },
     };
+
+    return limits[provider] || { min: 1, max: 1000, currency: 'USD' };
   }
 
-  private validatePhoneNumber(phoneNumber: string): boolean {
-    // Basic phone number validation (international format)
-    const phoneRegex = /^\+[1-9]\d{1,14}$/;
-    return phoneRegex.test(phoneNumber);
+  private isValidPhoneNumber(phoneNumber: string): boolean {
+    // Basic phone number validation
+    const phoneRegex = /^[\+]?[1-9][\d]{8,14}$/;
+    const cleanNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+    return phoneRegex.test(cleanNumber);
   }
 
-  private maskPhoneNumber(phoneNumber: string): string {
-    // Mask phone number for security (show only last 4 digits)
-    if (phoneNumber.length <= 4) {
-      return phoneNumber;
+  private maskPhoneNumber(phoneNumber?: string): string {
+    if (!phoneNumber) return 'N/A';
+    
+    const clean = phoneNumber.replace(/\D/g, '');
+    if (clean.length < 4) return phoneNumber;
+    
+    const masked = clean.slice(0, -4).replace(/\d/g, '*') + clean.slice(-4);
+    return masked;
+  }
+
+  private generateTransactionCode(): string {
+    // Generate a transaction code similar to M-Pesa format
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    
+    let code = '';
+    for (let i = 0; i < 2; i++) {
+      code += letters.charAt(Math.floor(Math.random() * letters.length));
+    }
+    for (let i = 0; i < 8; i++) {
+      code += numbers.charAt(Math.floor(Math.random() * numbers.length));
     }
     
-    const visiblePart = phoneNumber.slice(-4);
-    const maskedPart = '*'.repeat(phoneNumber.length - 4);
-    return maskedPart + visiblePart;
+    return code;
   }
 
-  private calculateMobileMoneyFees(amount: number, provider: string): number {
-    // Different providers have different fee structures
-    switch (provider) {
-      case 'mpesa':
-        // M-Pesa fee structure (simplified)
-        if (amount <= 100) return 0.50;
-        if (amount <= 500) return 1.00;
-        if (amount <= 1000) return 2.00;
-        return amount * 0.002; // 0.2% for larger amounts
-        
-      case 'mtn_money':
-        // MTN Mobile Money fee structure (simplified)
-        return Math.max(0.25, amount * 0.015); // 1.5% with minimum $0.25
-        
-      case 'airtel_money':
-        // Airtel Money fee structure (simplified)
-        return Math.max(0.30, amount * 0.012); // 1.2% with minimum $0.30
-        
-      case 'orange_money':
-        // Orange Money fee structure (simplified)
-        return Math.max(0.20, amount * 0.018); // 1.8% with minimum $0.20
-        
-      default:
-        return amount * 0.015; // Default 1.5%
-    }
+  private async simulateMobileMoneyApiCall(): Promise<void> {
+    // Simulate network delay for mobile money API calls (typically slower than card payments)
+    const delay = Math.floor(Math.random() * 3000) + 1000; // 1-4 seconds
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+
+  private getErrorMessage(errorCode: string): string {
+    const errorMessages: Record<string, string> = {
+      insufficient_balance: 'Insufficient balance in mobile money account',
+      invalid_pin: 'Invalid PIN entered',
+      network_error: 'Network error occurred. Please try again',
+      account_blocked: 'Mobile money account is blocked',
+      transaction_limit_exceeded: 'Transaction limit exceeded',
+      invalid_phone_number: 'Invalid phone number',
+      service_unavailable: 'Mobile money service is temporarily unavailable',
+    };
+
+    return errorMessages[errorCode] || 'Mobile money payment could not be processed';
   }
 }

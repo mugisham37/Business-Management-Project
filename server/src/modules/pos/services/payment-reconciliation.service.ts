@@ -1,8 +1,33 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PaymentRepository } from '../repositories/payment.repository';
 import { TransactionRepository } from '../repositories/transaction.repository';
-import { StripePaymentProvider } from '../providers/stripe-payment.provider';
-import { CashPaymentProvider } from '../providers/cash-payment.provider';
+import { CacheService } from '../../cache/cache.service';
+
+export interface ReconciliationOptions {
+  includeVoided?: boolean;
+  includeRefunded?: boolean;
+  paymentMethods?: string[];
+  locationIds?: string[];
+}
+
+export interface ReconciliationDiscrepancy {
+  type: 'missing_payment' | 'duplicate_payment' | 'amount_mismatch' | 'status_mismatch';
+  transactionId?: string;
+  paymentId?: string;
+  expectedAmount?: number;
+  actualAmount?: number;
+  description: string;
+  severity: 'low' | 'medium' | 'high';
+}
+
+export interface PaymentMethodSummary {
+  paymentMethod: string;
+  transactionCount: number;
+  totalAmount: number;
+  averageAmount: number;
+  refundCount: number;
+  refundAmount: number;
+}
 
 export interface ReconciliationReport {
   reconciliationId: string;
@@ -10,43 +35,32 @@ export interface ReconciliationReport {
   locationId?: string;
   startDate: Date;
   endDate: Date;
+  generatedAt: Date;
+  generatedBy: string;
+  
+  // Summary
   totalTransactions: number;
   totalAmount: number;
-  paymentMethodBreakdown: {
-    [method: string]: {
-      count: number;
-      amount: number;
-      fees: number;
-      discrepancies: number;
-    };
-  };
+  expectedAmount: number;
+  actualAmount: number;
+  variance: number;
+  variancePercentage: number;
+  
+  // Payment method breakdown
+  paymentMethodSummary: PaymentMethodSummary[];
+  
+  // Discrepancies
   discrepancies: ReconciliationDiscrepancy[];
-  summary: {
-    expectedAmount: number;
-    actualAmount: number;
-    difference: number;
-    reconciled: boolean;
-  };
-  generatedAt: Date;
-}
-
-export interface ReconciliationDiscrepancy {
-  type: 'missing_payment' | 'duplicate_payment' | 'amount_mismatch' | 'status_mismatch';
-  transactionId: string;
-  paymentId?: string;
-  description: string;
-  expectedAmount?: number;
-  actualAmount?: number;
-  severity: 'low' | 'medium' | 'high';
-  resolved: boolean;
-}
-
-export interface ReconciliationOptions {
-  locationId?: string;
-  paymentMethods?: string[];
-  includeVoided?: boolean;
-  includeRefunded?: boolean;
-  autoResolve?: boolean;
+  
+  // Status
+  status: 'balanced' | 'variance_detected' | 'major_discrepancy';
+  isApproved: boolean;
+  approvedBy?: string;
+  approvedAt?: Date;
+  
+  // Metadata
+  options: ReconciliationOptions;
+  processingTime: number;
 }
 
 @Injectable()
@@ -56,8 +70,7 @@ export class PaymentReconciliationService {
   constructor(
     private readonly paymentRepository: PaymentRepository,
     private readonly transactionRepository: TransactionRepository,
-    private readonly stripeProvider: StripePaymentProvider,
-    private readonly cashProvider: CashPaymentProvider,
+    private readonly cacheService: CacheService,
   ) {}
 
   async performReconciliation(
@@ -65,82 +78,101 @@ export class PaymentReconciliationService {
     startDate: Date,
     endDate: Date,
     options: ReconciliationOptions = {},
+    userId: string = 'system',
   ): Promise<ReconciliationReport> {
-    this.logger.log(`Starting payment reconciliation for tenant ${tenantId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    const startTime = Date.now();
+    const reconciliationId = `recon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    this.logger.log(`Starting reconciliation ${reconciliationId} for tenant ${tenantId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
 
-    const reconciliationId = `recon_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    try {
+      // Get transactions and payments for the period
+      const { transactions } = await this.transactionRepository.findByTenant(tenantId, {
+        startDate,
+        endDate,
+        limit: 10000, // Large limit to get all transactions
+      });
 
-    // Get all transactions in the date range
-    const transactions = await this.transactionRepository.findByDateRange(
-      tenantId,
-      startDate,
-      endDate,
-      options.locationId
-    );
+      const { payments } = await this.paymentRepository.findByTenant(tenantId, {
+        startDate,
+        endDate,
+        limit: 10000, // Large limit to get all payments
+      });
 
-    // Get all payments for these transactions
-    const payments = await this.paymentRepository.findByDateRange(
-      tenantId,
-      startDate,
-      endDate,
-      options.locationId
-    );
+      // Filter based on options
+      const filteredTransactions = this.filterTransactions(transactions, options);
+      const filteredPayments = this.filterPayments(payments, options);
 
-    // Perform reconciliation analysis
-    const paymentMethodBreakdown = this.analyzePaymentMethods(payments);
-    const discrepancies = await this.detectDiscrepancies(transactions, payments);
+      // Calculate summaries
+      const paymentMethodSummary = this.calculatePaymentMethodSummary(filteredPayments);
+      const totalTransactions = filteredTransactions.length;
+      const expectedAmount = this.calculateExpectedAmount(filteredTransactions);
+      const actualAmount = this.calculateActualAmount(filteredPayments);
+      const variance = actualAmount - expectedAmount;
+      const variancePercentage = expectedAmount > 0 ? (variance / expectedAmount) * 100 : 0;
 
-    // Auto-resolve discrepancies if requested
-    if (options.autoResolve) {
-      await this.autoResolveDiscrepancies(tenantId, discrepancies);
-    }
+      // Detect discrepancies
+      const discrepancies = await this.detectDiscrepancies(
+        filteredTransactions,
+        filteredPayments,
+        tenantId
+      );
 
-    // Calculate summary
-    const expectedAmount = transactions
-      .filter(t => t.status === 'completed')
-      .reduce((sum, t) => sum + t.total, 0);
+      // Determine status
+      const status = this.determineReconciliationStatus(variance, discrepancies);
 
-    const actualAmount = payments
-      .filter(p => p.status === 'captured')
-      .reduce((sum, p) => sum + p.amount, 0);
+      const processingTime = Date.now() - startTime;
 
-    const report: ReconciliationReport = {
-      reconciliationId,
-      tenantId,
-      startDate,
-      endDate,
-      totalTransactions: transactions.length,
-      totalAmount: expectedAmount,
-      paymentMethodBreakdown,
-      discrepancies,
-      summary: {
+      const report: ReconciliationReport = {
+        reconciliationId,
+        tenantId,
+        locationId: options.locationIds?.[0],
+        startDate,
+        endDate,
+        generatedAt: new Date(),
+        generatedBy: userId,
+        
+        totalTransactions,
+        totalAmount: expectedAmount,
         expectedAmount,
         actualAmount,
-        difference: Math.abs(expectedAmount - actualAmount),
-        reconciled: Math.abs(expectedAmount - actualAmount) < 0.01, // Within 1 cent
-      },
-      generatedAt: new Date(),
-    };
+        variance,
+        variancePercentage,
+        
+        paymentMethodSummary,
+        discrepancies,
+        
+        status,
+        isApproved: false,
+        
+        options,
+        processingTime,
+      };
 
-    // Only add locationId if it exists
-    if (options.locationId) {
-      (report as any).locationId = options.locationId;
+      // Cache the report
+      await this.cacheReconciliationReport(report);
+
+      this.logger.log(`Reconciliation ${reconciliationId} completed in ${processingTime}ms. Status: ${status}, Variance: $${variance.toFixed(2)}`);
+
+      return report;
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Reconciliation ${reconciliationId} failed: ${errorMessage}`);
+      throw error;
     }
-
-    this.logger.log(`Reconciliation completed: ${discrepancies.length} discrepancies found, difference: $${report.summary.difference.toFixed(2)}`);
-
-    return report;
   }
 
   async performDailyReconciliation(
     tenantId: string,
     date: Date,
     options: ReconciliationOptions = {},
+    userId: string = 'system',
   ): Promise<ReconciliationReport> {
-    const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+    const startDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const endDate = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
 
-    return this.performReconciliation(tenantId, startOfDay, endOfDay, options);
+    return this.performReconciliation(tenantId, startDate, endDate, options, userId);
   }
 
   async getReconciliationHistory(
@@ -151,137 +183,209 @@ export class PaymentReconciliationService {
     reports: ReconciliationReport[];
     total: number;
   }> {
-    // In a real implementation, this would fetch from a reconciliation reports table
-    // For now, return empty results
+    this.logger.debug(`Getting reconciliation history for tenant ${tenantId}`);
+
+    // In a real implementation, this would query the database
+    // For now, return mock data
+    const reports = await this.getMockReconciliationReports(tenantId, limit);
+
     return {
-      reports: [],
-      total: 0,
+      reports: reports.slice(offset, offset + limit),
+      total: reports.length,
     };
   }
 
-  async resolveDiscrepancy(
+  async approveReconciliation(
     tenantId: string,
-    discrepancyId: string,
-    resolution: {
-      action: 'ignore' | 'adjust_payment' | 'adjust_transaction' | 'manual_entry';
-      notes?: string;
-      adjustmentAmount?: number;
-    },
+    reconciliationId: string,
     userId: string,
-  ): Promise<void> {
-    this.logger.log(`Resolving discrepancy ${discrepancyId} with action: ${resolution.action}`);
+    notes?: string,
+  ): Promise<ReconciliationReport | null> {
+    this.logger.log(`Approving reconciliation ${reconciliationId} by user ${userId}`);
 
-    // In a real implementation, this would:
-    // 1. Update the discrepancy record
-    // 2. Apply the resolution action
-    // 3. Log the resolution for audit purposes
-    // 4. Notify relevant stakeholders
-
-    switch (resolution.action) {
-      case 'ignore':
-        // Mark discrepancy as resolved but no action taken
-        break;
-
-      case 'adjust_payment':
-        // Create adjustment payment record
-        if (resolution.adjustmentAmount) {
-          await this.createAdjustmentPayment(
-            tenantId,
-            discrepancyId,
-            resolution.adjustmentAmount,
-            resolution.notes || 'Reconciliation adjustment',
-            userId
-          );
-        }
-        break;
-
-      case 'adjust_transaction':
-        // Update transaction amount or status
-        break;
-
-      case 'manual_entry':
-        // Create manual reconciliation entry
-        break;
+    const report = await this.getReconciliationReport(tenantId, reconciliationId);
+    if (!report) {
+      return null;
     }
+
+    const approvedReport: ReconciliationReport = {
+      ...report,
+      isApproved: true,
+      approvedBy: userId,
+      approvedAt: new Date(),
+    };
+
+    // Update cached report
+    await this.cacheReconciliationReport(approvedReport);
+
+    this.logger.log(`Reconciliation ${reconciliationId} approved by ${userId}`);
+    return approvedReport;
   }
 
-  private analyzePaymentMethods(payments: any[]): ReconciliationReport['paymentMethodBreakdown'] {
-    const breakdown: ReconciliationReport['paymentMethodBreakdown'] = {};
+  async getReconciliationReport(
+    tenantId: string,
+    reconciliationId: string,
+  ): Promise<ReconciliationReport | null> {
+    const cacheKey = `reconciliation:${tenantId}:${reconciliationId}`;
+    const cachedReport = await this.cacheService.get<ReconciliationReport>(cacheKey);
+
+    if (cachedReport) {
+      return cachedReport;
+    }
+
+    // In a real implementation, this would query the database
+    // For now, return null if not in cache
+    return null;
+  }
+
+  async getReconciliationSummary(
+    tenantId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<{
+    totalReconciliations: number;
+    balancedReconciliations: number;
+    varianceReconciliations: number;
+    majorDiscrepancyReconciliations: number;
+    totalVariance: number;
+    averageVariance: number;
+  }> {
+    this.logger.debug(`Getting reconciliation summary for tenant ${tenantId}`);
+
+    // In a real implementation, this would aggregate data from the database
+    // For now, return mock summary
+    return {
+      totalReconciliations: 30,
+      balancedReconciliations: 25,
+      varianceReconciliations: 4,
+      majorDiscrepancyReconciliations: 1,
+      totalVariance: 125.50,
+      averageVariance: 4.18,
+    };
+  }
+
+  private filterTransactions(transactions: any[], options: ReconciliationOptions): any[] {
+    let filtered = transactions;
+
+    if (!options.includeVoided) {
+      filtered = filtered.filter(t => t.status !== 'voided');
+    }
+
+    if (!options.includeRefunded) {
+      filtered = filtered.filter(t => t.status !== 'refunded');
+    }
+
+    if (options.paymentMethods && options.paymentMethods.length > 0) {
+      filtered = filtered.filter(t => options.paymentMethods!.includes(t.paymentMethod));
+    }
+
+    if (options.locationIds && options.locationIds.length > 0) {
+      filtered = filtered.filter(t => options.locationIds!.includes(t.locationId));
+    }
+
+    return filtered;
+  }
+
+  private filterPayments(payments: any[], options: ReconciliationOptions): any[] {
+    let filtered = payments;
+
+    if (options.paymentMethods && options.paymentMethods.length > 0) {
+      filtered = filtered.filter(p => options.paymentMethods!.includes(p.paymentMethod));
+    }
+
+    // Filter out failed payments
+    filtered = filtered.filter(p => p.status === 'captured' || p.status === 'completed');
+
+    return filtered;
+  }
+
+  private calculatePaymentMethodSummary(payments: any[]): PaymentMethodSummary[] {
+    const summary = new Map<string, PaymentMethodSummary>();
 
     for (const payment of payments) {
       const method = payment.paymentMethod;
-      
-      if (!breakdown[method]) {
-        breakdown[method] = {
-          count: 0,
-          amount: 0,
-          fees: 0,
-          discrepancies: 0,
-        };
+      const existing = summary.get(method) || {
+        paymentMethod: method,
+        transactionCount: 0,
+        totalAmount: 0,
+        averageAmount: 0,
+        refundCount: 0,
+        refundAmount: 0,
+      };
+
+      if (payment.amount > 0) {
+        existing.transactionCount++;
+        existing.totalAmount += payment.amount;
+      } else {
+        existing.refundCount++;
+        existing.refundAmount += Math.abs(payment.amount);
       }
 
-      const methodBreakdown = breakdown[method];
-      if (methodBreakdown) {
-        methodBreakdown.count++;
-        methodBreakdown.amount += payment.amount;
-        
-        // Calculate fees based on payment method
-        if (method === 'card' || method === 'digital_wallet') {
-          methodBreakdown.fees += this.calculateStripeFees(payment.amount);
-        }
-      }
+      summary.set(method, existing);
     }
 
-    return breakdown;
+    // Calculate averages
+    for (const [method, data] of summary.entries()) {
+      data.averageAmount = data.transactionCount > 0 ? data.totalAmount / data.transactionCount : 0;
+      summary.set(method, data);
+    }
+
+    return Array.from(summary.values());
+  }
+
+  private calculateExpectedAmount(transactions: any[]): number {
+    return transactions
+      .filter(t => t.status === 'completed')
+      .reduce((sum, t) => sum + t.total, 0);
+  }
+
+  private calculateActualAmount(payments: any[]): number {
+    return payments
+      .filter(p => p.status === 'captured' || p.status === 'completed')
+      .reduce((sum, p) => sum + p.amount, 0);
   }
 
   private async detectDiscrepancies(
     transactions: any[],
     payments: any[],
+    tenantId: string,
   ): Promise<ReconciliationDiscrepancy[]> {
     const discrepancies: ReconciliationDiscrepancy[] = [];
 
-    // Create maps for efficient lookup
+    // Create maps for quick lookup
     const transactionMap = new Map(transactions.map(t => [t.id, t]));
     const paymentsByTransaction = new Map<string, any[]>();
 
     // Group payments by transaction
     for (const payment of payments) {
-      if (!paymentsByTransaction.has(payment.transactionId)) {
-        paymentsByTransaction.set(payment.transactionId, []);
-      }
-      paymentsByTransaction.get(payment.transactionId)!.push(payment);
+      const existing = paymentsByTransaction.get(payment.transactionId) || [];
+      existing.push(payment);
+      paymentsByTransaction.set(payment.transactionId, existing);
     }
 
     // Check for missing payments
     for (const transaction of transactions) {
       if (transaction.status === 'completed') {
         const transactionPayments = paymentsByTransaction.get(transaction.id) || [];
-        const totalPaid = transactionPayments
-          .filter(p => p.status === 'captured')
-          .reduce((sum, p) => sum + p.amount, 0);
-
-        if (Math.abs(totalPaid - transaction.total) > 0.01) {
-          discrepancies.push({
-            type: 'amount_mismatch',
-            transactionId: transaction.id,
-            description: `Payment amount mismatch: expected $${transaction.total.toFixed(2)}, received $${totalPaid.toFixed(2)}`,
-            expectedAmount: transaction.total,
-            actualAmount: totalPaid,
-            severity: Math.abs(totalPaid - transaction.total) > 10 ? 'high' : 'medium',
-            resolved: false,
-          });
-        }
+        const totalPaid = transactionPayments.reduce((sum, p) => sum + p.amount, 0);
 
         if (transactionPayments.length === 0) {
           discrepancies.push({
             type: 'missing_payment',
             transactionId: transaction.id,
-            description: `No payment record found for completed transaction`,
             expectedAmount: transaction.total,
             actualAmount: 0,
+            description: `No payment record found for completed transaction ${transaction.transactionNumber}`,
             severity: 'high',
-            resolved: false,
+          });
+        } else if (Math.abs(totalPaid - transaction.total) > 0.01) {
+          discrepancies.push({
+            type: 'amount_mismatch',
+            transactionId: transaction.id,
+            expectedAmount: transaction.total,
+            actualAmount: totalPaid,
+            description: `Payment amount mismatch for transaction ${transaction.transactionNumber}. Expected: $${transaction.total}, Actual: $${totalPaid}`,
+            severity: Math.abs(totalPaid - transaction.total) > 10 ? 'high' : 'medium',
           });
         }
       }
@@ -292,96 +396,108 @@ export class PaymentReconciliationService {
       if (!transactionMap.has(payment.transactionId)) {
         discrepancies.push({
           type: 'missing_payment',
-          transactionId: payment.transactionId,
           paymentId: payment.id,
-          description: `Payment exists but transaction not found`,
           actualAmount: payment.amount,
+          description: `Payment record ${payment.id} has no corresponding transaction`,
           severity: 'medium',
-          resolved: false,
         });
-      }
-    }
-
-    // Check for duplicate payments
-    for (const [transactionId, transactionPayments] of paymentsByTransaction) {
-      const capturedPayments = transactionPayments.filter(p => p.status === 'captured');
-      if (capturedPayments.length > 1) {
-        const transaction = transactionMap.get(transactionId);
-        if (transaction) {
-          discrepancies.push({
-            type: 'duplicate_payment',
-            transactionId,
-            description: `Multiple captured payments found for single transaction`,
-            expectedAmount: transaction.total,
-            actualAmount: capturedPayments.reduce((sum, p) => sum + p.amount, 0),
-            severity: 'high',
-            resolved: false,
-          });
-        }
       }
     }
 
     return discrepancies;
   }
 
-  private async autoResolveDiscrepancies(
-    tenantId: string,
+  private determineReconciliationStatus(
+    variance: number,
     discrepancies: ReconciliationDiscrepancy[],
-  ): Promise<void> {
-    for (const discrepancy of discrepancies) {
-      // Only auto-resolve low severity discrepancies
-      if (discrepancy.severity === 'low') {
-        try {
-          // Auto-resolve based on discrepancy type
-          switch (discrepancy.type) {
-            case 'amount_mismatch':
-              // If difference is very small (< $0.05), mark as resolved
-              const difference = Math.abs((discrepancy.expectedAmount || 0) - (discrepancy.actualAmount || 0));
-              if (difference < 0.05) {
-                discrepancy.resolved = true;
-              }
-              break;
-          }
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-          this.logger.error(`Failed to auto-resolve discrepancy: ${errorMessage}`);
-        }
-      }
+  ): 'balanced' | 'variance_detected' | 'major_discrepancy' {
+    const highSeverityDiscrepancies = discrepancies.filter(d => d.severity === 'high');
+    
+    if (highSeverityDiscrepancies.length > 0 || Math.abs(variance) > 100) {
+      return 'major_discrepancy';
+    } else if (Math.abs(variance) > 0.01 || discrepancies.length > 0) {
+      return 'variance_detected';
+    } else {
+      return 'balanced';
     }
   }
 
-  private async createAdjustmentPayment(
-    tenantId: string,
-    discrepancyId: string,
-    amount: number,
-    notes: string,
-    userId: string,
-  ): Promise<void> {
-    // Create an adjustment payment record
-    await this.paymentRepository.create(
-      tenantId,
-      {
-        transactionId: discrepancyId, // Use discrepancy ID as reference
-        paymentMethod: 'adjustment',
-        amount,
-        paymentProvider: 'manual',
-        providerTransactionId: `adj_${Date.now()}`,
-        providerResponse: {
-          type: 'reconciliation_adjustment',
-          notes,
-          adjustedAt: new Date().toISOString(),
-        },
-        metadata: {
-          discrepancyId,
-          adjustmentType: 'reconciliation',
-        },
-      },
-      userId
-    );
+  private async cacheReconciliationReport(report: ReconciliationReport): Promise<void> {
+    const cacheKey = `reconciliation:${report.tenantId}:${report.reconciliationId}`;
+    await this.cacheService.set(cacheKey, report, 7 * 24 * 3600); // Cache for 7 days
   }
 
-  private calculateStripeFees(amount: number): number {
-    // Stripe standard fees: 2.9% + $0.30
-    return Math.round((amount * 0.029 + 0.30) * 100) / 100;
+  private async getMockReconciliationReports(tenantId: string, count: number): Promise<ReconciliationReport[]> {
+    const reports: ReconciliationReport[] = [];
+    
+    for (let i = 0; i < count; i++) {
+      const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const variance = (Math.random() - 0.5) * 100; // Random variance between -50 and 50
+      
+      reports.push({
+        reconciliationId: `recon_${Date.now() - i * 1000}`,
+        tenantId,
+        startDate: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+        endDate: new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1),
+        generatedAt: date,
+        generatedBy: 'system',
+        
+        totalTransactions: Math.floor(Math.random() * 100) + 50,
+        totalAmount: Math.floor(Math.random() * 10000) + 1000,
+        expectedAmount: Math.floor(Math.random() * 10000) + 1000,
+        actualAmount: 0, // Will be calculated
+        variance,
+        variancePercentage: 0, // Will be calculated
+        
+        paymentMethodSummary: [
+          {
+            paymentMethod: 'cash',
+            transactionCount: Math.floor(Math.random() * 30) + 10,
+            totalAmount: Math.floor(Math.random() * 3000) + 500,
+            averageAmount: 0, // Will be calculated
+            refundCount: Math.floor(Math.random() * 5),
+            refundAmount: Math.floor(Math.random() * 200),
+          },
+          {
+            paymentMethod: 'card',
+            transactionCount: Math.floor(Math.random() * 40) + 20,
+            totalAmount: Math.floor(Math.random() * 5000) + 1000,
+            averageAmount: 0, // Will be calculated
+            refundCount: Math.floor(Math.random() * 3),
+            refundAmount: Math.floor(Math.random() * 300),
+          },
+        ],
+        
+        discrepancies: Math.abs(variance) > 10 ? [{
+          type: 'amount_mismatch',
+          transactionId: `txn_${i}`,
+          expectedAmount: 25.99,
+          actualAmount: 25.99 + variance,
+          description: `Amount mismatch detected`,
+          severity: Math.abs(variance) > 50 ? 'high' : 'medium',
+        }] : [],
+        
+        status: Math.abs(variance) > 50 ? 'major_discrepancy' : 
+                Math.abs(variance) > 0.01 ? 'variance_detected' : 'balanced',
+        isApproved: Math.random() > 0.3, // 70% approved
+        approvedBy: Math.random() > 0.3 ? 'admin_user' : undefined,
+        approvedAt: Math.random() > 0.3 ? new Date(date.getTime() + 60000) : undefined,
+        
+        options: {},
+        processingTime: Math.floor(Math.random() * 5000) + 1000,
+      });
+    }
+
+    // Calculate derived fields
+    reports.forEach(report => {
+      report.actualAmount = report.expectedAmount + report.variance;
+      report.variancePercentage = report.expectedAmount > 0 ? (report.variance / report.expectedAmount) * 100 : 0;
+      
+      report.paymentMethodSummary.forEach(summary => {
+        summary.averageAmount = summary.transactionCount > 0 ? summary.totalAmount / summary.transactionCount : 0;
+      });
+    });
+
+    return reports;
   }
 }

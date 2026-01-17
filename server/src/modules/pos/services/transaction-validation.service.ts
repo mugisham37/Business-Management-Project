@@ -1,17 +1,17 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { CreateTransactionDto, CreateTransactionItemDto } from '../dto/transaction.dto';
+import { CreateTransactionInput, CreateTransactionItemInput } from '../inputs/transaction.input';
 
 @Injectable()
 export class TransactionValidationService {
   
-  validateTransaction(transactionData: CreateTransactionDto): void {
+  validateTransaction(transactionData: CreateTransactionInput): void {
     this.validateBasicFields(transactionData);
     this.validateItems(transactionData.items);
     this.validateAmounts(transactionData);
     this.validateBusinessRules(transactionData);
   }
 
-  private validateBasicFields(transactionData: CreateTransactionDto): void {
+  private validateBasicFields(transactionData: CreateTransactionInput): void {
     if (!transactionData.locationId) {
       throw new BadRequestException('Location ID is required');
     }
@@ -25,7 +25,7 @@ export class TransactionValidationService {
     }
   }
 
-  private validateItems(items: CreateTransactionItemDto[]): void {
+  private validateItems(items: CreateTransactionItemInput[]): void {
     for (const [index, item] of items.entries()) {
       if (!item.productId) {
         throw new BadRequestException(`Item ${index + 1}: Product ID is required`);
@@ -61,7 +61,7 @@ export class TransactionValidationService {
     }
   }
 
-  private validateAmounts(transactionData: CreateTransactionDto): void {
+  private validateAmounts(transactionData: CreateTransactionInput): void {
     if (transactionData.taxAmount && transactionData.taxAmount < 0) {
       throw new BadRequestException('Tax amount cannot be negative');
     }
@@ -97,7 +97,7 @@ export class TransactionValidationService {
     }
   }
 
-  private validateBusinessRules(transactionData: CreateTransactionDto): void {
+  private validateBusinessRules(transactionData: CreateTransactionInput): void {
     // Validate maximum items per transaction
     const MAX_ITEMS_PER_TRANSACTION = 100;
     if (transactionData.items.length > MAX_ITEMS_PER_TRANSACTION) {
@@ -179,7 +179,7 @@ export class TransactionValidationService {
   }
 
   validateInventoryAvailability(
-    items: CreateTransactionItemDto[],
+    items: CreateTransactionItemInput[],
     inventoryLevels: Map<string, number>
   ): void {
     for (const [index, item] of items.entries()) {
@@ -194,7 +194,7 @@ export class TransactionValidationService {
     }
   }
 
-  validateOfflineTransaction(transactionData: CreateTransactionDto): void {
+  validateOfflineTransaction(transactionData: CreateTransactionInput): void {
     if (!transactionData.isOfflineTransaction) {
       return;
     }

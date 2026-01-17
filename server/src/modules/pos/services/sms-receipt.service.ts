@@ -1,73 +1,73 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { SmsNotificationService } from '../../communication/services/sms-notification.service';
+import { ReceiptOptions } from './receipt.service';
 
-export interface SmsReceiptOptions {
-  to: string;
-  template?: 'minimal' | 'standard' | 'detailed';
-  includeTotal?: boolean;
-  includeItems?: boolean;
-  customMessage?: string;
-}
-
-export interface SmsResult {
+export interface SmsReceiptResult {
   success: boolean;
   messageId?: string;
   error?: string;
-  metadata?: Record<string, any>;
 }
 
 @Injectable()
 export class SmsReceiptService {
   private readonly logger = new Logger(SmsReceiptService.name);
-  private readonly smsConfig: any;
-  private readonly maxSmsLength = 160; // Standard SMS length
+  private readonly MAX_SMS_LENGTH = 160; // Standard SMS length limit
 
-  constructor(private readonly configService: ConfigService) {
-    this.smsConfig = {
-      apiKey: this.configService.get<string>('SMS_API_KEY'),
-      apiSecret: this.configService.get<string>('SMS_API_SECRET'),
-      fromNumber: this.configService.get<string>('SMS_FROM_NUMBER') || '+1234567890',
-      provider: this.configService.get<string>('SMS_PROVIDER') || 'twilio', // twilio, aws-sns, etc.
-    };
-  }
+  constructor(
+    private readonly smsNotificationService: SmsNotificationService,
+  ) {}
 
-  async sendReceiptSms(
-    receiptContent: string,
-    transaction: any,
-    options: SmsReceiptOptions,
-  ): Promise<SmsResult> {
-    this.logger.log(`Sending receipt SMS to ${this.maskPhoneNumber(options.to)} for transaction ${transaction.transactionNumber}`);
-
+  async sendReceipt(
+    tenantId: string,
+    phoneNumber: string,
+    receiptData: any,
+    options: ReceiptOptions = {},
+  ): Promise<SmsReceiptResult> {
     try {
+      this.logger.log(`Sending SMS receipt to ${phoneNumber} for transaction ${receiptData.transactionId}`);
+
       // Validate phone number
-      if (!this.validatePhoneNumber(options.to)) {
+      if (!this.isValidPhoneNumber(phoneNumber)) {
         throw new Error('Invalid phone number format');
       }
 
-      // Build SMS content
-      const smsContent = await this.buildSmsContent(receiptContent, transaction, options);
-      
-      // Check SMS length and split if necessary
-      const messages = this.splitLongMessage(smsContent);
-      
-      // Send SMS(es)
-      const results = await this.sendSmsMessages(messages, options.to);
-      
-      return {
-        success: true,
-        messageId: results[0]?.messageId || 'unknown',
+      // Generate SMS content
+      const smsContent = this.generateSmsContent(receiptData, options);
+
+      // Check if content exceeds SMS limit
+      if (smsContent.length > this.MAX_SMS_LENGTH) {
+        this.logger.warn(`SMS content exceeds ${this.MAX_SMS_LENGTH} characters, truncating`);
+      }
+
+      // Send SMS using the communication service
+      const result = await this.smsNotificationService.sendSms({
+        tenantId,
+        to: phoneNumber,
+        message: smsContent,
         metadata: {
-          to: this.maskPhoneNumber(options.to),
-          messageCount: messages.length,
-          totalLength: smsContent.length,
-          sentAt: new Date().toISOString(),
-          template: options.template || 'standard',
+          type: 'receipt',
+          transactionId: receiptData.transactionId,
+          receiptId: receiptData.receiptId,
         },
-      };
+      });
+
+      if (result.success) {
+        this.logger.log(`SMS receipt sent successfully to ${phoneNumber}, messageId: ${result.messageId}`);
+        return {
+          success: true,
+          messageId: result.messageId,
+        };
+      } else {
+        this.logger.error(`Failed to send SMS receipt: ${result.error}`);
+        return {
+          success: false,
+          error: result.error,
+        };
+      }
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Failed to send receipt SMS: ${errorMessage}`);
+      this.logger.error(`SMS receipt service error: ${errorMessage}`);
       
       return {
         success: false,
@@ -76,235 +76,138 @@ export class SmsReceiptService {
     }
   }
 
-  async sendBulkReceiptSms(
-    receiptContent: string,
-    transaction: any,
-    recipients: SmsReceiptOptions[],
-  ): Promise<SmsResult[]> {
-    const results: SmsResult[] = [];
-    
-    // Send SMS messages in batches to respect rate limits
-    const batchSize = 10; // Send 10 SMS at a time
-    
-    for (let i = 0; i < recipients.length; i += batchSize) {
-      const batch = recipients.slice(i, i + batchSize);
-      const batchPromises = batch.map(options => 
-        this.sendReceiptSms(receiptContent, transaction, options)
-      );
-      
-      const batchResults = await Promise.all(batchPromises);
-      results.push(...batchResults);
-      
-      // Add delay between batches
-      if (i + batchSize < recipients.length) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    }
-    
-    return results;
-  }
+  async sendReceiptSummary(
+    tenantId: string,
+    phoneNumber: string,
+    receiptData: any,
+  ): Promise<SmsReceiptResult> {
+    try {
+      // Generate a very short summary for SMS
+      const summaryContent = this.generateSummaryContent(receiptData);
 
-  private async buildSmsContent(
-    receiptContent: string,
-    transaction: any,
-    options: SmsReceiptOptions,
-  ): Promise<string> {
-    const template = options.template || 'standard';
-    
-    switch (template) {
-      case 'minimal':
-        return this.buildMinimalSmsContent(transaction, options);
-      case 'detailed':
-        return this.buildDetailedSmsContent(receiptContent, transaction, options);
-      default:
-        return this.buildStandardSmsContent(transaction, options);
+      const result = await this.smsNotificationService.sendSms({
+        tenantId,
+        to: phoneNumber,
+        message: summaryContent,
+        metadata: {
+          type: 'receipt_summary',
+          transactionId: receiptData.transactionId,
+          receiptId: receiptData.receiptId,
+        },
+      });
+
+      return {
+        success: result.success,
+        messageId: result.messageId,
+        error: result.error,
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`SMS receipt summary error: ${errorMessage}`);
+      
+      return {
+        success: false,
+        error: errorMessage,
+      };
     }
   }
 
-  private buildMinimalSmsContent(transaction: any, options: SmsReceiptOptions): string {
-    const parts = [];
+  private generateSmsContent(receiptData: any, options: ReceiptOptions): string {
+    const includeItems = options.includeItemDetails === true;
+    const includeTotal = options.includeItemDetails !== false; // Default to true
     
-    if (options.customMessage) {
-      parts.push(options.customMessage);
-    } else {
-      parts.push('Receipt');
-    }
+    let content = '';
     
-    parts.push(`#${transaction.transactionNumber}`);
+    // Header
+    content += `Receipt #${receiptData.transactionNumber}\n`;
+    content += `${receiptData.timestamp.toLocaleDateString()} ${receiptData.timestamp.toLocaleTimeString()}\n`;
     
-    if (options.includeTotal !== false) {
-      parts.push(`$${transaction.total.toFixed(2)}`);
-    }
-    
-    parts.push(transaction.createdAt.toLocaleDateString());
-    parts.push('Thank you!');
-    
-    return parts.join(' ');
-  }
-
-  private buildStandardSmsContent(transaction: any, options: SmsReceiptOptions): string {
-    const lines = [];
-    
-    if (options.customMessage) {
-      lines.push(options.customMessage);
-    } else {
-      lines.push('Receipt for your purchase');
-    }
-    
-    lines.push(`Transaction: ${transaction.transactionNumber}`);
-    lines.push(`Date: ${transaction.createdAt.toLocaleDateString()}`);
-    
-    if (options.includeTotal !== false) {
-      lines.push(`Total: $${transaction.total.toFixed(2)}`);
-    }
-    
-    if (options.includeItems && transaction.items && transaction.items.length > 0) {
-      lines.push(`Items: ${transaction.itemCount}`);
+    // Items (if requested and space allows)
+    if (includeItems && receiptData.items && receiptData.items.length > 0) {
+      const maxItems = 3; // Limit items to keep SMS short
+      const itemsToShow = receiptData.items.slice(0, maxItems);
       
-      // Add top items if space allows
-      const topItems = transaction.items.slice(0, 2);
-      for (const item of topItems) {
-        const itemLine = `${item.quantity}x ${item.productName}`;
-        if (lines.join('\n').length + itemLine.length < 120) {
-          lines.push(itemLine);
+      itemsToShow.forEach((item: any) => {
+        const itemLine = `${item.quantity}x ${this.truncateText(item.productName, 15)} $${item.lineTotal.toFixed(2)}\n`;
+        
+        // Check if adding this item would exceed SMS limit
+        if ((content + itemLine).length < this.MAX_SMS_LENGTH - 50) { // Leave room for totals
+          content += itemLine;
         }
-      }
+      });
       
-      if (transaction.items.length > 2) {
-        lines.push(`+${transaction.items.length - 2} more`);
+      if (receiptData.items.length > maxItems) {
+        content += `+${receiptData.items.length - maxItems} more items\n`;
       }
     }
     
-    lines.push('Thank you for your business!');
+    // Totals
+    if (includeTotal) {
+      if (receiptData.discountAmount > 0) {
+        content += `Discount: -$${receiptData.discountAmount.toFixed(2)}\n`;
+      }
+      
+      if (receiptData.taxAmount > 0) {
+        content += `Tax: $${receiptData.taxAmount.toFixed(2)}\n`;
+      }
+      
+      content += `Total: $${receiptData.total.toFixed(2)}\n`;
+      content += `Paid: ${receiptData.paymentMethod.toUpperCase()}\n`;
+    }
     
-    return lines.join('\n');
+    // Footer
+    content += 'Thank you!';
+    
+    // Truncate if still too long
+    if (content.length > this.MAX_SMS_LENGTH) {
+      content = content.substring(0, this.MAX_SMS_LENGTH - 3) + '...';
+    }
+    
+    return content;
   }
 
-  private buildDetailedSmsContent(receiptContent: string, transaction: any, options: SmsReceiptOptions): string {
-    // For detailed SMS, include more information but still keep it concise
-    const lines = [];
+  private generateSummaryContent(receiptData: any): string {
+    let content = '';
     
-    lines.push('RECEIPT');
-    lines.push(`#${transaction.transactionNumber}`);
-    lines.push(`${transaction.createdAt.toLocaleDateString()} ${transaction.createdAt.toLocaleTimeString()}`);
-    lines.push('');
+    content += `Receipt #${receiptData.transactionNumber}\n`;
+    content += `${receiptData.timestamp.toLocaleDateString()}\n`;
+    content += `Total: $${receiptData.total.toFixed(2)}\n`;
+    content += `Payment: ${receiptData.paymentMethod.toUpperCase()}\n`;
     
-    if (transaction.items && transaction.items.length > 0) {
-      for (const item of transaction.items.slice(0, 3)) { // Max 3 items
-        lines.push(`${item.quantity}x ${item.productName} $${item.lineTotal.toFixed(2)}`);
-      }
-      
-      if (transaction.items.length > 3) {
-        lines.push(`... +${transaction.items.length - 3} more items`);
-      }
-      lines.push('');
+    if (receiptData.items && receiptData.items.length > 0) {
+      content += `Items: ${receiptData.items.length}\n`;
     }
     
-    if (transaction.subtotal !== transaction.total) {
-      lines.push(`Subtotal: $${transaction.subtotal.toFixed(2)}`);
-      
-      if (transaction.taxAmount > 0) {
-        lines.push(`Tax: $${transaction.taxAmount.toFixed(2)}`);
-      }
-      
-      if (transaction.discountAmount > 0) {
-        lines.push(`Discount: -$${transaction.discountAmount.toFixed(2)}`);
-      }
-    }
+    content += 'Thank you!';
     
-    lines.push(`TOTAL: $${transaction.total.toFixed(2)}`);
-    lines.push(`Payment: ${transaction.paymentMethod.toUpperCase()}`);
-    lines.push('');
-    lines.push('Thank you!');
-    
-    return lines.join('\n');
+    return content;
   }
 
-  private splitLongMessage(content: string): string[] {
-    if (content.length <= this.maxSmsLength) {
-      return [content];
+  private truncateText(text: string, maxLength: number): string {
+    if (text.length <= maxLength) {
+      return text;
     }
     
-    const messages: string[] = [];
-    const words = content.split(' ');
-    let currentMessage = '';
-    
-    for (const word of words) {
-      const testMessage = currentMessage ? `${currentMessage} ${word}` : word;
-      
-      if (testMessage.length <= this.maxSmsLength - 10) { // Leave space for part indicator
-        currentMessage = testMessage;
-      } else {
-        if (currentMessage) {
-          messages.push(currentMessage);
-          currentMessage = word;
-        } else {
-          // Single word is too long, truncate it
-          messages.push(word.substring(0, this.maxSmsLength - 10));
-          currentMessage = word.substring(this.maxSmsLength - 10);
-        }
-      }
-    }
-    
-    if (currentMessage) {
-      messages.push(currentMessage);
-    }
-    
-    // Add part indicators if multiple messages
-    if (messages.length > 1) {
-      return messages.map((msg, index) => `(${index + 1}/${messages.length}) ${msg}`);
-    }
-    
-    return messages;
+    return text.substring(0, maxLength - 3) + '...';
   }
 
-  private async sendSmsMessages(messages: string[], phoneNumber: string): Promise<Array<{ messageId: string }>> {
-    const results: Array<{ messageId: string }> = [];
+  private isValidPhoneNumber(phoneNumber: string): boolean {
+    // Basic phone number validation - accepts various formats
+    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+    const cleanNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+    return phoneRegex.test(cleanNumber) && cleanNumber.length >= 10;
+  }
+
+  private formatPhoneNumber(phoneNumber: string): string {
+    // Remove all non-digit characters except +
+    const cleaned = phoneNumber.replace(/[^\d\+]/g, '');
     
-    for (let i = 0; i < messages.length; i++) {
-      const message = messages[i];
-      
-      // Skip if message is undefined (shouldn't happen but TypeScript safety)
-      if (!message) continue;
-      
-      // Simulate SMS sending based on provider
-      const result = await this.sendSingleSms(message, phoneNumber);
-      results.push(result);
-      
-      // Add small delay between parts of multi-part messages
-      if (i < messages.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
+    // Add + if not present and number doesn't start with country code
+    if (!cleaned.startsWith('+') && cleaned.length === 10) {
+      return '+1' + cleaned; // Assume US number
     }
     
-    return results;
-  }
-
-  private async sendSingleSms(message: string, phoneNumber: string): Promise<{ messageId: string }> {
-    // Simulate SMS sending delay
-    await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 700));
-    
-    // In a real implementation, this would use an SMS service like Twilio, AWS SNS, etc.
-    const messageId = `sms_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-    
-    this.logger.log(`Simulated SMS sent to ${this.maskPhoneNumber(phoneNumber)} with message ID: ${messageId}`);
-    
-    return { messageId };
-  }
-
-  private validatePhoneNumber(phoneNumber: string): boolean {
-    // Basic international phone number validation
-    const phoneRegex = /^\+[1-9]\d{1,14}$/;
-    return phoneRegex.test(phoneNumber);
-  }
-
-  private maskPhoneNumber(phoneNumber: string): string {
-    if (phoneNumber.length <= 4) {
-      return phoneNumber;
-    }
-    
-    const visiblePart = phoneNumber.slice(-4);
-    const maskedPart = '*'.repeat(phoneNumber.length - 4);
-    return maskedPart + visiblePart;
+    return cleaned.startsWith('+') ? cleaned : '+' + cleaned;
   }
 }

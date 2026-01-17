@@ -3,8 +3,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OfflineQueueRepository } from '../repositories/offline-queue.repository';
 import { TransactionService } from './transaction.service';
 import { OfflineStorageService } from './offline-storage.service';
-import { CreateTransactionDto } from '../dto/transaction.dto';
+import { CreateTransactionInput } from '../inputs/transaction.input';
 import { OfflineTransactionQueue } from '../entities/transaction.entity';
+import { CreateTransactionDto } from '../types/shared.types';
 
 export interface OfflineOperation {
   id: string;

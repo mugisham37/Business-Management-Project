@@ -1,152 +1,272 @@
-import { ObjectType, Field, ID, Int, registerEnumType } from '@nestjs/graphql';
-import { ApiProperty } from '@nestjs/swagger';
-
-// Enums
-export enum OfflineOperationType {
-  CREATE_TRANSACTION = 'create_transaction',
-  UPDATE_TRANSACTION = 'update_transaction',
-  VOID_TRANSACTION = 'void_transaction',
-  REFUND_TRANSACTION = 'refund_transaction',
-}
-
-export enum OfflineSyncStatus {
-  PENDING = 'pending',
-  SYNCING = 'syncing',
-  SYNCED = 'synced',
-  FAILED = 'failed',
-}
-
-registerEnumType(OfflineOperationType, { name: 'OfflineOperationType' });
-registerEnumType(OfflineSyncStatus, { name: 'OfflineSyncStatus' });
+import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
+import { BaseEntity } from '../../../common/graphql/base.types';
 
 // Offline Queue Item Type
-@ObjectType({ description: 'Offline operation queued for sync' })
-export class OfflineQueueItem {
+@ObjectType({ description: 'Offline operation queue item' })
+export class OfflineQueueItem extends BaseEntity {
   @Field(() => ID)
-  @ApiProperty({ description: 'Queue item ID' })
   id!: string;
 
-  @Field()
-  @ApiProperty({ description: 'Queue ID' })
+  @Field(() => ID)
   queueId!: string;
 
-  @Field()
-  @ApiProperty({ description: 'Device ID' })
+  @Field(() => ID)
   deviceId!: string;
 
-  @Field(() => OfflineOperationType)
-  @ApiProperty({ enum: OfflineOperationType, description: 'Operation type' })
-  operationType!: OfflineOperationType;
+  @Field()
+  operationType!: string;
 
-  @Field(() => OfflineSyncStatus)
-  @ApiProperty({ enum: OfflineSyncStatus, description: 'Sync status' })
-  syncStatus!: OfflineSyncStatus;
+  @Field()
+  transactionData!: Record<string, any>;
+
+  @Field()
+  isSynced!: boolean;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Number of sync attempts' })
   syncAttempts!: number;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Last sync attempt timestamp', required: false })
   lastSyncAttempt?: Date;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Synced at timestamp', required: false })
   syncedAt?: Date;
 
+  @Field(() => [String])
+  syncErrors!: string[];
+
   @Field(() => Int)
-  @ApiProperty({ description: 'Priority (lower = higher priority)' })
   priority!: number;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Sequence number' })
   sequenceNumber!: number;
-
-  @Field()
-  @ApiProperty({ description: 'Created at' })
-  createdAt!: Date;
 }
 
 // Offline Status Type
 @ObjectType({ description: 'Offline sync status for a device' })
 export class OfflineStatus {
-  @Field()
-  @ApiProperty({ description: 'Device ID' })
+  @Field(() => ID)
   deviceId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Is online' })
   isOnline!: boolean;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Pending operations count' })
   pendingOperations!: number;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Failed operations count' })
   failedOperations!: number;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Last sync timestamp', required: false })
   lastSync?: Date;
 
   @Field({ nullable: true })
-  @ApiProperty({ description: 'Last sync error', required: false })
   lastSyncError?: string;
+
+  @Field(() => Int)
+  syncVersion!: number;
+
+  @Field()
+  storageUsed!: number; // in bytes
+
+  @Field()
+  storageLimit!: number; // in bytes
 }
 
 // Sync Result Type
 @ObjectType({ description: 'Result of offline sync operation' })
 export class SyncResult {
   @Field()
-  @ApiProperty({ description: 'Sync success status' })
   success!: boolean;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Number of processed operations' })
   processedOperations!: number;
 
   @Field(() => Int)
-  @ApiProperty({ description: 'Number of failed operations' })
   failedOperations!: number;
 
   @Field(() => [SyncError])
-  @ApiProperty({ type: [SyncError], description: 'List of sync errors' })
   errors!: SyncError[];
+
+  @Field()
+  syncStartedAt!: Date;
+
+  @Field()
+  syncCompletedAt!: Date;
+
+  @Field(() => Int)
+  syncDuration!: number; // in milliseconds
 }
 
 // Sync Error Type
-@ObjectType({ description: 'Error from sync operation' })
+@ObjectType({ description: 'Sync operation error' })
 export class SyncError {
   @Field()
-  @ApiProperty({ description: 'Operation ID that failed' })
   operationId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Error message' })
+  operationType!: string;
+
+  @Field()
   error!: string;
+
+  @Field()
+  timestamp!: Date;
+
+  @Field(() => Int)
+  attemptNumber!: number;
+
+  @Field()
+  isRetryable!: boolean;
 }
 
-// Conflict Type
-@ObjectType({ description: 'Data conflict detected during sync' })
+// Sync Conflict Type
+@ObjectType({ description: 'Data synchronization conflict' })
 export class SyncConflict {
   @Field(() => ID)
-  @ApiProperty({ description: 'Conflict ID' })
-  id!: string;
+  conflictId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Conflict type' })
-  type!: string;
+  operationId!: string;
 
   @Field()
-  @ApiProperty({ description: 'Conflict description' })
+  conflictType!: string;
+
+  @Field()
   description!: string;
 
   @Field()
-  @ApiProperty({ description: 'Operation ID' })
-  operationId!: string;
+  serverData!: Record<string, any>;
 
   @Field()
-  @ApiProperty({ description: 'Detected at' })
+  clientData!: Record<string, any>;
+
+  @Field()
   detectedAt!: Date;
+
+  @Field()
+  isResolved!: boolean;
+
+  @Field({ nullable: true })
+  resolvedAt?: Date;
+
+  @Field({ nullable: true })
+  resolutionStrategy?: string;
+
+  @Field({ nullable: true })
+  resolvedData?: Record<string, any>;
+}
+
+// Cache Status Type
+@ObjectType({ description: 'Offline cache status' })
+export class CacheStatus {
+  @Field()
+  category!: string;
+
+  @Field(() => Int)
+  itemCount!: number;
+
+  @Field()
+  totalSize!: number; // in bytes
+
+  @Field()
+  lastUpdated!: Date;
+
+  @Field({ nullable: true })
+  expiresAt?: Date;
+
+  @Field()
+  isStale!: boolean;
+}
+
+// Offline Statistics Type
+@ObjectType({ description: 'Offline operation statistics' })
+export class OfflineStatistics {
+  @Field(() => Int)
+  totalOperations!: number;
+
+  @Field(() => Int)
+  pendingOperations!: number;
+
+  @Field(() => Int)
+  syncedOperations!: number;
+
+  @Field(() => Int)
+  failedOperations!: number;
+
+  @Field(() => Int)
+  conflictedOperations!: number;
+
+  @Field()
+  lastSyncAttempt!: Date;
+
+  @Field({ nullable: true })
+  lastSuccessfulSync?: Date;
+
+  @Field(() => Int)
+  averageSyncTime!: number; // in milliseconds
+
+  @Field(() => [CacheStatus])
+  cacheStatus!: CacheStatus[];
+}
+
+// Device Info Type
+@ObjectType({ description: 'Device information for offline operations' })
+export class DeviceInfo {
+  @Field(() => ID)
+  deviceId!: string;
+
+  @Field()
+  deviceName!: string;
+
+  @Field()
+  deviceType!: string; // 'tablet', 'mobile', 'desktop', 'pos_terminal'
+
+  @Field()
+  platform!: string; // 'ios', 'android', 'windows', 'web'
+
+  @Field()
+  appVersion!: string;
+
+  @Field()
+  isOnline!: boolean;
+
+  @Field()
+  lastSeen!: Date;
+
+  @Field({ nullable: true })
+  locationId?: string;
+
+  @Field(() => OfflineStatistics)
+  offlineStats!: OfflineStatistics;
+}
+
+// Sync Configuration Type
+@ObjectType({ description: 'Offline sync configuration' })
+export class SyncConfiguration {
+  @Field()
+  autoSyncEnabled!: boolean;
+
+  @Field(() => Int)
+  syncIntervalMinutes!: number;
+
+  @Field(() => Int)
+  maxRetryAttempts!: number;
+
+  @Field(() => Int)
+  retryDelaySeconds!: number;
+
+  @Field(() => Int)
+  batchSize!: number;
+
+  @Field()
+  conflictResolutionStrategy!: string; // 'server_wins', 'client_wins', 'manual'
+
+  @Field(() => [String])
+  priorityOperations!: string[];
+
+  @Field(() => Int)
+  cacheRetentionHours!: number;
+
+  @Field(() => Int)
+  maxCacheSizeMB!: number;
 }

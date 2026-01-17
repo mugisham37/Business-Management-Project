@@ -1,93 +1,81 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { ReceiptOptions } from './receipt.service';
 
-export interface PrintReceiptOptions {
-  printerName?: string;
-  copies?: number;
-  paperSize?: 'thermal_58mm' | 'thermal_80mm' | 'a4' | 'letter';
-  template?: 'standard' | 'minimal' | 'detailed';
-  includeBarcode?: boolean;
-  includeQrCode?: boolean;
-  cutPaper?: boolean;
-  openDrawer?: boolean;
-}
-
-export interface PrintResult {
+export interface PrintReceiptResult {
   success: boolean;
-  jobId?: string;
+  printJobId?: string;
   error?: string;
-  metadata?: Record<string, any>;
 }
 
-export interface PrinterStatus {
+export interface PrinterConfiguration {
+  id: string;
   name: string;
-  status: 'online' | 'offline' | 'error' | 'paper_low' | 'paper_out';
-  paperLevel?: number;
-  lastError?: string;
-  capabilities: {
-    thermal: boolean;
-    color: boolean;
-    barcode: boolean;
-    qrCode: boolean;
-    cashDrawer: boolean;
-  };
+  type: 'thermal' | 'inkjet' | 'laser';
+  connectionType: 'usb' | 'network' | 'bluetooth';
+  ipAddress?: string;
+  port?: number;
+  devicePath?: string;
+  paperWidth: number; // in characters
+  isDefault: boolean;
+  isOnline: boolean;
 }
 
 @Injectable()
 export class PrintReceiptService {
   private readonly logger = new Logger(PrintReceiptService.name);
-  private readonly defaultPrinter: string;
-  private readonly printerConfig: any;
+  private readonly printers = new Map<string, PrinterConfiguration>();
 
-  constructor(private readonly configService: ConfigService) {
-    this.defaultPrinter = this.configService.get<string>('DEFAULT_PRINTER') || 'thermal_printer_1';
-    this.printerConfig = {
-      thermalWidth: this.configService.get<number>('THERMAL_PRINTER_WIDTH') || 48, // characters per line
-      enableCashDrawer: this.configService.get<boolean>('ENABLE_CASH_DRAWER') || true,
-      autoCut: this.configService.get<boolean>('AUTO_CUT_PAPER') || true,
-    };
+  constructor() {
+    // Initialize with some default printer configurations
+    this.initializeDefaultPrinters();
   }
 
   async printReceipt(
+    tenantId: string,
     receiptContent: string,
-    transaction: any,
-    options: PrintReceiptOptions = {},
-  ): Promise<PrintResult> {
-    const printerName = options.printerName || this.defaultPrinter;
-    
-    this.logger.log(`Printing receipt for transaction ${transaction.transactionNumber} on printer ${printerName}`);
-
+    printerId?: string,
+    options: ReceiptOptions = {},
+  ): Promise<PrintReceiptResult> {
     try {
-      // Check printer status
-      const printerStatus = await this.getPrinterStatus(printerName);
-      if (printerStatus.status !== 'online') {
-        throw new Error(`Printer ${printerName} is ${printerStatus.status}`);
+      this.logger.log(`Printing receipt for tenant ${tenantId}${printerId ? ` on printer ${printerId}` : ''}`);
+
+      // Get printer configuration
+      const printer = await this.getPrinterConfiguration(tenantId, printerId);
+      
+      if (!printer) {
+        throw new Error(`Printer ${printerId || 'default'} not found or not configured`);
       }
 
-      // Format content for printer
-      const formattedContent = await this.formatForPrinter(receiptContent, transaction, options);
-      
-      // Generate print commands
-      const printCommands = await this.generatePrintCommands(formattedContent, options);
-      
-      // Send to printer
-      const result = await this.sendToPrinter(printerName, printCommands, options);
-      
-      return {
-        success: true,
-        jobId: result.jobId,
-        metadata: {
-          printerName,
-          copies: options.copies || 1,
-          paperSize: options.paperSize || 'thermal_80mm',
-          printedAt: new Date().toISOString(),
-          contentLength: formattedContent.length,
-        },
-      };
+      if (!printer.isOnline) {
+        throw new Error(`Printer ${printer.name} is offline`);
+      }
+
+      // Format content for the specific printer type
+      const formattedContent = this.formatContentForPrinter(receiptContent, printer, options);
+
+      // Generate print job ID
+      const printJobId = `print_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Send to printer based on connection type
+      const result = await this.sendToPrinter(printer, formattedContent, printJobId);
+
+      if (result.success) {
+        this.logger.log(`Receipt printed successfully, job ID: ${printJobId}`);
+        return {
+          success: true,
+          printJobId,
+        };
+      } else {
+        this.logger.error(`Print job failed: ${result.error}`);
+        return {
+          success: false,
+          error: result.error,
+        };
+      }
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Failed to print receipt: ${errorMessage}`);
+      this.logger.error(`Print receipt service error: ${errorMessage}`);
       
       return {
         success: false,
@@ -96,118 +84,183 @@ export class PrintReceiptService {
     }
   }
 
-  async printMultipleCopies(
-    receiptContent: string,
-    transaction: any,
-    copies: number,
-    options: PrintReceiptOptions = {},
-  ): Promise<PrintResult[]> {
-    const results: PrintResult[] = [];
-    
-    for (let i = 0; i < copies; i++) {
-      const copyOptions = {
-        ...options,
-        copies: 1, // Print one at a time for better control
-      };
-      
-      const result = await this.printReceipt(receiptContent, transaction, copyOptions);
-      results.push(result);
-      
-      // Small delay between copies
-      if (i < copies - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-    }
-    
-    return results;
+  async getPrinters(tenantId: string): Promise<PrinterConfiguration[]> {
+    // In a real implementation, this would fetch tenant-specific printer configurations
+    // from the database. For now, return the default printers.
+    return Array.from(this.printers.values());
   }
 
-  async getAvailablePrinters(): Promise<PrinterStatus[]> {
-    // In a real implementation, this would query the system for available printers
-    const mockPrinters: PrinterStatus[] = [
-      {
-        name: 'thermal_printer_1',
-        status: 'online',
-        paperLevel: 85,
-        capabilities: {
-          thermal: true,
-          color: false,
-          barcode: true,
-          qrCode: true,
-          cashDrawer: true,
-        },
-      },
-      {
-        name: 'receipt_printer_main',
-        status: 'online',
-        paperLevel: 60,
-        capabilities: {
-          thermal: true,
-          color: false,
-          barcode: true,
-          qrCode: false,
-          cashDrawer: false,
-        },
-      },
-      {
-        name: 'office_printer',
-        status: 'offline',
-        capabilities: {
-          thermal: false,
-          color: true,
-          barcode: false,
-          qrCode: false,
-          cashDrawer: false,
-        },
-      },
-    ];
-    
-    return mockPrinters;
-  }
+  async addPrinter(
+    tenantId: string,
+    printerConfig: Omit<PrinterConfiguration, 'id'>,
+  ): Promise<PrinterConfiguration> {
+    const id = `printer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const printer: PrinterConfiguration = {
+      ...printerConfig,
+      id,
+    };
 
-  async getPrinterStatus(printerName: string): Promise<PrinterStatus> {
-    const printers = await this.getAvailablePrinters();
-    const printer = printers.find(p => p.name === printerName);
+    this.printers.set(id, printer);
     
-    if (!printer) {
-      throw new Error(`Printer ${printerName} not found`);
-    }
+    this.logger.log(`Added printer ${printer.name} (${id}) for tenant ${tenantId}`);
     
     return printer;
   }
 
-  async openCashDrawer(printerName?: string): Promise<PrintResult> {
-    const targetPrinter = printerName || this.defaultPrinter;
+  async updatePrinter(
+    tenantId: string,
+    printerId: string,
+    updates: Partial<PrinterConfiguration>,
+  ): Promise<PrinterConfiguration | null> {
+    const printer = this.printers.get(printerId);
     
-    this.logger.log(`Opening cash drawer via printer ${targetPrinter}`);
+    if (!printer) {
+      return null;
+    }
 
-    try {
-      const printerStatus = await this.getPrinterStatus(targetPrinter);
-      
-      if (!printerStatus.capabilities.cashDrawer) {
-        throw new Error(`Printer ${targetPrinter} does not support cash drawer control`);
+    const updatedPrinter = { ...printer, ...updates, id: printerId };
+    this.printers.set(printerId, updatedPrinter);
+    
+    this.logger.log(`Updated printer ${printerId} for tenant ${tenantId}`);
+    
+    return updatedPrinter;
+  }
+
+  async removePrinter(tenantId: string, printerId: string): Promise<boolean> {
+    const deleted = this.printers.delete(printerId);
+    
+    if (deleted) {
+      this.logger.log(`Removed printer ${printerId} for tenant ${tenantId}`);
+    }
+    
+    return deleted;
+  }
+
+  async testPrinter(tenantId: string, printerId: string): Promise<PrintReceiptResult> {
+    const testContent = this.generateTestReceipt();
+    
+    return this.printReceipt(tenantId, testContent, printerId, {
+      template: 'thermal',
+    });
+  }
+
+  private async getPrinterConfiguration(
+    tenantId: string,
+    printerId?: string,
+  ): Promise<PrinterConfiguration | null> {
+    if (printerId) {
+      return this.printers.get(printerId) || null;
+    }
+
+    // Find default printer
+    for (const printer of this.printers.values()) {
+      if (printer.isDefault) {
+        return printer;
       }
+    }
 
-      // Generate cash drawer open command
-      const drawerCommand = this.generateCashDrawerCommand();
-      
-      // Send command to printer
-      const result = await this.sendToPrinter(targetPrinter, [drawerCommand], {});
-      
-      return {
-        success: true,
-        jobId: result.jobId,
-        metadata: {
-          printerName: targetPrinter,
-          action: 'open_cash_drawer',
-          executedAt: new Date().toISOString(),
-        },
-      };
+    // Return first available printer if no default
+    const firstPrinter = this.printers.values().next().value;
+    return firstPrinter || null;
+  }
 
+  private formatContentForPrinter(
+    content: string,
+    printer: PrinterConfiguration,
+    options: ReceiptOptions,
+  ): string {
+    switch (printer.type) {
+      case 'thermal':
+        return this.formatForThermalPrinter(content, printer.paperWidth);
+      case 'inkjet':
+      case 'laser':
+        return this.formatForStandardPrinter(content, printer.paperWidth);
+      default:
+        return content;
+    }
+  }
+
+  private formatForThermalPrinter(content: string, paperWidth: number): string {
+    const lines = content.split('\n');
+    const formattedLines: string[] = [];
+
+    for (const line of lines) {
+      if (line.length <= paperWidth) {
+        formattedLines.push(line);
+      } else {
+        // Wrap long lines
+        const wrappedLines = this.wrapText(line, paperWidth);
+        formattedLines.push(...wrappedLines);
+      }
+    }
+
+    // Add thermal printer specific commands
+    let formatted = '\x1B\x40'; // Initialize printer
+    formatted += '\x1B\x61\x01'; // Center alignment for header
+    formatted += formattedLines.join('\n');
+    formatted += '\n\n\n'; // Feed paper
+    formatted += '\x1D\x56\x42\x00'; // Cut paper
+
+    return formatted;
+  }
+
+  private formatForStandardPrinter(content: string, paperWidth: number): string {
+    const lines = content.split('\n');
+    const formattedLines: string[] = [];
+
+    for (const line of lines) {
+      if (line.length <= paperWidth) {
+        formattedLines.push(line);
+      } else {
+        const wrappedLines = this.wrapText(line, paperWidth);
+        formattedLines.push(...wrappedLines);
+      }
+    }
+
+    return formattedLines.join('\n');
+  }
+
+  private wrapText(text: string, width: number): string[] {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (const word of words) {
+      if ((currentLine + word).length <= width) {
+        currentLine += (currentLine ? ' ' : '') + word;
+      } else {
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+        currentLine = word;
+      }
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    return lines;
+  }
+
+  private async sendToPrinter(
+    printer: PrinterConfiguration,
+    content: string,
+    printJobId: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      switch (printer.connectionType) {
+        case 'network':
+          return await this.sendToNetworkPrinter(printer, content, printJobId);
+        case 'usb':
+          return await this.sendToUsbPrinter(printer, content, printJobId);
+        case 'bluetooth':
+          return await this.sendToBluetoothPrinter(printer, content, printJobId);
+        default:
+          throw new Error(`Unsupported connection type: ${printer.connectionType}`);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Failed to open cash drawer: ${errorMessage}`);
-      
       return {
         success: false,
         error: errorMessage,
@@ -215,157 +268,105 @@ export class PrintReceiptService {
     }
   }
 
-  private async formatForPrinter(
-    receiptContent: string,
-    transaction: any,
-    options: PrintReceiptOptions,
-  ): Promise<string> {
-    const paperSize = options.paperSize || 'thermal_80mm';
-    const template = options.template || 'standard';
-    
-    switch (paperSize) {
-      case 'thermal_58mm':
-        return this.formatForThermal(receiptContent, 32, template); // 32 chars wide
-      case 'thermal_80mm':
-        return this.formatForThermal(receiptContent, 48, template); // 48 chars wide
-      case 'a4':
-      case 'letter':
-        return this.formatForStandardPaper(receiptContent, template);
-      default:
-        return receiptContent;
-    }
-  }
-
-  private formatForThermal(content: string, width: number, template: string): string {
-    const lines = content.split('\n');
-    const formattedLines: string[] = [];
-    
-    for (const line of lines) {
-      if (line.length <= width) {
-        formattedLines.push(line);
-      } else {
-        // Wrap long lines
-        const words = line.split(' ');
-        let currentLine = '';
-        
-        for (const word of words) {
-          if ((currentLine + ' ' + word).length <= width) {
-            currentLine = currentLine ? currentLine + ' ' + word : word;
-          } else {
-            if (currentLine) {
-              formattedLines.push(currentLine);
-              currentLine = word;
-            } else {
-              // Single word is too long, truncate
-              formattedLines.push(word.substring(0, width));
-            }
-          }
-        }
-        
-        if (currentLine) {
-          formattedLines.push(currentLine);
-        }
-      }
-    }
-    
-    return formattedLines.join('\n');
-  }
-
-  private formatForStandardPaper(content: string, template: string): string {
-    // For standard paper, add margins and formatting
-    const lines = content.split('\n');
-    const formattedLines: string[] = [];
-    
-    // Add top margin
-    formattedLines.push('');
-    formattedLines.push('');
-    
-    // Add left margin to each line
-    for (const line of lines) {
-      formattedLines.push('    ' + line); // 4-space left margin
-    }
-    
-    // Add bottom margin
-    formattedLines.push('');
-    formattedLines.push('');
-    
-    return formattedLines.join('\n');
-  }
-
-  private async generatePrintCommands(
+  private async sendToNetworkPrinter(
+    printer: PrinterConfiguration,
     content: string,
-    options: PrintReceiptOptions,
-  ): Promise<string[]> {
-    const commands: string[] = [];
+    printJobId: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    // In a real implementation, this would connect to the network printer
+    // and send the print job. For now, simulate the operation.
     
-    // Initialize printer
-    commands.push('\x1B\x40'); // ESC @ - Initialize printer
+    this.logger.log(`Sending print job ${printJobId} to network printer ${printer.ipAddress}:${printer.port}`);
     
-    // Set font and formatting
-    commands.push('\x1B\x21\x00'); // ESC ! - Normal font
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Add content
-    commands.push(content);
-    
-    // Add barcode if requested
-    if (options.includeBarcode) {
-      commands.push('\n');
-      commands.push(this.generateBarcodeCommand('123456789')); // Example barcode
-    }
-    
-    // Add QR code if requested
-    if (options.includeQrCode) {
-      commands.push('\n');
-      commands.push(this.generateQrCodeCommand('https://receipt.example.com/123'));
-    }
-    
-    // Cut paper if requested
-    if (options.cutPaper !== false && this.printerConfig.autoCut) {
-      commands.push('\x1D\x56\x00'); // GS V - Full cut
-    }
-    
-    // Open cash drawer if requested
-    if (options.openDrawer && this.printerConfig.enableCashDrawer) {
-      commands.push(this.generateCashDrawerCommand());
-    }
-    
-    return commands;
+    // Simulate success (in real implementation, this would depend on actual printer response)
+    return { success: true };
   }
 
-  private generateBarcodeCommand(data: string): string {
-    // ESC/POS barcode command (Code 128)
-    return `\x1D\x6B\x49${String.fromCharCode(data.length)}${data}`;
+  private async sendToUsbPrinter(
+    printer: PrinterConfiguration,
+    content: string,
+    printJobId: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    // In a real implementation, this would use a USB printing library
+    // to send data to the USB printer device.
+    
+    this.logger.log(`Sending print job ${printJobId} to USB printer ${printer.devicePath}`);
+    
+    // Simulate USB communication
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    return { success: true };
   }
 
-  private generateQrCodeCommand(data: string): string {
-    // ESC/POS QR code command (simplified)
-    return `\x1D\x28\x6B\x04\x00\x31\x41\x32\x00\x1D\x28\x6B${String.fromCharCode(data.length + 3)}\x00\x31\x50\x30${data}\x1D\x28\x6B\x03\x00\x31\x51\x30`;
+  private async sendToBluetoothPrinter(
+    printer: PrinterConfiguration,
+    content: string,
+    printJobId: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    // In a real implementation, this would use Bluetooth communication
+    // to send data to the Bluetooth printer.
+    
+    this.logger.log(`Sending print job ${printJobId} to Bluetooth printer ${printer.name}`);
+    
+    // Simulate Bluetooth communication
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    return { success: true };
   }
 
-  private generateCashDrawerCommand(): string {
-    // ESC/POS cash drawer command
-    return '\x1B\x70\x00\x19\xFA'; // ESC p - Pulse drawer kick-out connector
+  private generateTestReceipt(): string {
+    const now = new Date();
+    
+    return `
+================================
+         TEST RECEIPT
+================================
+Date: ${now.toLocaleDateString()}
+Time: ${now.toLocaleTimeString()}
+--------------------------------
+This is a test print to verify
+printer connectivity and
+formatting.
+
+If you can read this clearly,
+your printer is working correctly.
+--------------------------------
+Test completed successfully!
+================================
+    `.trim();
   }
 
-  private async sendToPrinter(
-    printerName: string,
-    commands: string[],
-    options: PrintReceiptOptions,
-  ): Promise<{ jobId: string }> {
-    // Simulate printer communication delay
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-    
-    // In a real implementation, this would:
-    // 1. Connect to the printer (USB, network, or Bluetooth)
-    // 2. Send the ESC/POS commands
-    // 3. Handle printer responses and errors
-    // 4. Return job status
-    
-    const jobId = `print_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    this.logger.log(`Simulated print job ${jobId} sent to printer ${printerName}`);
-    this.logger.debug(`Print commands: ${commands.length} commands, ${commands.join('').length} bytes`);
-    
-    return { jobId };
+  private initializeDefaultPrinters(): void {
+    // Add some default printer configurations
+    const defaultThermal: PrinterConfiguration = {
+      id: 'thermal_default',
+      name: 'Default Thermal Printer',
+      type: 'thermal',
+      connectionType: 'usb',
+      devicePath: '/dev/usb/lp0',
+      paperWidth: 32,
+      isDefault: true,
+      isOnline: true,
+    };
+
+    const networkPrinter: PrinterConfiguration = {
+      id: 'network_printer',
+      name: 'Network Receipt Printer',
+      type: 'thermal',
+      connectionType: 'network',
+      ipAddress: '192.168.1.100',
+      port: 9100,
+      paperWidth: 42,
+      isDefault: false,
+      isOnline: true,
+    };
+
+    this.printers.set(defaultThermal.id, defaultThermal);
+    this.printers.set(networkPrinter.id, networkPrinter);
+
+    this.logger.log('Initialized default printer configurations');
   }
 }
