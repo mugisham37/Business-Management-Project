@@ -16,8 +16,9 @@ import { DisasterRecoveryProceduresService } from './services/disaster-recovery-
 import { BusinessContinuityService } from './services/business-continuity.service';
 import { DataManagementService } from './services/data-management.service';
 
-import { DisasterRecoveryController } from './controllers/disaster-recovery.controller';
 import { DisasterRecoveryResolver } from './resolvers/disaster-recovery.resolver';
+import { BusinessContinuityResolver } from './resolvers/business-continuity.resolver';
+import { DataManagementResolver } from './resolvers/data-management.resolver';
 
 import { DisasterRecoveryRepository } from './repositories/disaster-recovery.repository';
 import { FailoverRepository } from './repositories/failover.repository';
@@ -25,6 +26,16 @@ import { ReplicationRepository } from './repositories/replication.repository';
 
 import { DisasterRecoveryProcessor } from './processors/disaster-recovery.processor';
 import { FailoverProcessor } from './processors/failover.processor';
+
+// Guards
+import { DRPlanAccessGuard } from './guards/dr-plan-access.guard';
+import { FailoverAccessGuard } from './guards/failover-access.guard';
+import { ReplicationAccessGuard } from './guards/replication-access.guard';
+import { ExecutionPermissionGuard } from './guards/execution-permission.guard';
+
+// Interceptors
+import { DRLoggingInterceptor } from './interceptors/dr-logging.interceptor';
+import { DRMetricsInterceptor } from './interceptors/dr-metrics.interceptor';
 
 @Module({
   imports: [
@@ -60,6 +71,7 @@ import { FailoverProcessor } from './processors/failover.processor';
     BackupModule,
   ],
   providers: [
+    // Services
     DisasterRecoveryService,
     FailoverService,
     ReplicationService,
@@ -67,20 +79,49 @@ import { FailoverProcessor } from './processors/failover.processor';
     DisasterRecoveryProceduresService,
     BusinessContinuityService,
     DataManagementService,
+    
+    // Repositories
     DisasterRecoveryRepository,
     FailoverRepository,
     ReplicationRepository,
+    
+    // Processors
     DisasterRecoveryProcessor,
     FailoverProcessor,
+    
+    // Resolvers
+    DisasterRecoveryResolver,
+    BusinessContinuityResolver,
+    DataManagementResolver,
+    
+    // Guards
+    DRPlanAccessGuard,
+    FailoverAccessGuard,
+    ReplicationAccessGuard,
+    ExecutionPermissionGuard,
+    
+    // Interceptors
+    DRLoggingInterceptor,
+    DRMetricsInterceptor,
   ],
-  controllers: [DisasterRecoveryController],
   exports: [
+    // Services
     DisasterRecoveryService,
     FailoverService,
     ReplicationService,
     RecoveryTimeOptimizationService,
     BusinessContinuityService,
     DataManagementService,
+    
+    // Guards (for use in other modules)
+    DRPlanAccessGuard,
+    FailoverAccessGuard,
+    ReplicationAccessGuard,
+    ExecutionPermissionGuard,
+    
+    // Interceptors (for use in other modules)
+    DRLoggingInterceptor,
+    DRMetricsInterceptor,
   ],
 })
 export class DisasterRecoveryModule {}

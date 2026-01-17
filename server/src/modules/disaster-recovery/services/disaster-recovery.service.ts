@@ -162,6 +162,17 @@ export class DisasterRecoveryService {
         userId: options.userId,
       });
 
+      // Also emit for GraphQL subscriptions
+      this.eventEmitter.emit('drExecutionStarted', {
+        tenantId: options.tenantId,
+        planId: options.planId,
+        executionId: execution.id,
+        disasterType: options.disasterType,
+        isTest: options.isTest,
+        userId: options.userId,
+        timestamp: new Date(),
+      });
+
       this.logger.log(`DR execution ${execution.id} initiated`);
       return execution;
 

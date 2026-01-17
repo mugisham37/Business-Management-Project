@@ -384,6 +384,16 @@ export class ReplicationService {
               sourceRegion: config.sourceRegion,
               targetRegion: config.targetRegion,
             });
+
+            // Also emit for GraphQL subscriptions
+            this.eventEmitter.emit('replicationLagWarning', {
+              tenantId: config.tenantId,
+              configId: config.id,
+              lagSeconds: metrics.lagSeconds,
+              sourceRegion: config.sourceRegion,
+              targetRegion: config.targetRegion,
+              timestamp: new Date(),
+            });
           }
 
         } catch (error) {
