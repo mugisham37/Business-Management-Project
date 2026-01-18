@@ -20,11 +20,28 @@ export class LoggerStreamService {
     this.setupEventListeners();
   }
 
-  async createLogStream(
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    return 'Unknown error occurred';
+  }
+
+  private getErrorStack(error: unknown): string | undefined {
+    if (error instanceof Error) {
+      return error.stack;
+    }
+    return undefined;
+  }
+
+  createLogStream(
     args: LogStreamArgs,
     tenantId: string,
     subscriptionId: string,
-  ): Promise<AsyncIterator<LogSubscriptionPayloadType>> {
+  ): AsyncIterator<LogSubscriptionPayloadType> {
     try {
       // Register the stream
       this.activeStreams.set(subscriptionId, {
@@ -54,8 +71,8 @@ export class LoggerStreamService {
     } catch (error) {
       this.loggerService.error(
         'Failed to create log stream',
-        error.stack,
-        { subscriptionId, tenantId, error: error.message },
+        this.getErrorStack(error),
+        { subscriptionId, tenantId, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -81,8 +98,8 @@ export class LoggerStreamService {
     } catch (error) {
       this.loggerService.error(
         'Failed to close log stream',
-        error.stack,
-        { subscriptionId, error: error.message },
+        this.getErrorStack(error),
+        { subscriptionId, error: this.getErrorMessage(error) },
       );
     }
   }
@@ -138,8 +155,8 @@ export class LoggerStreamService {
     } catch (error) {
       this.loggerService.error(
         'Failed to handle log entry for streams',
-        error.stack,
-        { error: error.message },
+        this.getErrorStack(error),
+        { error: this.getErrorMessage(error) },
       );
     }
   }
@@ -152,8 +169,8 @@ export class LoggerStreamService {
     } catch (error) {
       this.loggerService.error(
         'Failed to handle log batch for streams',
-        error.stack,
-        { batchSize: logs.length, error: error.message },
+        this.getErrorStack(error),
+        { batchSize: logs.length, error: this.getErrorMessage(error) },
       );
     }
   }
@@ -229,7 +246,7 @@ export class LoggerStreamService {
 
     if (filters.tags && filters.tags.length > 0) {
       const logTags = logEntry.tags || [];
-      if (!filters.tags.some(tag => logTags.includes(tag))) {
+      if (!filters.tags.some((tag: string) => logTags.includes(tag))) {
         return false;
       }
     }
@@ -298,7 +315,7 @@ export class LoggerStreamService {
   ): AsyncIterator<LogSubscriptionPayloadType> {
     try {
       // Create subscription to PubSub
-      const asyncIterator = this.pubSub.asyncIterator(`log_stream_${subscriptionId}`);
+      const pubSubIterator = (this.pubSub as any).asyncIterator(`log_stream_${subscriptionId}`);
 
       // Send any buffered events first
       const buffer = this.streamBuffers.get(subscriptionId) || [];
@@ -310,7 +327,7 @@ export class LoggerStreamService {
       this.streamBuffers.set(subscriptionId, []);
 
       // Yield new events as they come
-      for await (const payload of asyncIterator) {
+      for await (const payload of pubSubIterator) {
         // Update last activity
         const stream = this.activeStreams.get(subscriptionId);
         if (stream) {
@@ -322,8 +339,8 @@ export class LoggerStreamService {
     } catch (error) {
       this.loggerService.error(
         'Error in log stream async iterator',
-        error.stack,
-        { subscriptionId, tenantId, error: error.message },
+        this.getErrorStack(error),
+        { subscriptionId, tenantId, error: this.getErrorMessage(error) },
       );
       throw error;
     } finally {

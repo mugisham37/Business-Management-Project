@@ -91,18 +91,18 @@ export class LogFilterInput {
 export class TimeRangeInput {
   @Field(() => GraphQLDateTime)
   @IsDateString()
-  start: Date;
+  start!: Date;
 
   @Field(() => GraphQLDateTime)
   @IsDateString()
-  end: Date;
+  end!: Date;
 }
 
 @ArgsType()
 export class LogSearchArgs {
   @Field()
   @IsString()
-  query: string;
+  query!: string;
 
   @Field(() => LogFilterInput, { nullable: true })
   @IsOptional()
@@ -211,15 +211,15 @@ export class LogAnalyticsArgs {
 export class LogEntryInput {
   @Field(() => LogLevel)
   @IsEnum(LogLevel)
-  level: LogLevel;
+  level!: LogLevel;
 
   @Field(() => LogCategory)
   @IsEnum(LogCategory)
-  category: LogCategory;
+  category!: LogCategory;
 
   @Field()
   @IsString()
-  message: string;
+  message!: string;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -260,10 +260,10 @@ export class LogEntryInput {
 export class AuditLogInput {
   @Field()
   @IsString()
-  event: string;
+  event!: string;
 
   @Field(() => GraphQLJSON)
-  details: Record<string, unknown>;
+  details!: Record<string, unknown>;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -294,10 +294,10 @@ export class AuditLogInput {
 export class SecurityLogInput {
   @Field()
   @IsString()
-  event: string;
+  event!: string;
 
   @Field(() => GraphQLJSON)
-  details: Record<string, unknown>;
+  details!: Record<string, unknown>;
 
   @Field({ nullable: true, defaultValue: 'medium' })
   @IsOptional()
@@ -328,12 +328,12 @@ export class SecurityLogInput {
 export class PerformanceLogInput {
   @Field()
   @IsString()
-  operation: string;
+  operation!: string;
 
   @Field(() => Int)
   @IsInt()
   @Min(0)
-  duration: number;
+  duration!: number;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -362,10 +362,10 @@ export class PerformanceLogInput {
 export class BusinessLogInput {
   @Field()
   @IsString()
-  businessEvent: string;
+  businessEvent!: string;
 
   @Field(() => GraphQLJSON)
-  businessDetails: Record<string, unknown>;
+  businessDetails!: Record<string, unknown>;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -412,13 +412,13 @@ export class LogRetentionPolicyInput {
   @Field(() => Int)
   @IsInt()
   @Min(1)
-  retentionDays: number;
+  retentionDays!: number;
 
   @Field(() => [LogCategory])
-  categories: LogCategory[];
+  categories!: LogCategory[];
 
   @Field(() => [LogLevel])
-  levels: LogLevel[];
+  levels!: LogLevel[];
 
   @Field({ nullable: true })
   @IsOptional()
@@ -433,7 +433,7 @@ export class LogRetentionPolicyInput {
 @InputType('LogExportInput')
 export class LogExportInput {
   @Field(() => LogFilterInput)
-  filters: LogFilterInput;
+  filters!: LogFilterInput;
 
   @Field({ nullable: true, defaultValue: 'json' })
   @IsOptional()
@@ -453,24 +453,24 @@ export class LogExportInput {
 export class LogAlertRuleInput {
   @Field()
   @IsString()
-  name: string;
+  name!: string;
 
   @Field()
   @IsString()
-  description: string;
+  description!: string;
 
   @Field(() => LogFilterInput)
-  conditions: LogFilterInput;
+  conditions!: LogFilterInput;
 
   @Field(() => Int)
   @IsInt()
   @Min(1)
-  threshold: number;
+  threshold!: number;
 
   @Field(() => Int)
   @IsInt()
   @Min(60)
-  timeWindowSeconds: number;
+  timeWindowSeconds!: number;
 
   @Field({ nullable: true, defaultValue: 'medium' })
   @IsOptional()
@@ -478,7 +478,7 @@ export class LogAlertRuleInput {
   severity?: 'low' | 'medium' | 'high' | 'critical';
 
   @Field(() => [String])
-  notificationChannels: string[];
+  notificationChannels!: string[];
 
   @Field({ nullable: true, defaultValue: true })
   @IsOptional()

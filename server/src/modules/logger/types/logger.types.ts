@@ -16,19 +16,19 @@ registerEnumType(LogCategory, {
 @ObjectType('LogEntry')
 export class LogEntryType {
   @Field()
-  id: string;
+  id!: string;
 
   @Field(() => GraphQLDateTime)
-  timestamp: Date;
+  timestamp!: Date;
 
   @Field(() => LogLevel)
-  level: LogLevel;
+  level!: LogLevel;
 
   @Field(() => LogCategory)
-  category: LogCategory;
+  category!: LogCategory;
 
   @Field()
-  message: string;
+  message!: string;
 
   @Field({ nullable: true })
   context?: string;
@@ -85,184 +85,184 @@ export class LogEntryType {
 @ObjectType('LogMetrics')
 export class LogMetricsType {
   @Field(() => Int)
-  totalLogs: number;
+  totalLogs!: number;
 
   @Field(() => Int)
-  errorCount: number;
+  errorCount!: number;
 
   @Field(() => Int)
-  warningCount: number;
+  warningCount!: number;
 
   @Field(() => Int)
-  performanceIssues: number;
+  performanceIssues!: number;
 
   @Field(() => Int)
-  securityEvents: number;
+  securityEvents!: number;
 
   @Field(() => Int)
-  auditEvents: number;
+  auditEvents!: number;
 
   @Field(() => Float)
-  averageResponseTime: number;
+  averageResponseTime!: number;
 
   @Field(() => Int)
-  slowQueries: number;
+  slowQueries!: number;
 
   @Field(() => Int)
-  graphqlErrors: number;
+  graphqlErrors!: number;
 }
 
 @ObjectType('TopOperation')
 export class TopOperationType {
   @Field()
-  operation: string;
+  operation!: string;
 
   @Field(() => Int)
-  count: number;
+  count!: number;
 
   @Field(() => Float)
-  avgDuration: number;
+  avgDuration!: number;
 }
 
 @ObjectType('ErrorPattern')
 export class ErrorPatternType {
   @Field()
-  pattern: string;
+  pattern!: string;
 
   @Field(() => Int)
-  count: number;
+  count!: number;
 
   @Field(() => GraphQLDateTime)
-  lastOccurrence: Date;
+  lastOccurrence!: Date;
 }
 
 @ObjectType('PerformanceTrend')
 export class PerformanceTrendType {
   @Field(() => GraphQLDateTime)
-  timestamp: Date;
+  timestamp!: Date;
 
   @Field(() => Float)
-  avgDuration: number;
+  avgDuration!: number;
 
   @Field(() => Int)
-  operationCount: number;
+  operationCount!: number;
 }
 
 @ObjectType('SecurityAlert')
 export class SecurityAlertType {
   @Field()
-  type: string;
+  type!: string;
 
   @Field(() => Int)
-  count: number;
+  count!: number;
 
   @Field()
-  severity: string;
+  severity!: string;
 }
 
 @ObjectType('TenantActivity')
 export class TenantActivityType {
   @Field()
-  tenantId: string;
+  tenantId!: string;
 
   @Field(() => Int)
-  logCount: number;
+  logCount!: number;
 
   @Field(() => Float)
-  errorRate: number;
+  errorRate!: number;
 }
 
 @ObjectType('LogAnalytics')
 export class LogAnalyticsType {
   @Field(() => [TopOperationType])
-  topOperations: TopOperationType[];
+  topOperations!: TopOperationType[];
 
   @Field(() => [ErrorPatternType])
-  errorPatterns: ErrorPatternType[];
+  errorPatterns!: ErrorPatternType[];
 
   @Field(() => [PerformanceTrendType])
-  performanceTrends: PerformanceTrendType[];
+  performanceTrends!: PerformanceTrendType[];
 
   @Field(() => [SecurityAlertType])
-  securityAlerts: SecurityAlertType[];
+  securityAlerts!: SecurityAlertType[];
 
   @Field(() => [TenantActivityType])
-  tenantActivity: TenantActivityType[];
+  tenantActivity!: TenantActivityType[];
 }
 
 @ObjectType('LogConnection')
 export class LogConnectionType {
   @Field(() => [LogEntryEdge])
-  edges: LogEntryEdge[];
+  edges!: LogEntryEdge[];
 
   @Field(() => PageInfo)
-  pageInfo: PageInfo;
+  pageInfo!: PageInfo;
 
   @Field(() => Int)
-  totalCount: number;
+  totalCount!: number;
 }
 
 @ObjectType('LogEntryEdge')
 export class LogEntryEdge {
   @Field()
-  cursor: string;
+  cursor!: string;
 
   @Field(() => LogEntryType)
-  node: LogEntryType;
+  node!: LogEntryType;
 }
 
 @ObjectType('PageInfo')
 export class PageInfo {
   @Field()
-  hasNextPage: boolean;
+  hasNextPage!: boolean;
 
   @Field()
-  hasPreviousPage: boolean;
+  hasPreviousPage!: boolean;
 
   @Field({ nullable: true })
-  startCursor?: string;
+  startCursor?: string | null;
 
   @Field({ nullable: true })
-  endCursor?: string;
+  endCursor?: string | null;
 }
 
 @ObjectType('LogSearchResult')
 export class LogSearchResultType {
   @Field(() => [LogEntryType])
-  logs: LogEntryType[];
+  logs!: LogEntryType[];
 
   @Field(() => Int)
-  totalCount: number;
+  totalCount!: number;
 
   @Field(() => LogMetricsType)
-  metrics: LogMetricsType;
+  metrics!: LogMetricsType;
 
   @Field(() => [String])
-  suggestions: string[];
+  suggestions!: string[];
 }
 
 @ObjectType('LogStreamEvent')
 export class LogStreamEventType {
   @Field(() => LogEntryType)
-  log: LogEntryType;
+  log!: LogEntryType;
 
   @Field(() => GraphQLDateTime)
-  timestamp: Date;
+  timestamp!: Date;
 
   @Field()
-  eventType: string;
+  eventType!: string;
 }
 
 @ObjectType('AuditLogEntry')
 export class AuditLogEntryType extends LogEntryType {
   @Field()
-  auditId: string;
+  auditId!: string;
 
   @Field()
-  event: string;
+  event!: string;
 
   @Field(() => GraphQLJSON)
-  details: Record<string, unknown>;
+  details!: Record<string, unknown>;
 
   @Field({ nullable: true })
   entityType?: string;
@@ -280,40 +280,37 @@ export class AuditLogEntryType extends LogEntryType {
 @ObjectType('SecurityLogEntry')
 export class SecurityLogEntryType extends LogEntryType {
   @Field()
-  securityId: string;
+  securityId!: string;
 
   @Field()
-  event: string;
+  event!: string;
 
   @Field()
-  severity: string;
+  severity!: string;
 
   @Field(() => GraphQLJSON)
-  details: Record<string, unknown>;
+  details!: Record<string, unknown>;
 
   @Field({ nullable: true })
   threatLevel?: string;
 
   @Field({ nullable: true })
   sourceIp?: string;
-
-  @Field({ nullable: true })
-  userAgent?: string;
 }
 
 @ObjectType('PerformanceLogEntry')
 export class PerformanceLogEntryType extends LogEntryType {
   @Field()
-  operation: string;
+  override operation: string = '';
 
   @Field(() => Int)
-  duration: number;
+  override duration: number = 0;
 
   @Field()
-  performanceCategory: string;
+  performanceCategory!: string;
 
   @Field()
-  isSlowQuery: boolean;
+  isSlowQuery!: boolean;
 
   @Field({ nullable: true })
   queryComplexity?: number;
@@ -325,13 +322,13 @@ export class PerformanceLogEntryType extends LogEntryType {
 @ObjectType('BusinessLogEntry')
 export class BusinessLogEntryType extends LogEntryType {
   @Field()
-  businessId: string;
+  businessId!: string;
 
   @Field()
-  businessEvent: string;
+  businessEvent!: string;
 
   @Field(() => GraphQLJSON)
-  businessDetails: Record<string, unknown>;
+  businessDetails!: Record<string, unknown>;
 
   @Field({ nullable: true })
   businessUnit?: string;
@@ -347,7 +344,7 @@ export class BusinessLogEntryType extends LogEntryType {
 @ObjectType('LogMutationResponse')
 export class LogMutationResponseType {
   @Field()
-  success: boolean;
+  success!: boolean;
 
   @Field({ nullable: true })
   message?: string;
@@ -359,7 +356,7 @@ export class LogMutationResponseType {
 @ObjectType('LogError')
 export class LogErrorType {
   @Field()
-  message: string;
+  message!: string;
 
   @Field({ nullable: true })
   code?: string;
@@ -368,48 +365,48 @@ export class LogErrorType {
   path?: string[];
 
   @Field(() => GraphQLDateTime)
-  timestamp: Date;
+  timestamp!: Date;
 }
 
 // Subscription Types
 @ObjectType('LogSubscriptionPayload')
 export class LogSubscriptionPayloadType {
   @Field(() => LogEntryType)
-  log: LogEntryType;
+  log!: LogEntryType;
 
   @Field()
-  subscriptionId: string;
+  subscriptionId!: string;
 
   @Field(() => GraphQLDateTime)
-  timestamp: Date;
+  timestamp!: Date;
 }
 
 @ObjectType('MetricsSubscriptionPayload')
 export class MetricsSubscriptionPayloadType {
   @Field(() => LogMetricsType)
-  metrics: LogMetricsType;
+  metrics!: LogMetricsType;
 
   @Field({ nullable: true })
   tenantId?: string;
 
   @Field(() => GraphQLDateTime)
-  timestamp: Date;
+  timestamp!: Date;
 }
 
 @ObjectType('AlertSubscriptionPayload')
 export class AlertSubscriptionPayloadType {
   @Field()
-  alertType: string;
+  alertType!: string;
 
   @Field()
-  severity: string;
+  severity!: string;
 
   @Field()
-  message: string;
+  message!: string;
 
   @Field(() => GraphQLJSON)
-  details: Record<string, unknown>;
+  details!: Record<string, unknown>;
 
   @Field(() => GraphQLDateTime)
-  timestamp: Date;
+  timestamp!: Date;
 }

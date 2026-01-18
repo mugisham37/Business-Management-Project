@@ -68,6 +68,16 @@ export class LoggerResolver extends BaseResolver {
     this.loggerService.setContext('LoggerResolver');
   }
 
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    return 'Unknown error occurred';
+  }
+
   // Queries
   @Query(() => LogConnectionType, { description: 'Get paginated logs with cursor-based pagination' })
   @RequirePermission('logs:read')
@@ -347,7 +357,7 @@ export class LoggerResolver extends BaseResolver {
         message: 'Log entry created successfully',
       };
     } catch (error) {
-      this.loggerService.graphqlError('createLogEntry', error, ['createLogEntry'], {
+      this.loggerService.graphqlError('createLogEntry', error as Error, ['createLogEntry'], {
         tenantId,
         userId: user.id,
         input: JSON.stringify(input),
@@ -357,7 +367,7 @@ export class LoggerResolver extends BaseResolver {
         success: false,
         message: 'Failed to create log entry',
         errors: [{
-          message: error.message,
+          message: this.getErrorMessage(error),
           code: 'LOG_CREATION_FAILED',
           timestamp: new Date(),
         }],
@@ -396,7 +406,7 @@ export class LoggerResolver extends BaseResolver {
         message: 'Audit log created successfully',
       };
     } catch (error) {
-      this.loggerService.graphqlError('createAuditLog', error, ['createAuditLog'], {
+      this.loggerService.graphqlError('createAuditLog', error as Error, ['createAuditLog'], {
         tenantId,
         userId: user.id,
         event: input.event,
@@ -406,7 +416,7 @@ export class LoggerResolver extends BaseResolver {
         success: false,
         message: 'Failed to create audit log',
         errors: [{
-          message: error.message,
+          message: this.getErrorMessage(error),
           code: 'AUDIT_LOG_CREATION_FAILED',
           timestamp: new Date(),
         }],
@@ -445,7 +455,7 @@ export class LoggerResolver extends BaseResolver {
         message: 'Security log created successfully',
       };
     } catch (error) {
-      this.loggerService.graphqlError('createSecurityLog', error, ['createSecurityLog'], {
+      this.loggerService.graphqlError('createSecurityLog', error as Error, ['createSecurityLog'], {
         tenantId,
         userId: user.id,
         event: input.event,
@@ -455,7 +465,7 @@ export class LoggerResolver extends BaseResolver {
         success: false,
         message: 'Failed to create security log',
         errors: [{
-          message: error.message,
+          message: this.getErrorMessage(error),
           code: 'SECURITY_LOG_CREATION_FAILED',
           timestamp: new Date(),
         }],
@@ -495,7 +505,7 @@ export class LoggerResolver extends BaseResolver {
         message: `Logs exported successfully. ${exportResult.recordCount} records exported.`,
       };
     } catch (error) {
-      this.loggerService.graphqlError('exportLogs', error, ['exportLogs'], {
+      this.loggerService.graphqlError('exportLogs', error as Error, ['exportLogs'], {
         tenantId,
         userId: user.id,
         format: input.format,
@@ -505,7 +515,7 @@ export class LoggerResolver extends BaseResolver {
         success: false,
         message: 'Failed to export logs',
         errors: [{
-          message: error.message,
+          message: this.getErrorMessage(error),
           code: 'LOG_EXPORT_FAILED',
           timestamp: new Date(),
         }],
@@ -545,7 +555,7 @@ export class LoggerResolver extends BaseResolver {
         message: 'Log retention policy updated successfully',
       };
     } catch (error) {
-      this.loggerService.graphqlError('setLogRetentionPolicy', error, ['setLogRetentionPolicy'], {
+      this.loggerService.graphqlError('setLogRetentionPolicy', error as Error, ['setLogRetentionPolicy'], {
         tenantId,
         userId: user.id,
       });
@@ -554,7 +564,7 @@ export class LoggerResolver extends BaseResolver {
         success: false,
         message: 'Failed to update log retention policy',
         errors: [{
-          message: error.message,
+          message: this.getErrorMessage(error),
           code: 'RETENTION_POLICY_UPDATE_FAILED',
           timestamp: new Date(),
         }],
@@ -571,7 +581,7 @@ export class LoggerResolver extends BaseResolver {
     },
   })
   @RequirePermission('logs:subscribe')
-  async logStream(
+  logStream(
     @Args() args: LogStreamArgs,
     @Context() context: any,
   ): AsyncIterator<LogSubscriptionPayloadType> {
@@ -598,20 +608,20 @@ export class LoggerResolver extends BaseResolver {
     description: 'Subscribe to real-time metrics updates',
   })
   @RequirePermission('logs:metrics')
-  async metricsStream(
+  metricsStream(
     @Args('tenantId', { nullable: true }) tenantId: string,
     @Context() context: any,
   ): AsyncIterator<MetricsSubscriptionPayloadType> {
     const actualTenantId = tenantId || this.getCurrentTenantId(context);
 
-    return this.pubSub.asyncIterator(`metrics_${actualTenantId}`);
+    return (this.pubSub as any).asyncIterator(`metrics_${actualTenantId}`) as AsyncIterator<MetricsSubscriptionPayloadType>;
   }
 
   @Subscription(() => AlertSubscriptionPayloadType, {
     description: 'Subscribe to log-based alerts and notifications',
   })
   @RequirePermission('logs:alerts')
-  async alertStream(
+  alertStream(
     @Args('severity', { nullable: true }) severity: string,
     @Context() context: any,
   ): AsyncIterator<AlertSubscriptionPayloadType> {

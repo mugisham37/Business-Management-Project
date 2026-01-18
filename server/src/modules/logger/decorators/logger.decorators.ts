@@ -1,6 +1,7 @@
 import { SetMetadata, createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
 import { LogLevel, LogCategory } from '../logger.service';
+import { SanitizationUtil } from '../utils/sanitization.util';
 
 // Metadata keys
 export const LOG_LEVEL_KEY = 'logLevel';
@@ -15,12 +16,12 @@ export const LOG_BUSINESS_KEY = 'logBusiness';
 /**
  * Decorator to set the log level for a method or class
  */
-export const LogLevel = (level: LogLevel) => SetMetadata(LOG_LEVEL_KEY, level);
+export const SetLogLevel = (level: LogLevel) => SetMetadata(LOG_LEVEL_KEY, level);
 
 /**
  * Decorator to set the log category for a method or class
  */
-export const LogCategory = (category: LogCategory) => SetMetadata(LOG_CATEGORY_KEY, category);
+export const SetLogCategory = (category: LogCategory) => SetMetadata(LOG_CATEGORY_KEY, category);
 
 /**
  * Decorator to set the operation name for logging
@@ -147,7 +148,7 @@ export function LogMethodCalls(options?: {
             className,
             methodName,
             correlationId,
-            args: options?.includeArgs ? this.sanitizeArgs(args, options.sensitiveFields) : undefined,
+            args: options?.includeArgs ? SanitizationUtil.sanitizeArgs(args, options.sensitiveFields) : undefined,
           },
         );
       }
@@ -165,7 +166,7 @@ export function LogMethodCalls(options?: {
               methodName,
               correlationId,
               duration,
-              result: options?.includeResult ? this.sanitizeResult(result, options.sensitiveFields) : undefined,
+              result: options?.includeResult ? SanitizationUtil.sanitizeResult(result, options.sensitiveFields) : undefined,
             },
           );
 
@@ -182,18 +183,19 @@ export function LogMethodCalls(options?: {
         return result;
       } catch (error) {
         const duration = Date.now() - startTime;
+        const errorObj = error instanceof Error ? error : new Error(String(error));
 
         if (logger) {
           logger.error(
             `Method ${className}.${methodName} failed`,
-            error.stack,
+            errorObj.stack,
             {
               className,
               methodName,
               correlationId,
               duration,
-              error: error.message,
-              args: options?.includeArgs ? this.sanitizeArgs(args, options.sensitiveFields) : undefined,
+              error: errorObj.message,
+              args: options?.includeArgs ? SanitizationUtil.sanitizeArgs(args, options.sensitiveFields) : undefined,
             },
           );
         }
@@ -201,42 +203,6 @@ export function LogMethodCalls(options?: {
         throw error;
       }
     };
-
-    // Add sanitization methods if they don't exist
-    if (!target.sanitizeArgs) {
-      target.sanitizeArgs = function (args: any[], sensitiveFields?: string[]) {
-        if (!sensitiveFields) return args;
-        
-        return args.map(arg => {
-          if (typeof arg === 'object' && arg !== null) {
-            const sanitized = { ...arg };
-            sensitiveFields.forEach(field => {
-              if (sanitized[field]) {
-                sanitized[field] = '[REDACTED]';
-              }
-            });
-            return sanitized;
-          }
-          return arg;
-        });
-      };
-    }
-
-    if (!target.sanitizeResult) {
-      target.sanitizeResult = function (result: any, sensitiveFields?: string[]) {
-        if (!sensitiveFields || typeof result !== 'object' || result === null) {
-          return result;
-        }
-        
-        const sanitized = { ...result };
-        sensitiveFields.forEach(field => {
-          if (sanitized[field]) {
-            sanitized[field] = '[REDACTED]';
-          }
-        });
-        return sanitized;
-      };
-    }
 
     return descriptor;
   };
@@ -309,11 +275,12 @@ export function LogGraphQLResolver(options?: {
         return result;
       } catch (error) {
         const duration = Date.now() - startTime;
+        const errorObj = error instanceof Error ? error : new Error(String(error));
 
         if (logger) {
           logger.graphqlError(
             operationName,
-            error,
+            errorObj,
             info?.path?.key ? [info.path.key] : undefined,
             {
               resolverName,
@@ -368,16 +335,17 @@ export function LogDatabaseOperation(options?: {
         return result;
       } catch (error) {
         const duration = Date.now() - startTime;
+        const errorObj = error instanceof Error ? error : new Error(String(error));
 
         if (logger) {
           logger.error(
             `Database operation failed: ${methodName}`,
-            error.stack,
+            errorObj.stack,
             {
               operation: options?.operation || propertyName,
               table: options?.table,
               duration,
-              error: error.message,
+              error: errorObj.message,
             },
           );
         }
@@ -426,16 +394,17 @@ export function LogCacheOperation(options?: {
         return result;
       } catch (error) {
         const duration = Date.now() - startTime;
+        const errorObj = error instanceof Error ? error : new Error(String(error));
 
         if (logger) {
           logger.error(
             `Cache operation failed: ${methodName}`,
-            error.stack,
+            errorObj.stack,
             {
               operation: options?.operation || propertyName,
               key: options?.logKeys ? key : '[key]',
               duration,
-              error: error.message,
+              error: errorObj.message,
             },
           );
         }
@@ -470,19 +439,20 @@ export function LogIntegration(service: string, options?: {
 
         if (logger) {
           logger.integration(service, operation, true, duration, {
-            request: options?.logRequest ? this.sanitizeArgs(args, options.sensitiveFields) : undefined,
-            response: options?.logResponse ? this.sanitizeResult(result, options.sensitiveFields) : undefined,
+            request: options?.logRequest ? SanitizationUtil.sanitizeArgs(args, options.sensitiveFields) : undefined,
+            response: options?.logResponse ? SanitizationUtil.sanitizeResult(result, options.sensitiveFields) : undefined,
           });
         }
 
         return result;
       } catch (error) {
         const duration = Date.now() - startTime;
+        const errorObj = error instanceof Error ? error : new Error(String(error));
 
         if (logger) {
           logger.integration(service, operation, false, duration, {
-            error: error.message,
-            request: options?.logRequest ? this.sanitizeArgs(args, options.sensitiveFields) : undefined,
+            error: errorObj.message,
+            request: options?.logRequest ? SanitizationUtil.sanitizeArgs(args, options.sensitiveFields) : undefined,
           });
         }
 

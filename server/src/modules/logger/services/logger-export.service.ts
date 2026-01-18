@@ -17,6 +17,23 @@ export class LoggerExportService {
     this.ensureExportDirectory();
   }
 
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    return 'Unknown error occurred';
+  }
+
+  private getErrorStack(error: unknown): string | undefined {
+    if (error instanceof Error) {
+      return error.stack;
+    }
+    return undefined;
+  }
+
   async exportLogs(
     input: LogExportInput,
     tenantId: string,
@@ -108,8 +125,8 @@ export class LoggerExportService {
     } catch (error) {
       this.loggerService.error(
         'Failed to export logs',
-        error.stack,
-        { tenantId, input, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, input, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -139,8 +156,8 @@ export class LoggerExportService {
     } catch (error) {
       this.loggerService.error(
         'Failed to get export history',
-        error.stack,
-        { tenantId, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -163,8 +180,8 @@ export class LoggerExportService {
     } catch (error) {
       this.loggerService.error(
         'Failed to delete export',
-        error.stack,
-        { filePath, tenantId, error: error.message },
+        this.getErrorStack(error),
+        { filePath, tenantId, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -196,8 +213,8 @@ export class LoggerExportService {
     } catch (error) {
       this.loggerService.error(
         'Failed to schedule export',
-        error.stack,
-        { tenantId, schedule, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, schedule, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -226,8 +243,8 @@ export class LoggerExportService {
     } catch (error) {
       this.loggerService.error(
         'Failed to get export metrics',
-        error.stack,
-        { tenantId, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -239,8 +256,8 @@ export class LoggerExportService {
     } catch (error) {
       this.loggerService.error(
         'Failed to create export directory',
-        error.stack,
-        { exportDir: this.exportDir, error: error.message },
+        this.getErrorStack(error),
+        { exportDir: this.exportDir, error: this.getErrorMessage(error) },
       );
     }
   }

@@ -455,7 +455,7 @@ export class CustomLoggerService implements LoggerService {
     return messageLevelIndex <= currentLevelIndex;
   }
 
-  private printMessage(
+  printMessage(
     level: LogLevel,
     message: string,
     context?: LogContext,

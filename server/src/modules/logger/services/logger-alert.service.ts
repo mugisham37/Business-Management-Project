@@ -45,6 +45,23 @@ export class LoggerAlertService {
     this.startAlertProcessing();
   }
 
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    return 'Unknown error occurred';
+  }
+
+  private getErrorStack(error: unknown): string | undefined {
+    if (error instanceof Error) {
+      return error.stack;
+    }
+    return undefined;
+  }
+
   async createAlertRule(
     input: LogAlertRuleInput,
     tenantId: string,
@@ -93,8 +110,8 @@ export class LoggerAlertService {
     } catch (error) {
       this.loggerService.error(
         'Failed to create alert rule',
-        error.stack,
-        { tenantId, input, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, input, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -133,8 +150,8 @@ export class LoggerAlertService {
     } catch (error) {
       this.loggerService.error(
         'Failed to update alert rule',
-        error.stack,
-        { ruleId, tenantId, input, error: error.message },
+        this.getErrorStack(error),
+        { ruleId, tenantId, input, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -159,8 +176,8 @@ export class LoggerAlertService {
     } catch (error) {
       this.loggerService.error(
         'Failed to delete alert rule',
-        error.stack,
-        { ruleId, tenantId, error: error.message },
+        this.getErrorStack(error),
+        { ruleId, tenantId, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -175,8 +192,8 @@ export class LoggerAlertService {
     } catch (error) {
       this.loggerService.error(
         'Failed to get alert rules',
-        error.stack,
-        { tenantId, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -191,8 +208,8 @@ export class LoggerAlertService {
     } catch (error) {
       this.loggerService.error(
         'Failed to get active alerts',
-        error.stack,
-        { tenantId, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -232,17 +249,17 @@ export class LoggerAlertService {
     } catch (error) {
       this.loggerService.error(
         'Failed to acknowledge alert',
-        error.stack,
-        { alertId, tenantId, userId, error: error.message },
+        this.getErrorStack(error),
+        { alertId, tenantId, userId, error: this.getErrorMessage(error) },
       );
       throw error;
     }
   }
 
-  async createAlertStream(
+  createAlertStream(
     tenantId: string,
     severity?: string,
-  ): Promise<AsyncIterator<AlertSubscriptionPayloadType>> {
+  ): AsyncIterator<AlertSubscriptionPayloadType> {
     try {
       const topic = severity ? `alerts_${tenantId}_${severity}` : `alerts_${tenantId}`;
       
@@ -252,12 +269,12 @@ export class LoggerAlertService {
         { tenantId },
       );
 
-      return this.pubSub.asyncIterator(topic);
+      return (this.pubSub as any).asyncIterator(topic) as AsyncIterator<AlertSubscriptionPayloadType>;
     } catch (error) {
       this.loggerService.error(
         'Failed to create alert stream',
-        error.stack,
-        { tenantId, severity, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, severity, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -296,8 +313,8 @@ export class LoggerAlertService {
     } catch (error) {
       this.loggerService.error(
         'Failed to get alert metrics',
-        error.stack,
-        { tenantId, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -343,8 +360,8 @@ export class LoggerAlertService {
     } catch (error) {
       this.loggerService.error(
         'Failed to evaluate log against alert rules',
-        error.stack,
-        { logEntry: logEntry.id, error: error.message },
+        this.getErrorStack(error),
+        { logEntry: logEntry.id, error: this.getErrorMessage(error) },
       );
     }
   }
@@ -491,8 +508,8 @@ export class LoggerAlertService {
     } catch (error) {
       this.loggerService.error(
         'Failed to trigger alert',
-        error.stack,
-        { ruleId: rule.id, error: error.message },
+        this.getErrorStack(error),
+        { ruleId: rule.id, error: this.getErrorMessage(error) },
       );
     }
   }

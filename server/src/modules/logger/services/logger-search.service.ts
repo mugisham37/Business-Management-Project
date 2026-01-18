@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { IntelligentCacheService } from '../../cache/intelligent-cache.service';
-import { CustomLoggerService } from '../logger.service';
+import { CustomLoggerService, LogLevel, LogCategory } from '../logger.service';
 import { 
   LogSearchArgs, 
   LogConnectionArgs, 
@@ -66,8 +66,8 @@ export class LoggerSearchService {
       const pageInfo = {
         hasNextPage,
         hasPreviousPage,
-        startCursor: edges.length > 0 ? edges[0].cursor : null,
-        endCursor: edges.length > 0 ? edges[edges.length - 1].cursor : null,
+        startCursor: edges.length > 0 ? (edges[0]?.cursor ?? null) : null,
+        endCursor: edges.length > 0 ? (edges[edges.length - 1]?.cursor ?? null) : null,
       };
 
       const result: LogConnectionType = {
@@ -77,7 +77,7 @@ export class LoggerSearchService {
       };
 
       // Cache for 2 minutes
-      await this.cacheService.set(cacheKey, result, 120);
+      await this.cacheService.set(cacheKey, result, { ttl: 120, tenantId });
 
       this.loggerService.performance(
         'get_log_connection',
@@ -92,10 +92,11 @@ export class LoggerSearchService {
 
       return result;
     } catch (error) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
       this.loggerService.error(
         'Failed to get log connection',
-        error.stack,
-        { tenantId, args: JSON.stringify(args), error: error.message },
+        errorObj.stack,
+        { tenantId, args: JSON.stringify(args), error: errorObj.message },
       );
       throw error;
     }
@@ -145,7 +146,7 @@ export class LoggerSearchService {
       };
 
       // Cache for 5 minutes
-      await this.cacheService.set(cacheKey, result, 300);
+      await this.cacheService.set(cacheKey, result, { ttl: 300, tenantId });
 
       this.loggerService.performance(
         'search_logs',
@@ -173,10 +174,11 @@ export class LoggerSearchService {
 
       return result;
     } catch (error) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
       this.loggerService.error(
         'Failed to search logs',
-        error.stack,
-        { tenantId, query: args.query, error: error.message },
+        errorObj.stack,
+        { tenantId, query: args.query, error: errorObj.message },
       );
       throw error;
     }
@@ -210,7 +212,7 @@ export class LoggerSearchService {
       const auditLogs = logs.map(log => this.transformToAuditLog(log));
 
       // Cache for 10 minutes (audit logs change less frequently)
-      await this.cacheService.set(cacheKey, auditLogs, 600);
+      await this.cacheService.set(cacheKey, auditLogs, { ttl: 600, tenantId });
 
       this.loggerService.performance(
         'get_audit_logs',
@@ -220,10 +222,11 @@ export class LoggerSearchService {
 
       return auditLogs;
     } catch (error) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
       this.loggerService.error(
         'Failed to get audit logs',
-        error.stack,
-        { tenantId, error: error.message },
+        errorObj.stack,
+        { tenantId, error: errorObj.message },
       );
       throw error;
     }
@@ -257,7 +260,7 @@ export class LoggerSearchService {
       const securityLogs = logs.map(log => this.transformToSecurityLog(log));
 
       // Cache for 5 minutes (security logs need fresher data)
-      await this.cacheService.set(cacheKey, securityLogs, 300);
+      await this.cacheService.set(cacheKey, securityLogs, { ttl: 300, tenantId });
 
       this.loggerService.performance(
         'get_security_logs',
@@ -267,10 +270,11 @@ export class LoggerSearchService {
 
       return securityLogs;
     } catch (error) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
       this.loggerService.error(
         'Failed to get security logs',
-        error.stack,
-        { tenantId, error: error.message },
+        errorObj.stack,
+        { tenantId, error: errorObj.message },
       );
       throw error;
     }
@@ -304,7 +308,7 @@ export class LoggerSearchService {
       const performanceLogs = logs.map(log => this.transformToPerformanceLog(log));
 
       // Cache for 3 minutes
-      await this.cacheService.set(cacheKey, performanceLogs, 180);
+      await this.cacheService.set(cacheKey, performanceLogs, { ttl: 180, tenantId });
 
       this.loggerService.performance(
         'get_performance_logs',
@@ -314,10 +318,11 @@ export class LoggerSearchService {
 
       return performanceLogs;
     } catch (error) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
       this.loggerService.error(
         'Failed to get performance logs',
-        error.stack,
-        { tenantId, error: error.message },
+        errorObj.stack,
+        { tenantId, error: errorObj.message },
       );
       throw error;
     }
@@ -351,7 +356,7 @@ export class LoggerSearchService {
       const businessLogs = logs.map(log => this.transformToBusinessLog(log));
 
       // Cache for 15 minutes
-      await this.cacheService.set(cacheKey, businessLogs, 900);
+      await this.cacheService.set(cacheKey, businessLogs, { ttl: 900, tenantId });
 
       this.loggerService.performance(
         'get_business_logs',
@@ -361,10 +366,11 @@ export class LoggerSearchService {
 
       return businessLogs;
     } catch (error) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
       this.loggerService.error(
         'Failed to get business logs',
-        error.stack,
-        { tenantId, error: error.message },
+        errorObj.stack,
+        { tenantId, error: errorObj.message },
       );
       throw error;
     }
@@ -388,7 +394,7 @@ export class LoggerSearchService {
 
     const limit = Math.min(first || last || 20, 100);
     const isForward = !!first || (!first && !last);
-    const cursor = isForward ? after : before;
+    const cursor = (isForward ? after : before) ?? null;
 
     return { limit, cursor, isForward };
   }
@@ -474,8 +480,8 @@ export class LoggerSearchService {
   }
 
   private calculateSearchMetrics(logs: LogEntryType[]): any {
-    const errorCount = logs.filter(log => log.level === 'ERROR').length;
-    const warningCount = logs.filter(log => log.level === 'WARN').length;
+    const errorCount = logs.filter(log => log.level === LogLevel.ERROR).length;
+    const warningCount = logs.filter(log => log.level === LogLevel.WARN).length;
     const avgDuration = logs
       .filter(log => log.duration)
       .reduce((sum, log) => sum + (log.duration || 0), 0) / logs.length || 0;
@@ -485,39 +491,45 @@ export class LoggerSearchService {
       errorCount,
       warningCount,
       performanceIssues: logs.filter(log => (log.duration || 0) > 1000).length,
-      securityEvents: logs.filter(log => log.category === 'SECURITY').length,
-      auditEvents: logs.filter(log => log.category === 'AUDIT').length,
+      securityEvents: logs.filter(log => log.category === LogCategory.SECURITY).length,
+      auditEvents: logs.filter(log => log.category === LogCategory.AUDIT).length,
       averageResponseTime: avgDuration,
       slowQueries: logs.filter(log => (log.duration || 0) > 500).length,
-      graphqlErrors: logs.filter(log => log.graphqlOperation && log.level === 'ERROR').length,
+      graphqlErrors: logs.filter(log => log.graphqlOperation && log.level === LogLevel.ERROR).length,
     };
   }
 
   private generateMockLogs(count: number, filters: any): LogEntryType[] {
-    return Array.from({ length: count }, (_, i) => ({
-      id: `log_${Date.now()}_${i}`,
-      timestamp: new Date(Date.now() - Math.random() * 86400000),
-      level: ['ERROR', 'WARN', 'INFO', 'DEBUG'][Math.floor(Math.random() * 4)] as any,
-      category: ['GRAPHQL', 'SECURITY', 'PERFORMANCE', 'AUDIT', 'BUSINESS', 'SYSTEM'][Math.floor(Math.random() * 6)] as any,
-      message: `Mock log message ${i + 1}`,
-      context: `MockContext${Math.floor(Math.random() * 5) + 1}`,
-      tenantId: filters.tenantId,
-      userId: `user_${Math.floor(Math.random() * 100) + 1}`,
-      requestId: `req_${Date.now()}_${i}`,
-      correlationId: `corr_${Date.now()}_${i}`,
-      operation: `mock_operation_${Math.floor(Math.random() * 10) + 1}`,
-      duration: Math.floor(Math.random() * 2000) + 50,
-      graphqlOperation: Math.random() > 0.5 ? `mockQuery${Math.floor(Math.random() * 5) + 1}` : undefined,
-      graphqlOperationType: Math.random() > 0.5 ? ['query', 'mutation', 'subscription'][Math.floor(Math.random() * 3)] : undefined,
-      graphqlPath: Math.random() > 0.7 ? [`field${Math.floor(Math.random() * 3) + 1}`] : undefined,
-      graphqlVariables: Math.random() > 0.6 ? { mockVar: 'mockValue' } : undefined,
-      graphqlComplexity: Math.random() > 0.8 ? Math.floor(Math.random() * 100) + 10 : undefined,
-      graphqlDepth: Math.random() > 0.8 ? Math.floor(Math.random() * 10) + 1 : undefined,
-      sessionId: `session_${Math.floor(Math.random() * 50) + 1}`,
-      ipAddress: `192.168.1.${Math.floor(Math.random() * 255) + 1}`,
-      userAgent: 'MockUserAgent/1.0',
-      metadata: { mockKey: 'mockValue' },
-    }));
+    const levels: LogLevel[] = [LogLevel.ERROR, LogLevel.WARN, LogLevel.INFO, LogLevel.DEBUG];
+    const categories: LogCategory[] = [LogCategory.GRAPHQL, LogCategory.SECURITY, LogCategory.PERFORMANCE, LogCategory.AUDIT, LogCategory.BUSINESS, LogCategory.SYSTEM];
+    
+    return Array.from({ length: count }, (_, i) => {
+      const log = {
+        id: `log_${Date.now()}_${i}`,
+        timestamp: new Date(Date.now() - Math.random() * 86400000),
+        level: levels[Math.floor(Math.random() * levels.length)] as LogLevel,
+        category: categories[Math.floor(Math.random() * categories.length)] as LogCategory,
+        message: `Mock log message ${i + 1}`,
+        context: `MockContext${Math.floor(Math.random() * 5) + 1}`,
+        tenantId: filters.tenantId,
+        userId: `user_${Math.floor(Math.random() * 100) + 1}`,
+        requestId: `req_${Date.now()}_${i}`,
+        correlationId: `corr_${Date.now()}_${i}`,
+        operation: `mock_operation_${Math.floor(Math.random() * 10) + 1}`,
+        duration: Math.floor(Math.random() * 2000) + 50,
+        graphqlOperation: Math.random() > 0.5 ? `mockQuery${Math.floor(Math.random() * 5) + 1}` : undefined,
+        graphqlOperationType: Math.random() > 0.5 ? (['query', 'mutation', 'subscription'][Math.floor(Math.random() * 3)]) : undefined,
+        graphqlPath: Math.random() > 0.7 ? [`field${Math.floor(Math.random() * 3) + 1}`] : undefined,
+        graphqlVariables: Math.random() > 0.6 ? { mockVar: 'mockValue' } : undefined,
+        graphqlComplexity: Math.random() > 0.8 ? Math.floor(Math.random() * 100) + 10 : undefined,
+        graphqlDepth: Math.random() > 0.8 ? Math.floor(Math.random() * 10) + 1 : undefined,
+        sessionId: `session_${Math.floor(Math.random() * 50) + 1}`,
+        ipAddress: `192.168.1.${Math.floor(Math.random() * 255) + 1}`,
+        userAgent: 'MockUserAgent/1.0',
+        metadata: { mockKey: 'mockValue' },
+      } as LogEntryType;
+      return log;
+    });
   }
 
   private transformToAuditLog(log: LogEntryType): AuditLogEntryType {
@@ -530,7 +542,7 @@ export class LoggerSearchService {
       entityId: `entity_${Math.floor(Math.random() * 100) + 1}`,
       previousValue: Math.random() > 0.5 ? 'oldValue' : undefined,
       newValue: Math.random() > 0.5 ? 'newValue' : undefined,
-    };
+    } as AuditLogEntryType;
   }
 
   private transformToSecurityLog(log: LogEntryType): SecurityLogEntryType {
@@ -538,12 +550,12 @@ export class LoggerSearchService {
       ...log,
       securityId: `sec_${log.id}`,
       event: `security_event_${Math.floor(Math.random() * 5) + 1}`,
-      severity: ['low', 'medium', 'high', 'critical'][Math.floor(Math.random() * 4)],
+      severity: (['low', 'medium', 'high', 'critical'][Math.floor(Math.random() * 4)]) || 'medium',
       details: { securityDetail: 'mockValue' },
       threatLevel: Math.random() > 0.5 ? 'elevated' : 'normal',
       sourceIp: log.ipAddress,
-      userAgent: log.userAgent,
-    };
+      userAgent: log.userAgent || 'Unknown',
+    } as SecurityLogEntryType;
   }
 
   private transformToPerformanceLog(log: LogEntryType): PerformanceLogEntryType {
@@ -555,7 +567,7 @@ export class LoggerSearchService {
       isSlowQuery: (log.duration || 0) > 500,
       queryComplexity: log.graphqlComplexity,
       cacheHitRate: Math.random() > 0.5 ? Math.floor(Math.random() * 100) : undefined,
-    };
+    } as PerformanceLogEntryType;
   }
 
   private transformToBusinessLog(log: LogEntryType): BusinessLogEntryType {
@@ -567,7 +579,7 @@ export class LoggerSearchService {
       businessUnit: Math.random() > 0.5 ? 'Sales' : 'Marketing',
       revenue: Math.random() > 0.7 ? Math.floor(Math.random() * 10000) + 100 : undefined,
       customerImpact: Math.random() > 0.6 ? 'positive' : undefined,
-    };
+    } as BusinessLogEntryType;
   }
 
   private encodeCursor(value: string): string {

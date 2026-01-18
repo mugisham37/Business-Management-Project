@@ -15,6 +15,23 @@ export class LoggerAnalyticsService {
     this.loggerService.setContext('LoggerAnalyticsService');
   }
 
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    return 'Unknown error occurred';
+  }
+
+  private getErrorStack(error: unknown): string | undefined {
+    if (error instanceof Error) {
+      return error.stack;
+    }
+    return undefined;
+  }
+
   async getMetrics(
     tenantId: string,
     timeRange?: TimeRangeInput,
@@ -36,7 +53,7 @@ export class LoggerAnalyticsService {
       const metrics = await this.calculateMetrics(tenantId, timeRange, categories);
 
       // Cache the result for 5 minutes
-      await this.cacheService.set(cacheKey, metrics, 300);
+      await this.cacheService.set(cacheKey, metrics, { ttl: 300, tenantId });
 
       this.loggerService.performance(
         'calculate_log_metrics',
@@ -48,8 +65,8 @@ export class LoggerAnalyticsService {
     } catch (error) {
       this.loggerService.error(
         `Failed to get log metrics for tenant ${tenantId}`,
-        error.stack,
-        { tenantId, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -77,7 +94,7 @@ export class LoggerAnalyticsService {
       const analytics = await this.calculateAnalytics(tenantId, timeRange, topN, categories);
 
       // Cache the result for 10 minutes
-      await this.cacheService.set(cacheKey, analytics, 600);
+      await this.cacheService.set(cacheKey, analytics, { ttl: 600, tenantId });
 
       this.loggerService.performance(
         'calculate_log_analytics',
@@ -89,8 +106,8 @@ export class LoggerAnalyticsService {
     } catch (error) {
       this.loggerService.error(
         `Failed to get log analytics for tenant ${tenantId}`,
-        error.stack,
-        { tenantId, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -127,8 +144,8 @@ export class LoggerAnalyticsService {
     } catch (error) {
       this.loggerService.error(
         `Failed to set retention policy for tenant ${tenantId}`,
-        error.stack,
-        { tenantId, policy, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, policy, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -179,8 +196,8 @@ export class LoggerAnalyticsService {
     } catch (error) {
       this.loggerService.error(
         `Failed to generate ${reportType} report for tenant ${tenantId}`,
-        error.stack,
-        { tenantId, reportType, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, reportType, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -205,7 +222,7 @@ export class LoggerAnalyticsService {
       const trends = await this.calculateTrends(tenantId, metric, timeRange, granularity);
 
       // Cache for 15 minutes
-      await this.cacheService.set(cacheKey, trends, 900);
+      await this.cacheService.set(cacheKey, trends, { ttl: 900, tenantId });
 
       this.loggerService.performance(
         'calculate_log_trends',
@@ -217,8 +234,8 @@ export class LoggerAnalyticsService {
     } catch (error) {
       this.loggerService.error(
         `Failed to get trend analysis for ${metric} in tenant ${tenantId}`,
-        error.stack,
-        { tenantId, metric, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, metric, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -261,8 +278,8 @@ export class LoggerAnalyticsService {
     } catch (error) {
       this.loggerService.error(
         `Failed to detect anomalies for tenant ${tenantId}`,
-        error.stack,
-        { tenantId, sensitivity, error: error.message },
+        this.getErrorStack(error),
+        { tenantId, sensitivity, error: this.getErrorMessage(error) },
       );
       throw error;
     }
@@ -315,9 +332,9 @@ export class LoggerAnalyticsService {
         operationCount: Math.floor(Math.random() * 100) + 20,
       })),
       securityAlerts: Array.from({ length: 4 }, (_, i) => ({
-        type: ['failed_login', 'suspicious_activity', 'rate_limit', 'unauthorized_access'][i],
+        type: (['failed_login', 'suspicious_activity', 'rate_limit', 'unauthorized_access'][i]) || 'unknown',
         count: Math.floor(Math.random() * 20) + 1,
-        severity: ['low', 'medium', 'high', 'critical'][i] as any,
+        severity: (['low', 'medium', 'high', 'critical'][i]) || 'medium',
       })),
       tenantActivity: Array.from({ length: 5 }, (_, i) => ({
         tenantId: `tenant_${i + 1}`,
@@ -463,7 +480,7 @@ export class LoggerAnalyticsService {
     ];
     
     for (const pattern of patterns) {
-      await this.cacheService.deletePattern(pattern);
+      await this.cacheService.invalidatePattern(pattern, { tenantId });
     }
     
     this.loggerService.cache('invalidate', `patterns:${patterns.join(',')}`, false, { tenantId });
