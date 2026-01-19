@@ -150,9 +150,11 @@ export class TenantService {
       return this.mapToEntity(newTenant);
     } catch (error) {
       const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Failed to create tenant: ${error.message}`,
-        error.stack,
+        `Failed to create tenant: ${errorMessage}`,
+        errorStack,
         {
           tenantName: name,
           tenantSlug: slug,
@@ -166,7 +168,7 @@ export class TenantService {
         tenantName: name,
         tenantSlug: slug,
         createdBy,
-        error: error.message,
+        error: errorMessage,
         duration,
       });
 
@@ -199,9 +201,11 @@ export class TenantService {
       return tenant ? this.mapToEntity(tenant) : null;
     } catch (error) {
       const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Failed to find tenant by ID: ${error.message}`,
-        error.stack,
+        `Failed to find tenant by ID: ${errorMessage}`,
+        errorStack,
         { tenantId: id, duration },
       );
       return null;
@@ -233,9 +237,11 @@ export class TenantService {
       return tenant ? this.mapToEntity(tenant) : null;
     } catch (error) {
       const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Failed to find tenant by slug: ${error.message}`,
-        error.stack,
+        `Failed to find tenant by slug: ${errorMessage}`,
+        errorStack,
         { tenantSlug: slug, duration },
       );
       return null;
@@ -330,9 +336,11 @@ export class TenantService {
       };
     } catch (error) {
       const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Failed to find tenants: ${error.message}`,
-        error.stack,
+        `Failed to find tenants: ${errorMessage}`,
+        errorStack,
         { query, duration },
       );
       throw new BadRequestException('Failed to retrieve tenants');
@@ -434,9 +442,11 @@ export class TenantService {
       return mappedTenant;
     } catch (error) {
       const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Failed to update tenant: ${error.message}`,
-        error.stack,
+        `Failed to update tenant: ${errorMessage}`,
+        errorStack,
         {
           tenantId: id,
           updatedBy,
@@ -448,7 +458,7 @@ export class TenantService {
       this.logger.business('tenant_update_failed', {
         tenantId: id,
         updatedBy,
-        error: error.message,
+        error: errorMessage,
         duration,
       });
 
@@ -590,9 +600,11 @@ export class TenantService {
       return mappedTenant;
     } catch (error) {
       const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Failed to update business metrics: ${error.message}`,
-        error.stack,
+        `Failed to update business metrics: ${errorMessage}`,
+        errorStack,
         {
           tenantId: id,
           updatedBy,
@@ -604,7 +616,7 @@ export class TenantService {
       this.logger.business('business_metrics_update_failed', {
         tenantId: id,
         updatedBy,
-        error: error.message,
+        error: errorMessage,
         duration,
       });
 
@@ -686,9 +698,11 @@ export class TenantService {
       });
     } catch (error) {
       const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Failed to delete tenant: ${error.message}`,
-        error.stack,
+        `Failed to delete tenant: ${errorMessage}`,
+        errorStack,
         {
           tenantId: id,
           deletedBy,
@@ -699,7 +713,7 @@ export class TenantService {
       this.logger.business('tenant_deletion_failed', {
         tenantId: id,
         deletedBy,
-        error: error.message,
+        error: errorMessage,
         duration,
       });
 
@@ -764,10 +778,12 @@ export class TenantService {
       return isValid;
     } catch (error) {
       const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       
       this.logger.error(
-        `Tenant validation failed: ${error.message}`,
-        error.stack,
+        `Tenant validation failed: ${errorMessage}`,
+        errorStack,
         { tenantId, duration },
       );
       
@@ -841,10 +857,12 @@ export class TenantService {
       });
     } catch (error) {
       const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       
       this.logger.error(
-        `Failed to log audit event: ${error.message}`,
-        error.stack,
+        `Failed to log audit event: ${errorMessage}`,
+        errorStack,
         {
           action,
           tenantId,

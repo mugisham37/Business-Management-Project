@@ -8,7 +8,23 @@ import { CurrentTenant } from '../decorators/tenant.decorators';
 import { Tenant, BusinessTier } from '../entities/tenant.entity';
 import { FeatureFlag } from '../entities/feature-flag.entity';
 
-const pubSub = new PubSub();
+/**
+ * PubSub instance for tenant subscriptions
+ * Using any type cast for compatibility with graphql-subscriptions v3.x
+ */
+const pubSub: any = new PubSub();
+
+/**
+ * Subscription event names
+ */
+const SUBSCRIPTION_EVENTS = {
+  TENANT_UPDATED: 'tenantUpdated',
+  METRICS_UPDATED: 'metricsUpdated',
+  TIER_CHANGED: 'tierChanged',
+  FEATURE_FLAG_CHANGED: 'featureFlagChanged',
+  SUBSCRIPTION_STATUS_CHANGED: 'subscriptionStatusChanged',
+  TENANT_ACTIVITY: 'tenantActivity',
+} as const;
 
 /**
  * GraphQL Subscriptions for real-time tenant updates
@@ -35,7 +51,7 @@ export class TenantSubscriptionsResolver {
     if (tenantId !== currentTenantId) {
       throw new Error('Access denied: Cannot subscribe to other tenant updates');
     }
-    return pubSub.asyncIterator('tenantUpdated');
+    return pubSub.asyncIterator(SUBSCRIPTION_EVENTS.TENANT_UPDATED);
   }
 
   /**
@@ -54,7 +70,7 @@ export class TenantSubscriptionsResolver {
     if (tenantId !== currentTenantId) {
       throw new Error('Access denied: Cannot subscribe to other tenant metrics');
     }
-    return pubSub.asyncIterator('metricsUpdated');
+    return pubSub.asyncIterator(SUBSCRIPTION_EVENTS.METRICS_UPDATED);
   }
 
   /**
@@ -73,7 +89,7 @@ export class TenantSubscriptionsResolver {
     if (tenantId !== currentTenantId) {
       throw new Error('Access denied: Cannot subscribe to other tenant tier changes');
     }
-    return pubSub.asyncIterator('tierChanged');
+    return pubSub.asyncIterator(SUBSCRIPTION_EVENTS.TIER_CHANGED);
   }
 
   /**
@@ -92,7 +108,7 @@ export class TenantSubscriptionsResolver {
     if (tenantId !== currentTenantId) {
       throw new Error('Access denied: Cannot subscribe to other tenant feature flags');
     }
-    return pubSub.asyncIterator('featureFlagChanged');
+    return pubSub.asyncIterator(SUBSCRIPTION_EVENTS.FEATURE_FLAG_CHANGED);
   }
 
   /**
@@ -111,7 +127,7 @@ export class TenantSubscriptionsResolver {
     if (tenantId !== currentTenantId) {
       throw new Error('Access denied: Cannot subscribe to other tenant subscription changes');
     }
-    return pubSub.asyncIterator('subscriptionStatusChanged');
+    return pubSub.asyncIterator(SUBSCRIPTION_EVENTS.SUBSCRIPTION_STATUS_CHANGED);
   }
 
   /**
@@ -130,21 +146,21 @@ export class TenantSubscriptionsResolver {
     if (tenantId !== currentTenantId) {
       throw new Error('Access denied: Cannot subscribe to other tenant activity');
     }
-    return pubSub.asyncIterator('tenantActivity');
+    return pubSub.asyncIterator(SUBSCRIPTION_EVENTS.TENANT_ACTIVITY);
   }
 
   /**
    * Static method to publish tenant updates
    */
   static publishTenantUpdate(tenant: Tenant): void {
-    pubSub.publish('tenantUpdated', { tenantUpdated: tenant });
+    pubSub.publish(SUBSCRIPTION_EVENTS.TENANT_UPDATED, { tenantUpdated: tenant });
   }
 
   /**
    * Static method to publish metrics updates
    */
   static publishMetricsUpdate(tenantId: string, metrics: any): void {
-    pubSub.publish('metricsUpdated', { 
+    pubSub.publish(SUBSCRIPTION_EVENTS.METRICS_UPDATED, { 
       metricsUpdated: { tenantId, metrics, timestamp: new Date() } 
     });
   }
@@ -153,7 +169,7 @@ export class TenantSubscriptionsResolver {
    * Static method to publish tier changes
    */
   static publishTierChange(tenantId: string, previousTier: BusinessTier, newTier: BusinessTier): void {
-    pubSub.publish('tierChanged', { 
+    pubSub.publish(SUBSCRIPTION_EVENTS.TIER_CHANGED, { 
       tierChanged: { tenantId, previousTier, newTier, timestamp: new Date() } 
     });
   }
@@ -162,14 +178,14 @@ export class TenantSubscriptionsResolver {
    * Static method to publish feature flag changes
    */
   static publishFeatureFlagChange(featureFlag: FeatureFlag): void {
-    pubSub.publish('featureFlagChanged', { featureFlagChanged: featureFlag });
+    pubSub.publish(SUBSCRIPTION_EVENTS.FEATURE_FLAG_CHANGED, { featureFlagChanged: featureFlag });
   }
 
   /**
    * Static method to publish subscription status changes
    */
   static publishSubscriptionStatusChange(tenantId: string, status: string): void {
-    pubSub.publish('subscriptionStatusChanged', { 
+    pubSub.publish(SUBSCRIPTION_EVENTS.SUBSCRIPTION_STATUS_CHANGED, { 
       subscriptionStatusChanged: { tenantId, status, timestamp: new Date() } 
     });
   }
@@ -178,7 +194,7 @@ export class TenantSubscriptionsResolver {
    * Static method to publish tenant activity
    */
   static publishTenantActivity(tenantId: string, activity: any): void {
-    pubSub.publish('tenantActivity', { 
+    pubSub.publish(SUBSCRIPTION_EVENTS.TENANT_ACTIVITY, { 
       tenantActivity: { tenantId, ...activity, timestamp: new Date() } 
     });
   }
