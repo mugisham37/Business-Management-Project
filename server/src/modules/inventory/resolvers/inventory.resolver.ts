@@ -10,7 +10,7 @@ import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { RequirePermission } from '../../auth/decorators/require-permission.decorator';
 import { InventoryService } from '../services/inventory.service';
 import { ProductService } from '../services/product.service';
-import { InventoryLevel, InventoryMovement } from '../types/inventory.types';
+import { InventoryLevel, InventoryMovement, InventoryAdjustmentReason } from '../types/inventory.types';
 import { 
   AdjustInventoryInput, 
   TransferInventoryInput, 
@@ -43,7 +43,7 @@ export class InventoryResolver extends BaseResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<InventoryLevel> {
-    return this.inventoryService.getInventoryLevel(tenantId || '', productId, variantId || undefined, locationId);
+    return this.inventoryService.getInventoryLevel(tenantId || '', productId, variantId ?? null, locationId);
   }
 
   @Query(() => [InventoryLevel], { description: 'Get inventory levels with optional filtering' })
@@ -97,7 +97,7 @@ export class InventoryResolver extends BaseResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<InventoryLevel> {
-    return this.inventoryService.updateInventoryLevel(tenantId || '', id, input, user?.id || '');
+    return this.inventoryService.updateInventoryLevelById(tenantId || '', id, input, user?.id || '');
   }
 
   @Mutation(() => Boolean, { description: 'Reserve inventory' })
@@ -108,7 +108,16 @@ export class InventoryResolver extends BaseResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<boolean> {
-    await this.inventoryService.reserveInventory(tenantId || '', input, user?.id || '');
+    await this.inventoryService.reserveInventory(
+      tenantId || '',
+      input.productId,
+      input.variantId ?? null,
+      input.locationId,
+      input.quantity,
+      input.reservedFor,
+      input.referenceId,
+      user?.id || '',
+    );
     return true;
   }
 
@@ -132,16 +141,27 @@ export class InventoryResolver extends BaseResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<InventoryLevel> {
+    // Build input object conditionally to satisfy exactOptionalPropertyTypes
+    const adjustInput: {
+      productId: string;
+      variantId?: string;
+      locationId: string;
+      adjustment: number;
+      reason: InventoryAdjustmentReason;
+      notes?: string;
+    } = {
+      productId: input.productId,
+      locationId: input.locationId,
+      adjustment: input.adjustment,
+      reason: input.reason,
+    };
+    
+    if (input.variantId) adjustInput.variantId = input.variantId;
+    if (input.notes) adjustInput.notes = input.notes;
+
     const result = await this.inventoryService.adjustInventory(
       tenantId || '',
-      {
-        productId: input.productId,
-        variantId: input.variantId || undefined,
-        locationId: input.locationId,
-        adjustment: input.adjustment,
-        reason: input.reason,
-        notes: input.notes,
-      },
+      adjustInput,
       user?.id || '',
     );
 
@@ -164,16 +184,27 @@ export class InventoryResolver extends BaseResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<boolean> {
+    // Build transfer input object conditionally to satisfy exactOptionalPropertyTypes
+    const transferInput: {
+      productId: string;
+      variantId?: string;
+      toLocationId: string;
+      fromLocationId: string;
+      quantity: number;
+      notes?: string;
+    } = {
+      productId: input.productId,
+      toLocationId: input.toLocationId,
+      fromLocationId: input.fromLocationId,
+      quantity: input.quantity,
+    };
+    
+    if (input.variantId) transferInput.variantId = input.variantId;
+    if (input.notes) transferInput.notes = input.notes;
+
     await this.inventoryService.transferInventory(
       tenantId || '',
-      {
-        productId: input.productId,
-        variantId: input.variantId || undefined,
-        toLocationId: input.toLocationId,
-        fromLocationId: input.fromLocationId,
-        quantity: input.quantity,
-        notes: input.notes,
-      },
+      transferInput,
       user?.id || '',
     );
 

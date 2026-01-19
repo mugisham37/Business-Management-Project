@@ -9,7 +9,7 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { Permissions } from '../../auth/decorators/require-permission.decorator';
 import { PerpetualInventoryService } from '../services/perpetual-inventory.service';
-import { InventoryLevel, InventoryValue } from '../types/perpetual-inventory.types';
+import { PerpetualInventoryLevelData, InventoryValue } from '../types/perpetual-inventory.types';
 import { ReconcileInventoryInput } from '../inputs/perpetual-inventory.input';
 
 @Resolver()
@@ -23,7 +23,7 @@ export class PerpetualInventoryResolver extends BaseResolver {
     super(dataLoaderService);
   }
 
-  @Query(() => InventoryLevel, { description: 'Get current inventory level for product at location' })
+  @Query(() => PerpetualInventoryLevelData, { description: 'Get current inventory level for product at location' })
   @UseGuards(PermissionsGuard)
   @Permissions('inventory:read')
   async currentInventory(
@@ -32,7 +32,7 @@ export class PerpetualInventoryResolver extends BaseResolver {
     @Args('locationId', { type: () => ID }) locationId?: string,
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
-  ): Promise<InventoryLevel> {
+  ): Promise<PerpetualInventoryLevelData> {
     return this.perpetualInventoryService.getCurrentInventory(
       tenantId || '',
       productId,
@@ -50,10 +50,11 @@ export class PerpetualInventoryResolver extends BaseResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<InventoryValue> {
+    // Note: The service's getInventoryValue accepts (tenantId, locationId, startDate, endDate)
+    // The valuationMethod parameter is not used by the current service implementation
     return this.perpetualInventoryService.getInventoryValue(
       tenantId || '',
       locationId || undefined,
-      valuationMethod || 'average',
     );
   }
 
@@ -65,13 +66,16 @@ export class PerpetualInventoryResolver extends BaseResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<boolean> {
+    // The service expects (tenantId, input, userId) where input contains all the fields
     await this.perpetualInventoryService.reconcileInventory(
       tenantId || '',
-      input.productId,
-      input.variantId || undefined,
-      input.locationId,
-      input.physicalCount,
-      input.reason,
+      {
+        productId: input.productId,
+        variantId: input.variantId || undefined,
+        locationId: input.locationId,
+        physicalCount: input.physicalCount,
+        reason: input.reason,
+      },
       user?.id || '',
     );
 
@@ -89,7 +93,7 @@ export class PerpetualInventoryResolver extends BaseResolver {
     return true;
   }
 
-  @Subscription(() => InventoryLevel, {
+  @Subscription(() => PerpetualInventoryLevelData, {
     description: 'Subscribe to real-time inventory updates',
     filter: (payload, variables, context) => {
       // Filter by tenant

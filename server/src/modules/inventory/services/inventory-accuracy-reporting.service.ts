@@ -1118,12 +1118,13 @@ export class InventoryAccuracyReportingService {
     startDate?: Date,
     endDate?: Date,
   ): Promise<any> {
+    // Build query conditionally to satisfy exactOptionalPropertyTypes
     const query: AccuracyReportQueryDto = {
       reportType: 'detailed',
-      locationId,
-      dateFrom: startDate,
-      dateTo: endDate,
     };
+    if (locationId) query.locationId = locationId;
+    if (startDate) query.dateFrom = startDate;
+    if (endDate) query.dateTo = endDate;
     return this.generateAccuracyReport(tenantId, query);
   }
 
@@ -1133,12 +1134,13 @@ export class InventoryAccuracyReportingService {
     startDate?: Date,
     endDate?: Date,
   ): Promise<any> {
+    // Build query conditionally to satisfy exactOptionalPropertyTypes
     const query: AccuracyReportQueryDto = {
       reportType: 'detailed',
-      locationId,
-      dateFrom: startDate,
-      dateTo: endDate,
     };
+    if (locationId) query.locationId = locationId;
+    if (startDate) query.dateFrom = startDate;
+    if (endDate) query.dateTo = endDate;
     const report = await this.generateAccuracyReport(tenantId, query);
     
     // Return variance analysis structure
@@ -1160,12 +1162,13 @@ export class InventoryAccuracyReportingService {
     startDate?: Date,
     endDate?: Date,
   ): Promise<any> {
+    // Build query conditionally to satisfy exactOptionalPropertyTypes
     const query: AccuracyReportQueryDto = {
       reportType: 'detailed',
-      locationId,
-      dateFrom: startDate,
-      dateTo: endDate,
     };
+    if (locationId) query.locationId = locationId;
+    if (startDate) query.dateFrom = startDate;
+    if (endDate) query.dateTo = endDate;
     const report = await this.generateAccuracyReport(tenantId, query);
     
     // Return count accuracy structure

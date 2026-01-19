@@ -39,15 +39,24 @@ export class InventoryMovementTrackingResolver extends BaseResolver {
     @Args('limit', { type: () => Int, defaultValue: 100 }) limit?: number,
     @CurrentTenant() tenantId?: string,
   ): Promise<MovementHistoryResult> {
-    const query = {
-      productId,
-      locationId,
-      movementType,
-      dateFrom,
-      dateTo,
-      page,
-      limit,
-    };
+    // Build query object with only defined properties to satisfy exactOptionalPropertyTypes
+    const query: {
+      productId?: string;
+      locationId?: string;
+      movementType?: string;
+      dateFrom?: Date;
+      dateTo?: Date;
+      page?: number;
+      limit?: number;
+    } = {};
+
+    if (productId) query.productId = productId;
+    if (locationId) query.locationId = locationId;
+    if (movementType) query.movementType = movementType;
+    if (dateFrom) query.dateFrom = dateFrom;
+    if (dateTo) query.dateTo = dateTo;
+    if (page !== undefined) query.page = page;
+    if (limit !== undefined) query.limit = limit;
 
     const result = await this.movementTrackingService.getDetailedMovementHistory(tenantId || '', query);
     

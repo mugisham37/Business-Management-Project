@@ -790,30 +790,31 @@ export class PerpetualInventoryService {
     locationId?: string,
   ): Promise<any> {
     const location = locationId || '';
-    const cacheKey = `perpetual-inventory:${tenantId}:${productId}:${variantId}:${location}`;
+    const cacheKey = `perpetual-inventory:${tenantId}:${productId}:${variantId ?? ''}:${location}`;
 
     let inventory = await this.cacheService.get<any>(cacheKey);
     if (!inventory) {
       const data = await this.inventoryRepository.findByProductAndLocation(
         tenantId,
         productId,
+        variantId ?? null,
         location,
-        variantId,
       );
       if (data) {
+        // Use correct property names from InventoryLevelWithProduct
         inventory = {
           productId,
           variantId,
           locationId: location,
-          currentQuantity: data.currentQuantity || 0,
-          reservedQuantity: data.reserved || 0,
-          availableQuantity: (data.currentQuantity || 0) - (data.reserved || 0),
-          costPerUnit: data.costPerUnit || 0,
-          totalValue: ((data.currentQuantity || 0) * (data.costPerUnit || 0)),
+          currentQuantity: data.currentLevel || 0,
+          reservedQuantity: data.reservedLevel || 0,
+          availableQuantity: (data.currentLevel || 0) - (data.reservedLevel || 0),
+          costPerUnit: data.averageCost || 0,
+          totalValue: ((data.currentLevel || 0) * (data.averageCost || 0)),
           lastUpdated: new Date(),
           status: 'active',
         };
-        await this.cacheService.set(cacheKey, inventory, 3600);
+        await this.cacheService.set(cacheKey, inventory, { ttl: 3600 });
       }
     }
     return inventory;
@@ -830,20 +831,24 @@ export class PerpetualInventoryService {
 
     let value = await this.cacheService.get<any>(cacheKey);
     if (!value) {
-      const inventories = await this.inventoryRepository.findAll({
-        tenantId,
-        locationId: location,
-      } as any);
+      // Use findMany instead of findAll - build query object conditionally
+      const query: { locationId?: string; limit: number } = { limit: 10000 };
+      if (location) {
+        query.locationId = location;
+      }
+      const result = await this.inventoryRepository.findMany(tenantId, query);
 
-      const items = (inventories || []).map(inv => ({
+      const inventories = result.inventoryLevels || [];
+
+      const items = inventories.map((inv: { productId: string; currentLevel: number; averageCost: number }) => ({
         productId: inv.productId,
-        quantity: inv.currentQuantity || 0,
-        value: ((inv.currentQuantity || 0) * (inv.costPerUnit || 0)),
-        costPerUnit: inv.costPerUnit,
+        quantity: inv.currentLevel || 0,
+        value: ((inv.currentLevel || 0) * (inv.averageCost || 0)),
+        costPerUnit: inv.averageCost,
       }));
 
-      const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-      const totalValue = items.reduce((sum, item) => sum + item.value, 0);
+      const totalQuantity = items.reduce((sum: number, item: { quantity: number }) => sum + item.quantity, 0);
+      const totalValue = items.reduce((sum: number, item: { value: number }) => sum + item.value, 0);
 
       value = {
         locationId: location,
@@ -853,7 +858,7 @@ export class PerpetualInventoryService {
         valuationMethod: 'weighted_average',
         lastUpdated: new Date(),
       };
-      await this.cacheService.set(cacheKey, value, 3600);
+      await this.cacheService.set(cacheKey, value, { ttl: 3600 });
     }
     return value;
   }
@@ -870,11 +875,12 @@ export class PerpetualInventoryService {
     const variance = physicalCount - systemQuantity;
 
     if (variance !== 0) {
-      await this.adjustInventory({
-        tenantId,
+      // Use updatePerpetualInventory with correct signature (tenantId, data, userId)
+      await this.updatePerpetualInventory(tenantId, {
         productId,
         variantId,
         locationId,
+        movementType: 'adjustment',
         quantity: variance,
         reason: reason || 'manual_count',
         notes,

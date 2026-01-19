@@ -45,7 +45,8 @@ export class ProductResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<Product | null> {
-    return this.productService.findById(tenantId || '', id);
+    const result = await this.productService.findById(tenantId || '', id);
+    return result as unknown as Product | null;
   }
 
   @Mutation(() => Product)
@@ -55,7 +56,8 @@ export class ProductResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<Product> {
-    return this.productService.create(tenantId || '', input, user?.id || '');
+    const result = await this.productService.create(tenantId || '', input, user?.id || '');
+    return result as unknown as Product;
   }
 
   @Mutation(() => Product)
@@ -66,7 +68,8 @@ export class ProductResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<Product> {
-    return this.productService.update(tenantId || '', id, input, user?.id || '');
+    const result = await this.productService.update(tenantId || '', id, input, user?.id || '');
+    return result as unknown as Product;
   }
 
   @Mutation(() => Boolean)
@@ -87,7 +90,8 @@ export class ProductResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<Product[]> {
-    return this.productService.bulkUpdate(tenantId || '', input.productIds, input.updates, user?.id || '');
+    const result = await this.productService.bulkUpdate(tenantId || '', input.productIds, input.updates, user?.id || '');
+    return result as unknown as Product[];
   }
 
   @ResolveField(() => Object, { nullable: true })

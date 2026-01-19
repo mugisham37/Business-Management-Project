@@ -7,20 +7,20 @@ import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { Permissions } from '../../auth/decorators/require-permission.decorator';
-import { InventoryReportingService } from '../services/inventory-reporting.service';
+import { InventoryReportingService, ReportQueryDto } from '../services/inventory-reporting.service';
 import { ProductService } from '../services/product.service';
-import { 
-  StockLevelReport, 
-  MovementReport, 
-  AgingReport, 
-  TurnoverReport 
-} from '../types/inventory-reporting.types';
 import { 
   StockLevelReportInput, 
   MovementReportInput, 
   AgingReportInput, 
   TurnoverReportInput 
 } from '../inputs/inventory-reporting.input';
+import { 
+  StockLevelReport, 
+  MovementReport, 
+  AgingReport, 
+  TurnoverReport 
+} from '../types/inventory-reporting.types';
 
 @Resolver()
 @UseGuards(JwtAuthGuard)
@@ -33,6 +33,20 @@ export class InventoryReportingResolver extends BaseResolver {
     super(dataLoaderService);
   }
 
+  private convertInputToQuery(input: StockLevelReportInput | MovementReportInput | AgingReportInput | TurnoverReportInput | null): ReportQueryDto {
+    if (!input) return {};
+    
+    const query: ReportQueryDto = {};
+    
+    if (input.locationId) query.locationId = input.locationId;
+    if (input.productId) query.productId = input.productId;
+    if (input.categoryId) query.categoryId = input.categoryId;
+    if (input.dateFrom) query.dateFrom = new Date(input.dateFrom);
+    if (input.dateTo) query.dateTo = new Date(input.dateTo);
+    
+    return query;
+  }
+
   @Query(() => StockLevelReport, { description: 'Generate stock level report' })
   @UseGuards(PermissionsGuard)
   @Permissions('inventory:read')
@@ -41,7 +55,9 @@ export class InventoryReportingResolver extends BaseResolver {
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<StockLevelReport> {
-    return this.reportingService.generateStockLevelReport(tenantId, input || {});
+    const query = this.convertInputToQuery(input);
+    const report = await this.reportingService.generateStockLevelReport(tenantId, query);
+    return report.data as StockLevelReport;
   }
 
   @Query(() => MovementReport, { description: 'Generate movement report' })
@@ -52,7 +68,9 @@ export class InventoryReportingResolver extends BaseResolver {
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<MovementReport> {
-    return this.reportingService.generateMovementReport(tenantId, input || {});
+    const query = this.convertInputToQuery(input);
+    const report = await this.reportingService.generateMovementReport(tenantId, query);
+    return report.data as MovementReport;
   }
 
   @Query(() => AgingReport, { description: 'Generate aging report' })
@@ -63,7 +81,9 @@ export class InventoryReportingResolver extends BaseResolver {
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<AgingReport> {
-    return this.reportingService.generateAgingReport(tenantId, input || {});
+    const query = this.convertInputToQuery(input);
+    const report = await this.reportingService.generateAgingReport(tenantId, query);
+    return report.data as AgingReport;
   }
 
   @Query(() => TurnoverReport, { description: 'Generate turnover report' })
@@ -74,6 +94,8 @@ export class InventoryReportingResolver extends BaseResolver {
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<TurnoverReport> {
-    return this.reportingService.generateTurnoverReport(tenantId, input || {});
+    const query = this.convertInputToQuery(input);
+    const report = await this.reportingService.generateTurnoverReport(tenantId, query);
+    return report.data as TurnoverReport;
   }
 }

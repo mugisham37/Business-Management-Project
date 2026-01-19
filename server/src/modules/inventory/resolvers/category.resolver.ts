@@ -107,7 +107,12 @@ export class CategoryResolver extends BaseResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<Category> {
-    return this.categoryService.update(tenantId || '', id, { parentId: newParentId || undefined }, user?.id);
+    // Build update input conditionally to satisfy exactOptionalPropertyTypes
+    const updateInput: { parentId?: string } = {};
+    if (newParentId) {
+      updateInput.parentId = newParentId;
+    }
+    return this.categoryService.update(tenantId || '', id, updateInput, user?.id);
   }
 
   @Mutation(() => Boolean, { description: 'Delete category' })

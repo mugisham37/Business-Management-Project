@@ -444,4 +444,43 @@ export class InventoryService {
     await this.cacheService.invalidatePattern(`inventory:${tenantId}:levels:*`);
     await this.cacheService.invalidatePattern(`inventory:${tenantId}:low-stock:*`);
   }
+
+  /**
+   * Update inventory level settings by ID (minStockLevel, maxStockLevel, reorderPoint, etc.)
+   * This does not create movement records - use updateInventoryLevel for actual stock changes.
+   */
+  async updateInventoryLevelById(
+    tenantId: string,
+    id: string,
+    input: UpdateInventoryLevelInput,
+    userId: string,
+  ): Promise<any> {
+    // Find the existing inventory level
+    const existing = await this.inventoryRepository.findById(tenantId, id);
+    if (!existing) {
+      throw new NotFoundException(`Inventory level with ID ${id} not found`);
+    }
+
+    // If currentLevel is being updated, use the proper update method with tracking
+    if (input.currentLevel !== undefined && input.currentLevel !== existing.currentLevel) {
+      await this.updateInventoryLevel(
+        tenantId,
+        existing.productId,
+        existing.variantId ?? null,
+        existing.locationId,
+        input.currentLevel,
+        'manual_update',
+        userId,
+        'Updated via inventory level settings',
+      );
+    }
+
+    // Update settings via repository (non-stock fields)
+    const updatedLevel = await this.inventoryRepository.updateSettings(tenantId, id, input, userId);
+
+    // Invalidate cache
+    await this.invalidateInventoryCache(tenantId, existing.productId, existing.locationId);
+
+    return updatedLevel;
+  }
 }

@@ -45,15 +45,25 @@ export class BatchTrackingResolver extends BaseResolver {
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<BatchTrackingResult[]> {
-    const query = {
-      productId: filter?.productId,
-      locationId: filter?.locationId,
-      status: filter?.status as 'active' | 'consumed' | 'expired' | 'recalled' | undefined,
-      expiryDateFrom: filter?.expiryDateFrom ? new Date(filter.expiryDateFrom) : undefined,
-      expiryDateTo: filter?.expiryDateTo ? new Date(filter.expiryDateTo) : undefined,
+    // Build query object with only defined properties to satisfy exactOptionalPropertyTypes
+    const query: {
+      productId?: string;
+      locationId?: string;
+      status?: 'active' | 'consumed' | 'expired' | 'recalled';
+      expiryDateFrom?: Date;
+      expiryDateTo?: Date;
+      offset: number;
+      limit: number;
+    } = {
       offset: pagination?.offset || 0,
       limit: pagination?.limit || 20,
     };
+
+    if (filter?.productId) query.productId = filter.productId;
+    if (filter?.locationId) query.locationId = filter.locationId;
+    if (filter?.status) query.status = filter.status as 'active' | 'consumed' | 'expired' | 'recalled';
+    if (filter?.expiryDateFrom) query.expiryDateFrom = new Date(filter.expiryDateFrom);
+    if (filter?.expiryDateTo) query.expiryDateTo = new Date(filter.expiryDateTo);
 
     const result = await this.batchTrackingService.findBatches(tenantId, query);
     return result.batches || [];
@@ -68,7 +78,8 @@ export class BatchTrackingResolver extends BaseResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<BatchTrackingResult[]> {
-    return this.batchTrackingService.getExpiringBatches(tenantId || '', daysAhead, locationId || undefined);
+    // getExpiringBatches expects locationId?: string, so convert null to undefined
+    return this.batchTrackingService.getExpiringBatches(tenantId || '', daysAhead, locationId ?? undefined);
   }
 
   @Query(() => [BatchTrackingResult], { description: 'Get FIFO batches for product at location' })
@@ -81,7 +92,8 @@ export class BatchTrackingResolver extends BaseResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<BatchTrackingResult[]> {
-    return this.batchTrackingService.getFIFOBatches(tenantId || '', productId, variantId, locationId || '');
+    // getFIFOBatches expects variantId: string | null, so convert undefined to null
+    return this.batchTrackingService.getFIFOBatches(tenantId || '', productId, variantId ?? null, locationId || '');
   }
 
   @Mutation(() => BatchTrackingResult, { description: 'Create new batch tracking' })
@@ -92,6 +104,16 @@ export class BatchTrackingResolver extends BaseResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<BatchTrackingResult> {
-    return this.batchTrackingService.createBatch(tenantId || '', input, user?.id);
+    // Convert string dates from GraphQL input to Date objects for the service
+    const batchData = {
+      productId: input.productId,
+      locationId: input.locationId,
+      batchNumber: input.batchNumber,
+      originalQuantity: input.originalQuantity,
+      unitCost: input.unitCost,
+      receivedDate: new Date(input.receivedDate),
+      ...(input.expiryDate && { expiryDate: new Date(input.expiryDate) }),
+    };
+    return this.batchTrackingService.createBatch(tenantId || '', batchData, user?.id);
   }
 }

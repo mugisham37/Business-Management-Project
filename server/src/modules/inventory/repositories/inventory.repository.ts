@@ -581,4 +581,72 @@ export class InventoryRepository {
         eq(inventoryReservations.isActive, true)
       ));
   }
+
+  /**
+   * Update inventory level settings (non-stock fields like min/max levels, reorder point, etc.)
+   */
+  async updateSettings(
+    tenantId: string,
+    id: string,
+    input: {
+      minStockLevel?: number;
+      maxStockLevel?: number;
+      reorderPoint?: number;
+      reorderQuantity?: number;
+      valuationMethod?: string;
+      averageCost?: number;
+      binLocation?: string;
+      zone?: string;
+    },
+    userId: string,
+  ): Promise<InventoryLevelWithProduct> {
+    const db = this.drizzle.getDb();
+
+    // Build the update object with only defined fields
+    const updateData: Record<string, any> = {
+      updatedBy: userId,
+      updatedAt: new Date(),
+      version: sql`${inventoryLevels.version} + 1`,
+    };
+
+    if (input.minStockLevel !== undefined) {
+      updateData.minStockLevel = input.minStockLevel.toString();
+    }
+    if (input.maxStockLevel !== undefined) {
+      updateData.maxStockLevel = input.maxStockLevel.toString();
+    }
+    if (input.reorderPoint !== undefined) {
+      updateData.reorderPoint = input.reorderPoint.toString();
+    }
+    if (input.reorderQuantity !== undefined) {
+      updateData.reorderQuantity = input.reorderQuantity.toString();
+    }
+    if (input.valuationMethod !== undefined) {
+      updateData.valuationMethod = input.valuationMethod;
+    }
+    if (input.averageCost !== undefined) {
+      updateData.averageCost = input.averageCost.toString();
+    }
+    if (input.binLocation !== undefined) {
+      updateData.binLocation = input.binLocation;
+    }
+    if (input.zone !== undefined) {
+      updateData.zone = input.zone;
+    }
+
+    await db
+      .update(inventoryLevels)
+      .set(updateData)
+      .where(and(
+        eq(inventoryLevels.tenantId, tenantId),
+        eq(inventoryLevels.id, id),
+        eq(inventoryLevels.isActive, true)
+      ));
+
+    const result = await this.findById(tenantId, id);
+    if (!result) {
+      throw new Error('Failed to retrieve updated inventory level');
+    }
+    return result;
+  }
 }

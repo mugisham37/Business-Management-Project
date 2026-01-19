@@ -5,7 +5,7 @@ import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 import { JwtAuthGuard } from '../../auth/guards/graphql-jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { CurrentTenant } from '../../tenant/decorators/current-tenant.decorator';
+import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { Permissions } from '../../auth/decorators/require-permission.decorator';
 import { CycleCountingService } from '../services/cycle-counting.service';
 import { QueueService } from '../../queue/queue.service';
@@ -44,12 +44,19 @@ export class CycleCountingResolver extends BaseResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<CycleCount[]> {
-    const query = {
-      locationId: filter?.locationId,
-      status: filter?.status as 'planned' | 'in_progress' | 'completed' | 'cancelled' | undefined,
-      offset: pagination?.offset || 0,
+    // Build query object with only defined properties to satisfy exactOptionalPropertyTypes
+    const query: {
+      locationId?: string;
+      status?: 'planned' | 'in_progress' | 'completed' | 'cancelled';
+      page?: number;
+      limit?: number;
+    } = {
+      page: pagination?.offset ? Math.floor(pagination.offset / (pagination.limit || 20)) + 1 : 1,
       limit: pagination?.limit || 20,
     };
+
+    if (filter?.locationId) query.locationId = filter.locationId;
+    if (filter?.status) query.status = filter.status as 'planned' | 'in_progress' | 'completed' | 'cancelled';
 
     const result = await this.cycleCountingService.findSessions(tenantId || '', query);
     return result.sessions;
@@ -65,13 +72,19 @@ export class CycleCountingResolver extends BaseResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<CycleCountItem[]> {
-    const statusValue = status as 'pending' | 'counted' | 'adjusted' | 'skipped' | undefined;
-    const query = {
+    // Build query object with only defined properties to satisfy exactOptionalPropertyTypes
+    const query: {
+      sessionId: string;
+      status?: 'pending' | 'counted' | 'adjusted' | 'skipped';
+      page?: number;
+      limit?: number;
+    } = {
       sessionId,
-      status: statusValue,
       page: pagination?.offset ? Math.floor(pagination.offset / (pagination.limit || 50)) + 1 : 1,
       limit: pagination?.limit || 50,
     };
+
+    if (status) query.status = status as 'pending' | 'counted' | 'adjusted' | 'skipped';
 
     const result = await this.cycleCountingService.findCountItems(tenantId || '', query);
     return result.items;
@@ -107,7 +120,15 @@ export class CycleCountingResolver extends BaseResolver {
     @CurrentUser() user?: any,
     @CurrentTenant() tenantId?: string,
   ): Promise<CycleCount> {
-    return this.cycleCountingService.createStockCountSession(tenantId || '', input, user?.id || '');
+    // Create the DTO with required name property
+    const sessionData = {
+      sessionNumber: input.sessionNumber,
+      name: input.name || `Cycle Count ${input.sessionNumber}`, // Provide default name if not specified
+      locationId: input.locationId,
+      ...(input.description && { description: input.description }),
+      ...(input.productIds && { productIds: input.productIds }),
+    };
+    return this.cycleCountingService.createStockCountSession(tenantId || '', sessionData, user?.id || '');
   }
 
   @Mutation(() => CycleCount, { description: 'Start cycle count session' })
@@ -173,7 +194,7 @@ export class CycleCountingResolver extends BaseResolver {
   ): Promise<CycleCountItem[]> {
     const result = await this.cycleCountingService.findCountItems(tenantId || '', {
       sessionId: cycleCount.id,
-      offset: 0,
+      page: 1,
       limit: 100,
     });
     return result.items;
