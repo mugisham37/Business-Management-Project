@@ -44,7 +44,8 @@ export class CurrencyResolver {
       createdBy: user.id,
       updatedBy: user.id,
     };
-    return await this.currencyService.createCurrency(tenantId, currencyData);
+    const result = await this.currencyService.createCurrency(tenantId, currencyData);
+    return this.transformServiceCurrency(result);
   }
 
   @Query(() => Currency, { nullable: true })
@@ -54,7 +55,7 @@ export class CurrencyResolver {
     @CurrentTenant() tenantId: string,
   ): Promise<Currency | null> {
     const result = await this.currencyService.getCurrencyById(tenantId, id);
-    return result;
+    return result ? this.transformServiceCurrency(result) : null;
   }
 
   @Query(() => [Currency])
@@ -63,7 +64,8 @@ export class CurrencyResolver {
     @CurrentTenant() tenantId: string,
     @Args('isActive', { nullable: true }) isActive?: boolean,
   ): Promise<Currency[]> {
-    return await this.currencyService.getCurrencies(tenantId, isActive ?? true);
+    const results = await this.currencyService.getCurrencies(tenantId, isActive ?? true);
+    return results.map(c => this.transformServiceCurrency(c));
   }
 
   @Query(() => Currency, { nullable: true })
@@ -71,7 +73,8 @@ export class CurrencyResolver {
   async baseCurrency(
     @CurrentTenant() tenantId: string,
   ): Promise<Currency | null> {
-    return await this.currencyService.getBaseCurrency(tenantId);
+    const result = await this.currencyService.getBaseCurrency(tenantId);
+    return result ? this.transformServiceCurrency(result) : null;
   }
 
   @Query(() => Currency, { nullable: true })
@@ -80,7 +83,8 @@ export class CurrencyResolver {
     @Args('currencyCode') currencyCode: string,
     @CurrentTenant() tenantId: string,
   ): Promise<Currency | null> {
-    return await this.currencyService.getCurrencyByCode(tenantId, currencyCode);
+    const result = await this.currencyService.getCurrencyByCode(tenantId, currencyCode);
+    return result ? this.transformServiceCurrency(result) : null;
   }
 
   @Mutation(() => Currency)
@@ -103,12 +107,15 @@ export class CurrencyResolver {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ExchangeRate> {
     // Add user info to the input
-    const exchangeRateData = {
+    const exchangeRateData: any = {
       ...input,
+      effectiveDate: new Date(input.effectiveDate),
+      expirationDate: input.expirationDate ? new Date(input.expirationDate) : undefined,
       createdBy: user.id,
       updatedBy: user.id,
     };
-    return await this.currencyService.createExchangeRate(tenantId, exchangeRateData);
+    const result = await this.currencyService.createExchangeRate(tenantId, exchangeRateData);
+    return this.transformServiceExchangeRate(result);
   }
 
   @Query(() => ExchangeRate, { nullable: true })
@@ -119,12 +126,13 @@ export class CurrencyResolver {
     @CurrentTenant() tenantId: string,
     @Args('effectiveDate', { nullable: true }) effectiveDate?: string,
   ): Promise<ExchangeRate | null> {
-    return await this.currencyService.getExchangeRate(
+    const result = await this.currencyService.getExchangeRate(
       tenantId, 
       fromCurrencyId, 
       toCurrencyId,
       effectiveDate ? new Date(effectiveDate) : undefined
     );
+    return result ? this.transformServiceExchangeRate(result) : null;
   }
 
   @Query(() => [ExchangeRate])
@@ -165,11 +173,16 @@ export class CurrencyResolver {
     );
     
     // Transform the result to match GraphQL type
+    const fromCurrency = await this.currencyService.getCurrencyById(tenantId, input.fromCurrencyId);
+    const toCurrency = await this.currencyService.getCurrencyById(tenantId, input.toCurrencyId);
+    
     return {
       fromCurrencyId: input.fromCurrencyId,
+      fromCurrency: fromCurrency ? this.transformServiceCurrency(fromCurrency) : undefined,
       toCurrencyId: input.toCurrencyId,
-      fromAmount: parseFloat(input.amount),
-      toAmount: result.convertedAmount,
+      toCurrency: toCurrency ? this.transformServiceCurrency(toCurrency) : undefined,
+      fromAmount: input.amount,
+      toAmount: result.convertedAmount.toFixed(2),
       exchangeRate: result.exchangeRate,
       conversionDate: input.conversionDate ? new Date(input.conversionDate) : new Date(),
     } as CurrencyConversion;
@@ -192,15 +205,16 @@ export class CurrencyResolver {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<CurrencyRevaluation> {
-    return await this.currencyService.performCurrencyRevaluation(
+    const result = await this.currencyService.performCurrencyRevaluation(
       tenantId,
       input.currencyId,
       input.newRate,
       new Date(input.revaluationDate),
-      input.fiscalYear || new Date().getFullYear(),
-      input.fiscalPeriod || 1,
+      new Date().getFullYear(),
+      1,
       user.id
     );
+    return this.transformServiceCurrencyRevaluation(result);
   }
 
   // Field Resolvers
@@ -221,5 +235,62 @@ export class CurrencyResolver {
     const decimalPlaces = currency.decimalPlaces || 2;
     const rounded = Math.round(amount * Math.pow(10, decimalPlaces)) / Math.pow(10, decimalPlaces);
     return rounded.toFixed(decimalPlaces);
+  }
+
+  // Helper transformation methods
+  private transformServiceCurrency(serviceCurrency: any): Currency {
+    return {
+      id: serviceCurrency.id,
+      currencyCode: serviceCurrency.currencyCode,
+      currencyName: serviceCurrency.currencyName,
+      currencySymbol: serviceCurrency.currencySymbol,
+      decimalPlaces: serviceCurrency.decimalPlaces,
+      isBaseCurrency: serviceCurrency.isBaseCurrency,
+      isActive: serviceCurrency.isActive,
+      description: serviceCurrency.notes || undefined,
+      createdAt: serviceCurrency.createdAt || new Date(),
+      updatedAt: serviceCurrency.updatedAt || new Date(),
+      createdBy: serviceCurrency.createdBy || '',
+      updatedBy: serviceCurrency.updatedBy || undefined,
+      tenantId: serviceCurrency.tenantId,
+    } as unknown as Currency;
+  }
+
+  private transformServiceExchangeRate(serviceRate: any): ExchangeRate {
+    return {
+      id: serviceRate.id,
+      fromCurrencyId: serviceRate.fromCurrencyId,
+      fromCurrency: serviceRate.fromCurrency ? this.transformServiceCurrency(serviceRate.fromCurrency) : ({} as Currency),
+      toCurrencyId: serviceRate.toCurrencyId,
+      toCurrency: serviceRate.toCurrency ? this.transformServiceCurrency(serviceRate.toCurrency) : ({} as Currency),
+      rate: serviceRate.exchangeRate,
+      effectiveDate: serviceRate.effectiveDate,
+      expirationDate: serviceRate.expirationDate || undefined,
+      rateType: serviceRate.rateSource || 'spot',
+      source: serviceRate.rateProvider || undefined,
+      isActive: serviceRate.isActive !== false,
+      createdAt: serviceRate.createdAt || new Date(),
+      updatedAt: serviceRate.updatedAt || new Date(),
+      createdBy: serviceRate.createdBy || '',
+      updatedBy: serviceRate.updatedBy || undefined,
+      tenantId: serviceRate.tenantId,
+    } as unknown as ExchangeRate;
+  }
+
+  private transformServiceCurrencyRevaluation(serviceRevaluation: any): CurrencyRevaluation {
+    return {
+      id: serviceRevaluation.id,
+      revaluationDate: serviceRevaluation.revaluationDate,
+      currency: serviceRevaluation.currency ? this.transformServiceCurrency(serviceRevaluation.currency) : ({} as unknown as Currency),
+      oldRate: serviceRevaluation.oldRate,
+      newRate: serviceRevaluation.newRate,
+      revaluationAmount: serviceRevaluation.revaluationAmount?.toFixed(2) || '0.00',
+      journalEntryId: serviceRevaluation.journalEntryId || undefined,
+      status: serviceRevaluation.status || 'pending',
+      notes: serviceRevaluation.notes || undefined,
+      createdAt: serviceRevaluation.createdAt || new Date(),
+      createdBy: serviceRevaluation.createdBy || '',
+      tenantId: serviceRevaluation.tenantId,
+    } as unknown as CurrencyRevaluation;
   }
 }

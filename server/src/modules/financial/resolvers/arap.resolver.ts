@@ -11,7 +11,8 @@ import {
 import { 
   ARAPInvoice, 
   ARAPPayment, 
-  AgingReport 
+  AgingReport,
+  AgingBucket
 } from '../graphql/types';
 import { InvoiceType, PaymentType, ReportType } from '../graphql/enums';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -37,15 +38,15 @@ export class ARAPResolver {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ARAPInvoice> {
     // Transform input to match service interface
-    const serviceInput = {
+    const serviceInput: any = {
       invoiceType: input.invoiceType as 'receivable' | 'payable',
-      customerId: input.customerId,
-      supplierId: input.supplierId,
+      customerId: input.customerId || undefined,
+      supplierId: input.supplierId || undefined,
       invoiceDate: new Date(input.invoiceDate),
       dueDate: new Date(input.dueDate),
-      description: input.description,
-      notes: input.reference, // Map reference to notes
-      paymentTerms: input.terms,
+      description: input.description || undefined,
+      notes: input.reference || undefined,
+      paymentTerms: input.terms || undefined,
       lines: input.lines.map(line => ({
         description: line.description,
         quantity: parseFloat(line.quantity),
@@ -97,12 +98,12 @@ export class ARAPResolver {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ARAPInvoice | null> {
     // Transform input to match service interface
-    const serviceInput = {
+    const serviceInput: any = {
       invoiceDate: input.invoiceDate ? new Date(input.invoiceDate) : undefined,
       dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
-      description: input.description,
-      notes: input.reference,
-      paymentTerms: input.terms,
+      description: input.description || undefined,
+      notes: input.reference || undefined,
+      paymentTerms: input.terms || undefined,
     };
 
     const result = await this.arapService.updateInvoice(tenantId, input.id, serviceInput, user.id);
@@ -117,17 +118,17 @@ export class ARAPResolver {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ARAPPayment> {
     // Transform input to match service interface
-    const serviceInput = {
+    const serviceInput: any = {
       paymentType: input.paymentType as 'received' | 'made',
-      customerId: input.customerId,
-      supplierId: input.supplierId,
+      customerId: input.customerId || undefined,
+      supplierId: input.supplierId || undefined,
       paymentDate: new Date(input.paymentDate),
       paymentAmount: parseFloat(input.paymentAmount),
       paymentMethod: input.paymentMethod as string,
-      referenceNumber: input.reference,
-      checkNumber: input.checkNumber,
-      bankAccountId: input.bankAccount,
-      notes: input.notes,
+      referenceNumber: input.reference || undefined,
+      checkNumber: input.checkNumber || undefined,
+      bankAccountId: input.bankAccount || undefined,
+      notes: input.notes || undefined,
     };
 
     const result = await this.arapService.createPayment(tenantId, serviceInput, user.id);
@@ -200,13 +201,13 @@ export class ARAPResolver {
       agingBuckets: report.buckets.map(bucket => ({
         bucketName: bucket.bucketName,
         daysFrom: bucket.minDays,
-        daysTo: bucket.maxDays,
+        daysTo: bucket.maxDays !== undefined ? bucket.maxDays : undefined,
         amount: bucket.amount.toFixed(2),
-        invoiceCount: 0, // Would need to be calculated
-        invoices: [], // Would need to be populated
-      })),
+        invoiceCount: 0,
+        invoices: [],
+      } as AgingBucket)),
       totalAmount: report.totalBalance.toFixed(2),
-      totalInvoices: 0, // Would need to be calculated
+      totalInvoices: 0,
       generatedAt: new Date(),
       tenantId,
     }));

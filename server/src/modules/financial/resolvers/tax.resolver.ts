@@ -54,14 +54,23 @@ export class TaxResolver extends BaseResolver {
     @Args('input') input: TaxCalculationInput,
     @CurrentTenant() tenantId: string,
   ): Promise<TaxCalculationResult> {
-    return await this.taxService.calculateTax(tenantId, input);
+    const serviceInput = {
+      sourceType: input.sourceType || 'manual',
+      sourceId: input.sourceId || 'unknown',
+      taxableAmount: parseFloat(input.taxableAmount),
+      productType: input.productType as any,
+      jurisdictionCodes: input.jurisdictionCodes,
+      calculationDate: input.calculationDate ? new Date(input.calculationDate) : new Date(),
+    };
+    const result = await this.taxService.calculateTax(tenantId, serviceInput);
+    return this.transformTaxCalculation(result);
   }
 
   /**
    * Query: Get tax rates
    * Returns all tax rates with optional filtering
    */
-  @Query(() => [String])
+  @Query(() => [TaxRate])
   @RequirePermission('financial:read')
   async getTaxRates(
     @CurrentTenant() tenantId: string,
@@ -70,7 +79,7 @@ export class TaxResolver extends BaseResolver {
   ): Promise<TaxRate[]> {
     // Check cache first (24-hour TTL)
     const cacheKey = `tax:rates:${tenantId}:${jurisdictionId || 'all'}:${activeOnly ?? true}`;
-    let rates = await this.cacheService.get<TaxRate[]>(cacheKey);
+    let rates = await this.cacheService.get<any[]>(cacheKey);
 
     if (!rates) {
       rates = await this.taxService.getTaxRates(tenantId, jurisdictionId, activeOnly ?? true);
@@ -79,14 +88,14 @@ export class TaxResolver extends BaseResolver {
       await this.cacheService.set(cacheKey, rates, { ttl: 86400 });
     }
 
-    return rates;
+    return rates.map(r => this.transformTaxRate(r));
   }
 
   /**
    * Query: Get tax jurisdictions
    * Returns all tax jurisdictions
    */
-  @Query(() => [String])
+  @Query(() => [TaxJurisdiction])
   @RequirePermission('financial:read')
   async taxJurisdictions(
     @CurrentTenant() tenantId: string,
@@ -94,7 +103,7 @@ export class TaxResolver extends BaseResolver {
   ): Promise<TaxJurisdiction[]> {
     // Check cache first (24-hour TTL)
     const cacheKey = `tax:jurisdictions:${tenantId}:${activeOnly ?? true}`;
-    let jurisdictions = await this.cacheService.get<TaxJurisdiction[]>(cacheKey);
+    let jurisdictions = await this.cacheService.get<any[]>(cacheKey);
 
     if (!jurisdictions) {
       jurisdictions = await this.taxService.getJurisdictions(tenantId, activeOnly ?? true);
@@ -103,14 +112,14 @@ export class TaxResolver extends BaseResolver {
       await this.cacheService.set(cacheKey, jurisdictions, { ttl: 86400 });
     }
 
-    return jurisdictions;
+    return jurisdictions.map(j => this.transformTaxJurisdiction(j));
   }
 
   /**
    * Query: Get tax report
    * Returns tax report for a period
    */
-  @Query(() => String)
+  @Query(() => TaxReturn)
   @RequirePermission('financial:read')
   async getTaxReport(
     @CurrentTenant() tenantId: string,
@@ -121,7 +130,7 @@ export class TaxResolver extends BaseResolver {
   ): Promise<TaxReturn> {
     // Check cache first (24-hour TTL)
     const cacheKey = `tax:report:${tenantId}:${jurisdictionId}:${periodYear}:${periodNumber}:${periodType}`;
-    let report = await this.cacheService.get<TaxReturn>(cacheKey);
+    let report = await this.cacheService.get<any>(cacheKey);
 
     if (!report) {
       report = await this.taxService.generateTaxReturn(
@@ -136,14 +145,14 @@ export class TaxResolver extends BaseResolver {
       await this.cacheService.set(cacheKey, report, { ttl: 86400 });
     }
 
-    return report;
+    return this.transformTaxReturn(report);
   }
 
   /**
    * Query: Get tax returns
    * Returns list of tax returns with optional filtering
    */
-  @Query(() => [String])
+  @Query(() => [TaxReturn])
   @RequirePermission('financial:read')
   async taxReturns(
     @CurrentTenant() tenantId: string,
@@ -151,19 +160,20 @@ export class TaxResolver extends BaseResolver {
     @Args('periodYear', { nullable: true }) periodYear?: number,
     @Args('filingStatus', { nullable: true }) filingStatus?: string,
   ): Promise<TaxReturn[]> {
-    return await this.taxService.getTaxReturns(
+    const results = await this.taxService.getTaxReturns(
       tenantId,
       jurisdictionId,
       periodYear,
       filingStatus,
     );
+    return results.map(r => this.transformTaxReturn(r));
   }
 
   /**
    * Mutation: Update tax rate
    * Creates or updates a tax rate
    */
-  @Mutation(() => String)
+  @Mutation(() => TaxRate)
   @RequirePermission('financial:manage')
   async updateTaxRate(
     @Args('input') input: any,
@@ -194,14 +204,14 @@ export class TaxResolver extends BaseResolver {
     // Invalidate cache
     await this.cacheService.invalidatePattern(`tax:*:${tenantId}:*`);
 
-    return taxRate;
+    return this.transformTaxRate(taxRate);
   }
 
   /**
    * Mutation: Create tax jurisdiction
    * Adds a new tax jurisdiction
    */
-  @Mutation(() => String)
+  @Mutation(() => TaxJurisdiction)
   @RequirePermission('financial:manage')
   async createTaxJurisdiction(
     @Args('input') input: any,
@@ -227,14 +237,14 @@ export class TaxResolver extends BaseResolver {
     // Invalidate cache
     await this.cacheService.invalidatePattern(`tax:*:${tenantId}:*`);
 
-    return jurisdiction;
+    return this.transformTaxJurisdiction(jurisdiction);
   }
 
   /**
    * Mutation: Create tax return
    * Creates a new tax return for filing
    */
-  @Mutation(() => String)
+  @Mutation(() => TaxReturn)
   @RequirePermission('financial:manage')
   async createTaxReturn(
     @Args('input') input: any,
@@ -259,6 +269,55 @@ export class TaxResolver extends BaseResolver {
       attachments: input.attachments || [],
     });
 
-    return taxReturn;
+    return this.transformTaxReturn(taxReturn);
+  }
+
+  // Helper transformation methods
+  private transformTaxCalculation(result: any): TaxCalculationResult {
+    return {
+      taxableAmount: result.taxableAmount?.toFixed(2) || '0.00',
+      totalTaxAmount: result.taxAmount?.toFixed(2) || result.totalTaxAmount?.toFixed(2) || '0.00',
+      taxDetails: result.taxDetails || result.calculations || [],
+      calculationDate: result.calculationDate || new Date(),
+      sourceType: result.sourceType || undefined,
+      sourceId: result.sourceId || undefined,
+    } as TaxCalculationResult;
+  }
+
+  private transformTaxRate(rate: any): TaxRate {
+    return {
+      id: rate.id,
+      jurisdiction: rate.jurisdiction || {},
+      taxType: rate.taxType,
+      rateName: rate.taxName,
+      rate: rate.rate,
+      createdBy: rate.createdBy || '',
+      createdAt: rate.createdAt || new Date(),
+      updatedAt: rate.updatedAt || new Date(),
+    } as TaxRate;
+  }
+
+  private transformTaxJurisdiction(jurisdiction: any): TaxJurisdiction {
+    return {
+      id: jurisdiction.id,
+      jurisdictionCode: jurisdiction.jurisdictionCode,
+      jurisdictionName: jurisdiction.jurisdictionName,
+      taxRates: jurisdiction.taxRates || [],
+      createdBy: jurisdiction.createdBy || '',
+      createdAt: jurisdiction.createdAt || new Date(),
+      updatedAt: jurisdiction.updatedAt || new Date(),
+    } as TaxJurisdiction;
+  }
+
+  private transformTaxReturn(taxReturn: any): TaxReturn {
+    return {
+      id: taxReturn.id,
+      jurisdiction: taxReturn.jurisdiction || {},
+      taxType: taxReturn.periodType,
+      createdBy: taxReturn.createdBy || '',
+      createdAt: taxReturn.createdAt || new Date(),
+      updatedAt: taxReturn.updatedAt || new Date(),
+    } as TaxReturn;
   }
 }
+

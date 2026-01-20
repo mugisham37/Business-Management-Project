@@ -1,7 +1,7 @@
 import { Resolver, Query, Args } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
-import { GraphQLJwtAuthGuard } from '../../auth/guards/graphql-jwt-auth.guard';
-import { GraphQLTenantGuard } from '../../tenant/guards/graphql-tenant.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { RequirePermission } from '../../auth/decorators/require-permission.decorator';
 import { CurrentUser } from '../../auth/decorators/auth.decorators';
 import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
@@ -9,7 +9,7 @@ import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 import { FinancialReportingService, FinancialReport } from '../services/financial-reporting.service';
 
 @Resolver()
-@UseGuards(GraphQLJwtAuthGuard, GraphQLTenantGuard)
+@UseGuards(JwtAuthGuard, TenantGuard)
 export class FinancialReportingResolver {
   constructor(
     private readonly financialReportingService: FinancialReportingService,

@@ -137,9 +137,9 @@ export class AccountsReceivablePayableResolver extends BaseResolver {
   async sendPaymentReminder(
     @Args('invoiceId', { type: () => ID }) invoiceId: string,
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Args('reminderType', { nullable: true }) reminderType?: string,
     @Args('customMessage', { nullable: true }) customMessage?: string,
-    @CurrentUser() user: AuthenticatedUser,
   ): Promise<boolean> {
     // Get invoice details
     const invoice = await this.arApService.getInvoiceById(tenantId, invoiceId);

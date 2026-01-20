@@ -19,7 +19,7 @@ export class AccountingService {
     return {
       message: 'Accounting system initialized successfully',
       accountsCreated: accounts.length,
-      accounts: accounts.map((account: ChartOfAccount) => ({
+      accounts: (accounts || []).map((account: any) => ({
         accountNumber: account.accountNumber,
         accountName: account.accountName,
         accountType: account.accountType,
@@ -32,7 +32,7 @@ export class AccountingService {
       includeInactive: false,
     });
 
-    const trialBalance = (allAccounts || []).map((account: ChartOfAccount) => {
+    const trialBalance = (allAccounts || []).map((account: any) => {
       const balance = parseBalanceAmount(account.currentBalance);
       const isDebit = isDebitAccount(account.normalBalance);
 
@@ -64,7 +64,7 @@ export class AccountingService {
     const options = accountType ? { accountType } : undefined;
     const accounts = await this.chartOfAccountsService.getAllAccounts(tenantId, options);
 
-    return (accounts || []).map((account: ChartOfAccount) => ({
+    return (accounts || []).map((account: any) => ({
       accountId: account.id,
       accountNumber: account.accountNumber,
       accountName: account.accountName,
@@ -100,14 +100,14 @@ export class AccountingService {
   ) {
     // Get relevant accounts
     const accounts = await this.chartOfAccountsService.getAllAccounts(tenantId);
-    const accountMap = new Map((accounts || []).map((acc: ChartOfAccount) => [acc.accountNumber, acc]));
+    const accountMap = new Map((accounts || []).map((acc: any) => [acc.accountNumber, acc]));
 
     // Find required accounts
-    const cashAccount = accountMap.get('1110') as ChartOfAccount; // Cash and Cash Equivalents
-    const salesRevenueAccount = accountMap.get('4100') as ChartOfAccount; // Sales Revenue
-    const cogsAccount = accountMap.get('5000') as ChartOfAccount; // Cost of Goods Sold
-    const inventoryAccount = accountMap.get('1130') as ChartOfAccount; // Inventory
-    const salesTaxAccount = accountMap.get('2120') as ChartOfAccount; // Accrued Expenses (for sales tax)
+    const cashAccount = accountMap.get('1110') as any; // Cash and Cash Equivalents
+    const salesRevenueAccount = accountMap.get('4100') as any; // Sales Revenue
+    const cogsAccount = accountMap.get('5000') as any; // Cost of Goods Sold
+    const inventoryAccount = accountMap.get('1130') as any; // Inventory
+    const salesTaxAccount = accountMap.get('2120') as any; // Accrued Expenses (for sales tax)
 
     if (!cashAccount || !salesRevenueAccount || !cogsAccount || !inventoryAccount) {
       throw new Error('Required accounts not found. Please initialize chart of accounts.');
@@ -203,13 +203,13 @@ export class AccountingService {
     // Group accounts by type
     const accountsByType = (accounts || []).reduce((acc, account) => {
       if (!account) return acc;
-      const accountType = account.accountType;
+      const accountType = (account as any).accountType;
       if (!acc[accountType]) {
         acc[accountType] = [];
       }
-      acc[accountType]!.push(account);
+      acc[accountType]!.push(account as any);
       return acc;
-    }, {} as Record<string, ChartOfAccount[]>);
+    }, {} as Record<string, any[]>);
 
     // Calculate totals by type
     const summary = {

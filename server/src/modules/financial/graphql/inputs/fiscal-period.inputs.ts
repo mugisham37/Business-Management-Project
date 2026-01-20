@@ -27,6 +27,10 @@ export class CreateFiscalPeriodInput {
 
   @Field({ nullable: true })
   @IsOptional()
+  isYearEnd?: boolean;
+
+  @Field({ nullable: true })
+  @IsOptional()
   @IsString()
   notes?: string;
 }
@@ -51,6 +55,10 @@ export class UpdateFiscalPeriodInput {
   @IsOptional()
   @IsDateString()
   endDate?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  isActive?: boolean;
 
   @Field({ nullable: true })
   @IsOptional()

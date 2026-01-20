@@ -15,7 +15,7 @@ import { ChartOfAccount } from '../graphql/types';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { CurrentUser, RequirePermission } from '../../auth/decorators';
-import { CurrentTenant } from '../../tenant/decorators/current-tenant.decorator';
+import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 
 @Resolver(() => Budget)

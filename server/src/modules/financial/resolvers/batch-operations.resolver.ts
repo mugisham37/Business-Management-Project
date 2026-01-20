@@ -16,7 +16,8 @@ import {
   JournalEntryConnection,
   ChartOfAccountConnection,
   BudgetConnection,
-  ARAPInvoiceConnection
+  ARAPInvoiceConnection,
+  PageInfo
 } from '../graphql/types';
 import { JournalEntry, ChartOfAccount, Budget, ARAPInvoice } from '../graphql/types';
 import { JournalEntryService } from '../services/journal-entry.service';
@@ -259,9 +260,20 @@ export class BatchOperationsResolver {
           continue;
         }
 
+        // Transform input to match service interface
+        const serviceInput: any = {
+          budgetName: budgetInput.budgetName,
+          budgetType: 'annual', // Default type
+          fiscalYear: budgetInput.budgetYear,
+          startDate: new Date(budgetInput.startDate),
+          endDate: new Date(budgetInput.endDate),
+          description: budgetInput.description || undefined,
+          notes: undefined,
+        };
+
         await this.budgetService.createBudget(
           tenantId, 
-          budgetInput, 
+          serviceInput, 
           user.id
         );
         results.successCount++;
@@ -303,9 +315,28 @@ export class BatchOperationsResolver {
           continue;
         }
 
+        // Transform input to match service interface
+        const serviceInput: any = {
+          invoiceType: invoiceInput.invoiceType as 'receivable' | 'payable',
+          customerId: invoiceInput.customerId || undefined,
+          supplierId: invoiceInput.supplierId || undefined,
+          invoiceDate: new Date(invoiceInput.invoiceDate),
+          dueDate: new Date(invoiceInput.dueDate),
+          description: invoiceInput.description || undefined,
+          notes: invoiceInput.reference || undefined,
+          paymentTerms: invoiceInput.terms || undefined,
+          lines: invoiceInput.lines.map((line: any) => ({
+            description: line.description,
+            quantity: parseFloat(line.quantity),
+            unitPrice: parseFloat(line.unitPrice),
+            glAccountId: line.accountId,
+            notes: line.taxCode,
+          })),
+        };
+
         await this.arapService.createInvoice(
           tenantId, 
-          invoiceInput, 
+          serviceInput, 
           user.id
         );
         results.successCount++;
@@ -365,7 +396,7 @@ export class BatchOperationsResolver {
         hasPreviousPage: false,
         startCursor: entries.length > 0 ? Buffer.from(`${entries[0].id}:0`).toString('base64') : undefined,
         endCursor: entries.length > 0 ? Buffer.from(`${entries[entries.length - 1].id}:${entries.length - 1}`).toString('base64') : undefined,
-      },
+      } as PageInfo,
       totalCount: entries.length, // This should be the actual total count from the database
     };
   }
@@ -381,6 +412,9 @@ export class BatchOperationsResolver {
       // Pagination would be handled differently in a real implementation
     });
 
+    const firstAccount = accounts.length > 0 ? accounts[0] : null;
+    const lastAccount = accounts.length > 0 ? accounts[accounts.length - 1] : null;
+
     return {
       edges: accounts.map((account, index) => ({
         node: account,
@@ -389,9 +423,9 @@ export class BatchOperationsResolver {
       pageInfo: {
         hasNextPage: accounts.length === (pagination?.first || 20),
         hasPreviousPage: false,
-        startCursor: accounts.length > 0 ? Buffer.from(`${accounts[0].id}:0`).toString('base64') : undefined,
-        endCursor: accounts.length > 0 ? Buffer.from(`${accounts[accounts.length - 1].id}:${accounts.length - 1}`).toString('base64') : undefined,
-      },
+        startCursor: firstAccount ? Buffer.from(`${firstAccount.id}:0`).toString('base64') : undefined,
+        endCursor: lastAccount ? Buffer.from(`${lastAccount.id}:${accounts.length - 1}`).toString('base64') : undefined,
+      } as PageInfo,
       totalCount: accounts.length,
     };
   }

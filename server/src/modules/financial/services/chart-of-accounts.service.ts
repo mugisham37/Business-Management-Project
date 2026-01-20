@@ -81,7 +81,7 @@ export class ChartOfAccountsService {
       throw new NotFoundException('Account not found');
     }
 
-    return account;
+    return account as any;
   }
 
   async findAccountByNumber(tenantId: string, accountNumber: string) {
@@ -113,7 +113,7 @@ export class ChartOfAccountsService {
     }
 
     const accountsArray = Array.isArray(accounts) ? accounts : [];
-    return accountsArray;
+    return accountsArray as any;
   }
 
   async getAccountHierarchy(tenantId: string, rootAccountId?: string): Promise<AccountHierarchy[]> {
@@ -147,7 +147,7 @@ export class ChartOfAccountsService {
     // Clear cache
     await this.invalidateAccountCache(tenantId);
 
-    return updatedAccount;
+    return updatedAccount as any;
   }
 
   async deleteAccount(tenantId: string, id: string, userId: string) {
@@ -181,7 +181,7 @@ export class ChartOfAccountsService {
     }
 
     const accountsArray = Array.isArray(accounts) ? accounts : [];
-    return accountsArray;
+    return accountsArray as any;
   }
 
   async searchAccounts(tenantId: string, searchTerm: string, limit = 20): Promise<ChartOfAccount[]> {
@@ -191,7 +191,7 @@ export class ChartOfAccountsService {
 
     const results = await this.chartOfAccountsRepository.searchAccounts(tenantId, searchTerm, limit);
     const resultsArray = Array.isArray(results) ? results : [];
-    return resultsArray;
+    return resultsArray as any;
   }
 
   async updateAccountBalance(tenantId: string, accountId: string, newBalance: string) {
@@ -233,7 +233,6 @@ export class ChartOfAccountsService {
           ...(parentAccountId && { parentAccountId }),
           description: accountData.description || '',
           isActive: true,
-          allowManualEntries: accountData.allowManualEntries ?? true,
         }, userId);
 
         createdAccounts.push(account);

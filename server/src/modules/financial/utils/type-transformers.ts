@@ -15,7 +15,7 @@ export function transformToChartOfAccount(account: ChartOfAccount): ChartOfAccou
     accountType: account.accountType,
     accountSubType: account.accountSubType,
     parentAccountId: account.parentAccountId,
-    parentAccount: undefined, // Will be resolved by GraphQL field resolver
+    parentAccount: account.parentAccountId ? ({} as ChartOfAccountGQL) : undefined, // Will be resolved by GraphQL field resolver
     childAccounts: [], // Will be resolved by GraphQL field resolver
     normalBalance: account.normalBalance,
     description: account.description,

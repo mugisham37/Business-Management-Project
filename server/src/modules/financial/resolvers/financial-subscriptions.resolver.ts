@@ -27,7 +27,7 @@ export class FinancialSubscriptionsResolver {
     @CurrentTenant() tenantId: string,
     @Args('accountId', { nullable: true }) accountId?: string,
   ) {
-    return this.pubSub.asyncIterator('journalEntryPosted', tenantId);
+    return (this.pubSub as any).asyncIterator(['journalEntryPosted']) as AsyncIterable<JournalEntry>;
   }
 
   @Subscription(() => JournalEntry, {
@@ -40,7 +40,7 @@ export class FinancialSubscriptionsResolver {
     @CurrentTenant() tenantId: string,
     @Args('status', { nullable: true }) status?: JournalEntryStatus,
   ) {
-    return this.pubSub.asyncIterator('journalEntryStatusChanged', tenantId);
+    return (this.pubSub as any).asyncIterator(['journalEntryStatusChanged']) as AsyncIterable<JournalEntry>;
   }
 
   @Subscription(() => ChartOfAccount, {
@@ -53,7 +53,7 @@ export class FinancialSubscriptionsResolver {
     @CurrentTenant() tenantId: string,
     @Args('accountId', { nullable: true }) accountId?: string,
   ) {
-    return this.pubSub.asyncIterator('accountBalanceChanged', tenantId);
+    return (this.pubSub as any).asyncIterator(['accountBalanceChanged']) as AsyncIterable<ChartOfAccount>;
   }
 
   @Subscription(() => Budget, {
@@ -67,7 +67,7 @@ export class FinancialSubscriptionsResolver {
     @Args('budgetId', { nullable: true }) budgetId?: string,
     @Args('thresholdPercentage', { nullable: true }) thresholdPercentage?: number,
   ) {
-    return this.pubSub.asyncIterator('budgetVarianceAlert', tenantId);
+    return (this.pubSub as any).asyncIterator(['budgetVarianceAlert']) as AsyncIterable<Budget>;
   }
 
   @Subscription(() => Reconciliation, {
@@ -80,7 +80,7 @@ export class FinancialSubscriptionsResolver {
     @CurrentTenant() tenantId: string,
     @Args('accountId', { nullable: true }) accountId?: string,
   ) {
-    return this.pubSub.asyncIterator('reconciliationCompleted', tenantId);
+    return (this.pubSub as any).asyncIterator(['reconciliationCompleted']) as AsyncIterable<Reconciliation>;
   }
 
   @Subscription(() => String, {
@@ -92,7 +92,7 @@ export class FinancialSubscriptionsResolver {
   fiscalPeriodClosed(
     @CurrentTenant() tenantId: string,
   ) {
-    return this.pubSub.asyncIterator('fiscalPeriodClosed', tenantId);
+    return (this.pubSub as any).asyncIterator(['fiscalPeriodClosed']) as AsyncIterable<string>;
   }
 
   @Subscription(() => String, {
@@ -104,7 +104,7 @@ export class FinancialSubscriptionsResolver {
   taxReturnFiled(
     @CurrentTenant() tenantId: string,
   ) {
-    return this.pubSub.asyncIterator('taxReturnFiled', tenantId);
+    return (this.pubSub as any).asyncIterator(['taxReturnFiled']) as AsyncIterable<string>;
   }
 
   @Subscription(() => String, {
@@ -117,6 +117,6 @@ export class FinancialSubscriptionsResolver {
     @CurrentTenant() tenantId: string,
     @Args('currencyCode', { nullable: true }) currencyCode?: string,
   ) {
-    return this.pubSub.asyncIterator('currencyRateUpdated', tenantId);
+    return (this.pubSub as any).asyncIterator(['currencyRateUpdated']) as AsyncIterable<string>;
   }
 }
