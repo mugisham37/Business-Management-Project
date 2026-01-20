@@ -124,7 +124,7 @@ export class LotTrackingResolver extends BaseResolver {
     @Args('warehouseId', { type: () => ID, nullable: true }) warehouseId?: string,
     @CurrentTenant() tenantId?: string,
   ): Promise<LotInfoType[]> {
-    const result = await this.lotTrackingService.getExpiringLots(tenantId || '', warehouseId, 0);
+    const result = await this.lotTrackingService.getExpiringLots(tenantId || '', warehouseId || '', 0);
     return result as any;
   }
 
@@ -138,7 +138,7 @@ export class LotTrackingResolver extends BaseResolver {
     @Args('warehouseId', { type: () => ID, nullable: true }) warehouseId?: string,
     @CurrentTenant() tenantId?: string,
   ): Promise<LotInfoType[]> {
-    const result = await this.lotTrackingService.getExpiringLots(tenantId || '', warehouseId, days);
+    const result = await this.lotTrackingService.getExpiringLots(tenantId || '', warehouseId || '', days);
     return result as any;
   }
 
@@ -244,7 +244,8 @@ export class LotTrackingResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
   ): Promise<LotInfoType> {
-    return this.lotTrackingService.createLotFromResolver(tenantId, input, user.id);
+    const result = await this.lotTrackingService.createLotFromResolver(tenantId, input, user.id);
+    return result as LotInfoType;
   }
 
   @Mutation(() => LotInfoType, { name: 'updateLot' })
@@ -261,7 +262,8 @@ export class LotTrackingResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
   ): Promise<LotInfoType> {
-    return this.lotTrackingService.updateLotFromResolver(tenantId, productId, lotNumber, input, user.id);
+    const result = await this.lotTrackingService.updateLotFromResolver(tenantId, productId, lotNumber, input, user.id);
+    return result as LotInfoType;
   }
 
   @Mutation(() => Boolean, { name: 'deleteLot' })
@@ -350,7 +352,8 @@ export class LotTrackingResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
   ): Promise<RecallInfoType> {
-    return this.lotTrackingService.createRecall(tenantId, input, user.id);
+    const result = await this.lotTrackingService.createRecall(tenantId, { tenantId, ...input, userId: user.id } as any);
+    return (result || {}) as any as RecallInfoType;
   }
 
   @Mutation(() => RecallInfoType, { name: 'updateRecallStatus' })
@@ -383,7 +386,11 @@ export class LotTrackingResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
   ): Promise<boolean> {
-    await this.lotTrackingService.quarantineLot(tenantId, productId, lotNumber, reason, user.id);
+    await this.lotTrackingService.updateLot(tenantId, lotNumber, productId, { 
+      qualityStatus: 'quarantine', 
+      notes: reason,
+      userId: user.id,
+    });
     return true;
   }
 
@@ -427,7 +434,7 @@ export class LotTrackingResolver extends BaseResolver {
   ): Promise<WarehouseType> {
     return this.dataLoaderService.getLoader(
       'warehouses',
-      (warehouseIds: readonly string[]) => this.warehouseService.getWarehousesByIds(tenantId, warehouseIds as string[]),
+      (warehouseIds: readonly string[]) => this.warehouseService.getWarehousesByIds(Array.from(warehouseIds) as string[], tenantId),
     ).load(lot.warehouseId);
   }
 
@@ -457,7 +464,8 @@ export class LotTrackingResolver extends BaseResolver {
     @Parent() lot: LotInfoType,
     @CurrentTenant() tenantId: string,
   ): Promise<LotMovementType[]> {
-    return this.lotTrackingService.getLotMovementHistory(tenantId, lot.productId, lot.lotNumber);
+    const movements = await this.lotTrackingService.getLotMovementHistory(tenantId, lot.productId, lot.lotNumber);
+    return (movements || []) as any as LotMovementType[];
   }
 
   @ResolveField(() => Boolean, { name: 'isExpired' })

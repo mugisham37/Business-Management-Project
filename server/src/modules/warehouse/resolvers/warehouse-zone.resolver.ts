@@ -52,15 +52,15 @@ export class WarehouseZoneResolver extends BaseResolver {
   async createWarehouseZone(
     @Args('warehouseId', { type: () => ID }) warehouseId: string,
     @Args('name') name: string,
-    @Args('zoneType') zoneType: string,
+    @Args('zoneType') zoneType: any,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<any> {
     return this.zoneService.createZone(tenantId, {
       warehouseId,
       name,
-      zoneType,
-    }, user.id);
+      zoneType: zoneType as any,
+    } as any, user.id);
   }
 
   @Mutation(() => WarehouseZoneType, { name: 'updateWarehouseZone' })
@@ -69,14 +69,14 @@ export class WarehouseZoneResolver extends BaseResolver {
   async updateWarehouseZone(
     @Args('id', { type: () => ID }) id: string,
     @Args('name', { nullable: true }) name: string,
-    @Args('zoneType', { nullable: true }) zoneType: string,
+    @Args('zoneType', { nullable: true }) zoneType: any,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<any> {
     return this.zoneService.updateZone(tenantId, id, {
       name,
-      zoneType,
-    }, user.id);
+      zoneType: zoneType as any,
+    } as any, user.id);
   }
 
   @Mutation(() => Boolean, { name: 'deleteWarehouseZone' })
@@ -96,14 +96,10 @@ export class WarehouseZoneResolver extends BaseResolver {
     @Parent() zone: any,
     @CurrentTenant() tenantId: string,
   ): Promise<any> {
-    const loader = this.getDataLoader(
+    const loader = this.dataLoaderService.getLoader(
       'warehouse_by_id',
-      async (warehouseIds: readonly string[]) => {
-        const warehouses = await Promise.all(
-          warehouseIds.map(id => this.warehouseService.getWarehouse(tenantId, id))
-        );
-        return warehouses.map(wh => wh || new Error('Warehouse not found'));
-      },
+      (warehouseIds: readonly string[]) =>
+        Promise.all(Array.from(warehouseIds).map(id => this.warehouseService.getWarehouse(tenantId, id)))
     );
     return loader.load(zone.warehouseId);
   }
@@ -113,12 +109,8 @@ export class WarehouseZoneResolver extends BaseResolver {
     @Parent() zone: any,
     @CurrentTenant() tenantId: string,
   ): Promise<any[]> {
-    const loader = this.getDataLoader(
-      'bins_by_zone',
-      async (zoneIds: readonly string[]) => {
-        return this.binLocationService.batchLoadByZoneIds(zoneIds as string[]);
-      },
-    );
-    return loader.load(zone.id);
+    // Get bin locations for this zone directly
+    const bins = await this.binLocationService.getBinLocationsByZone(tenantId, zone.id);
+    return bins as unknown[] || [];
   }
 }

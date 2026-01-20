@@ -598,17 +598,17 @@ export class ShippingIntegrationService {
     await this.cacheService.set(cacheKey, data, { ttl: 86400 }); // 24 hours
   }
 
-  private async getShipment(tenantId: string, shipmentId: string): Promise<any> {
+  async getShipment(tenantId: string, shipmentId: string): Promise<any> {
     const cacheKey = `shipment:${tenantId}:${shipmentId}`;
     return await this.cacheService.get(cacheKey);
   }
 
-  private async getShipmentByTrackingNumber(tenantId: string, trackingNumber: string): Promise<any> {
+  async getShipmentByTrackingNumber(tenantId: string, trackingNumber: string): Promise<any> {
     const cacheKey = `shipment:tracking:${tenantId}:${trackingNumber}`;
     return await this.cacheService.get(cacheKey);
   }
 
-  private async updateShipmentStatus(tenantId: string, shipmentId: string, status: string, userId: string): Promise<void> {
+  async updateShipmentStatus(tenantId: string, shipmentId: string, status: string, userId: string): Promise<void> {
     const shipment = await this.getShipment(tenantId, shipmentId);
     if (shipment) {
       shipment.status = status;
@@ -620,7 +620,7 @@ export class ShippingIntegrationService {
     }
   }
 
-  private async markShipmentDelivered(tenantId: string, shipmentId: string, deliveryEvent: TrackingEvent): Promise<void> {
+  async markShipmentDelivered(tenantId: string, shipmentId: string, deliveryEvent: TrackingEvent): Promise<void> {
     const shipment = await this.getShipment(tenantId, shipmentId);
     if (shipment) {
       shipment.status = 'delivered';
@@ -662,7 +662,7 @@ export class ShippingIntegrationService {
     }
   }
 
-  private async invalidateShipmentCache(tenantId: string, shipmentId: string): Promise<void> {
+  async invalidateShipmentCache(tenantId: string, shipmentId: string): Promise<void> {
     await this.cacheService.invalidatePattern(`shipment:${tenantId}:${shipmentId}*`);
     await this.cacheService.invalidatePattern(`shipping:warehouse:${tenantId}:*`);
     await this.cacheService.invalidatePattern(`shipping:metrics:${tenantId}:*`);

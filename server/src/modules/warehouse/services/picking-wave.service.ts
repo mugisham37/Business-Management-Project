@@ -315,7 +315,7 @@ export class PickingWaveService {
       });
     }
 
-    if (availablePickers.length < planningResult.recommendedWaves.length) {
+    if (preferredPickers.length < planningResult.recommendedWaves.length) {
       planningResult.recommendations.push({
         type: 'picker_shortage',
         priority: 'high',

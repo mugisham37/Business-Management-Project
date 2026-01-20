@@ -99,7 +99,9 @@ export interface UpdateLotDto {
   qualityStatus?: 'approved' | 'pending' | 'rejected' | 'quarantine';
   testResults?: Record<string, any>;
   notes?: string;
-  userId: string;
+  userId?: string;
+  quarantineStatus?: 'quarantined' | 'active';
+  quarantineReason?: string | null;
 }
 
 export interface CreateRecallDto {
@@ -878,18 +880,6 @@ export class LotTrackingService {
     return { id: movement.id, lotNumber: movement.lotNumber };
   }
 
-  // Add wrappers for quarantine methods
-  async quarantineLot(tenantId: string, productId: string, lotNumber: string, reason?: string, userId?: string): Promise<any> {
-    const lot = await this.getLotByNumber(tenantId, productId, lotNumber);
-    if (lot) {
-      await this.updateLot(tenantId, lotNumber, productId, {
-        qualityStatus: 'quarantine',
-        notes: reason,
-      } as any);
-    }
-    return { lotNumber, quarantined: true };
-  }
-
   async releaseLotFromQuarantine(tenantId: string, productId: string, lotNumber: string, userId?: string): Promise<void> {
     const lot = await this.getLotByNumber(tenantId, productId, lotNumber);
     if (lot) {
@@ -951,17 +941,6 @@ export class LotTrackingService {
     } as any);
   }
 
-  async quarantineLot(tenantId: string, productId: string, lotNumber: string, reason?: string): Promise<any> {
-    const lot = await this.getLotByNumber(tenantId, productId, lotNumber);
-    if (lot) {
-      await this.updateLot(tenantId, lotNumber, productId, { 
-        quarantineStatus: 'quarantined',
-        quarantineReason: reason,
-      });
-    }
-    return lot;
-  }
-
   async releaseLotFromQuarantineImpl(tenantId: string, productId: string, lotNumber: string): Promise<any> {
     const lot = await this.getLotByNumber(tenantId, productId, lotNumber);
     if (lot) {
@@ -977,7 +956,15 @@ export class LotTrackingService {
     const lot = await this.getLotByNumber(tenantId, productId, lotNumber);
     if (lot) {
       const now = new Date();
-      const expiryDate = new Date(lot.expiryDate);
+      const expiryDate = lot.expiryDate ? new Date(lot.expiryDate) : null;
+      if (!expiryDate) {
+        return {
+          lotNumber,
+          isExpired: false,
+          daysUntilExpiry: null,
+          expiryDate: null,
+        };
+      }
       return {
         lotNumber,
         isExpired: expiryDate < now,
@@ -1008,10 +995,5 @@ export class LotTrackingService {
     
     // This would send recall notifications to customers or regulatory bodies
     // Implementation would use notification service to send alerts
-  }
-
-  async createRecall(tenantId: string, input: any, userId?: string): Promise<any> {
-    // Create new recall
-    return { recallId: `recall-${Date.now()}`, ...input, createdBy: userId };
   }
 }

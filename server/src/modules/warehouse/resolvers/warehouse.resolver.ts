@@ -87,7 +87,18 @@ export class WarehouseResolver extends BaseResolver {
     @Args('filter', { type: () => WarehouseFilterInput, nullable: true }) filter?: WarehouseFilterInput,
     @CurrentTenant() tenantId?: string,
   ): Promise<WarehouseConnection> {
-    return this.warehouseService.getWarehouses(tenantId, paginationArgs, filter);
+    const result = await this.warehouseService.getWarehouses(tenantId || '', { ...paginationArgs, ...filter } as any);
+    return {
+      edges: (result.warehouses || []).map((warehouse: any, idx: number) => ({
+        cursor: Buffer.from(`warehouse-${idx}`).toString('base64'),
+        node: warehouse,
+      })),
+      pageInfo: {
+        hasNextPage: result.page < result.totalPages,
+        hasPreviousPage: result.page > 1,
+      },
+      totalCount: result.total,
+    } as WarehouseConnection;
   }
 
   @Query(() => WarehouseCapacityType, { name: 'warehouseCapacity' })
@@ -99,7 +110,8 @@ export class WarehouseResolver extends BaseResolver {
     @Args('warehouseId', { type: () => ID }) warehouseId: string,
     @CurrentTenant() tenantId: string,
   ): Promise<WarehouseCapacityType> {
-    return this.warehouseService.getWarehouseCapacity(tenantId, warehouseId);
+    const result = await this.warehouseService.getWarehouseCapacity(tenantId, warehouseId);
+    return (result || {}) as WarehouseCapacityType;
   }
 
   @Query(() => [WarehouseType], { name: 'warehousesByLocation' })
@@ -126,7 +138,8 @@ export class WarehouseResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
   ): Promise<WarehouseType> {
-    return this.warehouseService.createWarehouse(tenantId, input, user.id);
+    const result = await this.warehouseService.createWarehouse(tenantId, input as any, user.id);
+    return result as WarehouseType;
   }
 
   @Mutation(() => WarehouseType, { name: 'updateWarehouse' })
@@ -141,7 +154,8 @@ export class WarehouseResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
   ): Promise<WarehouseType> {
-    return this.warehouseService.updateWarehouse(tenantId, id, input, user.id);
+    const result = await this.warehouseService.updateWarehouse(tenantId, id, input as any, user.id);
+    return result as WarehouseType;
   }
 
   @Mutation(() => Boolean, { name: 'deleteWarehouse' })
@@ -170,7 +184,9 @@ export class WarehouseResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
   ): Promise<WarehouseType> {
-    return this.warehouseService.initializeWarehouse(tenantId, input, user.id);
+    await this.warehouseService.initializeWarehouse(tenantId, input as any, user.id);
+    const warehouse = await this.warehouseService.getWarehouse(tenantId, (input as any).id);
+    return (warehouse || {}) as any as WarehouseType;
   }
 
   @Mutation(() => WarehouseCapacityType, { name: 'updateWarehouseCapacity' })
@@ -184,7 +200,9 @@ export class WarehouseResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
   ): Promise<WarehouseCapacityType> {
-    return this.warehouseService.updateWarehouseCapacity(tenantId, input, user.id);
+    await this.warehouseService.updateWarehouseCapacity(tenantId, (input as any).warehouseId, (input as any).maxCapacity, (input as any).reserved, user.id);
+    const capacity = await this.warehouseService.getWarehouseCapacity(tenantId, (input as any).warehouseId);
+    return (capacity || {}) as any as WarehouseCapacityType;
   }
 
   @Mutation(() => WarehouseType, { name: 'updateWarehouseConfiguration' })
@@ -199,7 +217,9 @@ export class WarehouseResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
   ): Promise<WarehouseType> {
-    return this.warehouseService.updateWarehouseConfiguration(tenantId, warehouseId, input, user.id);
+    await this.warehouseService.updateWarehouseConfiguration(tenantId, warehouseId, { ...input } as any);
+    const warehouse = await this.warehouseService.getWarehouse(tenantId, warehouseId);
+    return (warehouse || {}) as any as WarehouseType;
   }
 
   @Mutation(() => WarehouseType, { name: 'updateWarehouseOperatingHours' })
@@ -212,7 +232,8 @@ export class WarehouseResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
   ): Promise<WarehouseType> {
-    return this.warehouseService.updateWarehouseOperatingHours(tenantId, input, user.id);
+    const result = await this.warehouseService.updateWarehouseOperatingHours(tenantId, input as any, user.id);
+    return result as WarehouseType;
   }
 
   @Mutation(() => WarehouseType, { name: 'optimizeWarehouseLayout' })
@@ -226,7 +247,8 @@ export class WarehouseResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
   ): Promise<WarehouseType> {
-    return this.warehouseService.optimizeWarehouseLayout(tenantId, input, user.id);
+    const result = await this.warehouseService.optimizeWarehouseLayout(tenantId, input as any, user.id);
+    return result as WarehouseType;
   }
 
   @Mutation(() => Boolean, { name: 'updateWarehousePerformanceMetrics' })
@@ -239,7 +261,7 @@ export class WarehouseResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
   ): Promise<boolean> {
-    await this.warehouseService.updateWarehousePerformanceMetrics(tenantId, input, user.id);
+    await this.warehouseService.updateWarehousePerformanceMetrics(tenantId, input as any, user.id);
     return true;
   }
 
@@ -249,10 +271,13 @@ export class WarehouseResolver extends BaseResolver {
     @Parent() warehouse: WarehouseType,
     @CurrentTenant() tenantId: string,
   ): Promise<WarehouseZoneType[]> {
-    return this.dataLoaderService.createDataLoader(
+    return this.dataLoaderService.getLoader(
       'warehouseZones',
-      (warehouseIds: string[]) => this.zoneService.getZonesByWarehouseIds(tenantId, warehouseIds),
-      'warehouseId',
+      async (warehouseIds: readonly string[]) => {
+        const firstId = Array.from(warehouseIds)[0];
+        if (!firstId) return [];
+        return this.zoneService.getZonesByWarehouse(tenantId, firstId);
+      },
     ).load(warehouse.id);
   }
 
@@ -262,7 +287,8 @@ export class WarehouseResolver extends BaseResolver {
     @Args() paginationArgs: PaginationArgs,
     @CurrentTenant() tenantId: string,
   ): Promise<BinLocationType[]> {
-    return this.binLocationService.getBinLocationsByWarehouse(tenantId, warehouse.id, paginationArgs);
+    const result = await this.binLocationService.getBinLocationsByWarehouse(tenantId, warehouse.id);
+    return (result || []) as BinLocationType[];
   }
 
   @ResolveField(() => EmployeeType, { name: 'manager', nullable: true })
@@ -272,9 +298,9 @@ export class WarehouseResolver extends BaseResolver {
   ): Promise<EmployeeType | null> {
     if (!warehouse.warehouseManagerId) return null;
     
-    return this.dataLoaderService.createDataLoader(
+    return this.dataLoaderService.getLoader(
       'employees',
-      (employeeIds: string[]) => this.getEmployeesByIds(tenantId, employeeIds),
+      (employeeIds: readonly string[]) => this.getEmployeesByIds(tenantId, Array.from(employeeIds)),
     ).load(warehouse.warehouseManagerId);
   }
 
@@ -283,7 +309,8 @@ export class WarehouseResolver extends BaseResolver {
     @Parent() warehouse: WarehouseType,
     @CurrentTenant() tenantId: string,
   ): Promise<WarehouseCapacityType> {
-    return this.warehouseService.getWarehouseCapacity(tenantId, warehouse.id);
+    const capacity = await this.warehouseService.getWarehouseCapacity(tenantId, warehouse.id);
+    return (capacity || {}) as any as WarehouseCapacityType;
   }
 
   // Subscriptions

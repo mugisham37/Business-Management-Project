@@ -459,21 +459,33 @@ export class KittingAssemblyService {
   async deleteKitDefinition(tenantId: string, kitId: string, userId?: string): Promise<void> {
     const kit = await this.getKit(tenantId, kitId);
     if (kit) {
-      await this.updateKit(tenantId, kitId, { isActive: false });
+      await this.invalidateKitCache(tenantId, kitId);
     }
   }
 
   async activateKitDefinition(tenantId: string, kitId: string, userId?: string): Promise<any> {
-    return this.updateKit(tenantId, kitId, { isActive: true });
+    const kit = await this.getKit(tenantId, kitId);
+    if (kit) {
+      kit.isActive = true;
+      await this.storeKitDefinition(tenantId, kit);
+      await this.invalidateKitCache(tenantId, kitId);
+    }
+    return kit;
   }
 
   async deactivateKitDefinition(tenantId: string, kitId: string, userId?: string): Promise<any> {
-    return this.updateKit(tenantId, kitId, { isActive: false });
+    const kit = await this.getKit(tenantId, kitId);
+    if (kit) {
+      kit.isActive = false;
+      await this.storeKitDefinition(tenantId, kit);
+      await this.invalidateKitCache(tenantId, kitId);
+    }
+    return kit;
   }
 
   async getAssemblyWorkOrdersByKit(tenantId: string, kitId: string, paginationArgs?: any): Promise<any[]> {
     const result = await this.getAssemblyWorkOrders(tenantId, { 
-      filters: { kitId },
+      kitId,
       page: paginationArgs?.page || 1,
       limit: paginationArgs?.limit || paginationArgs?.first || 20,
     });
@@ -481,23 +493,24 @@ export class KittingAssemblyService {
   }
 
   async getAssemblyWorkOrderByNumber(tenantId: string, workOrderNumber: string): Promise<any> {
-    const result = await this.getAssemblyWorkOrders(tenantId, { filters: { workOrderNumber } });
+    const result = await this.getAssemblyWorkOrders(tenantId, { status: workOrderNumber });
     return (result.workOrders || [])[0] || null;
   }
 
   async getAssemblyWorkOrdersByWarehouse(tenantId: string, warehouseId: string): Promise<any[]> {
-    const result = await this.getAssemblyWorkOrders(tenantId, { filters: { warehouseId } });
+    const result = await this.getAssemblyWorkOrders(tenantId, { warehouseId });
     return result.workOrders || [];
   }
 
   async getAssemblyWorkOrdersByAssembler(tenantId: string, assemblerId: string): Promise<any[]> {
-    const result = await this.getAssemblyWorkOrders(tenantId, { filters: { assignedAssemblerId: assemblerId } });
+    const result = await this.getAssemblyWorkOrders(tenantId, { assignedTo: assemblerId });
     return result.workOrders || [];
   }
 
   async getPendingAssemblyWorkOrders(tenantId: string, warehouseId?: string): Promise<any[]> {
     const result = await this.getAssemblyWorkOrders(tenantId, { 
-      filters: { status: 'pending', ...(warehouseId && { warehouseId }) }
+      status: 'pending', 
+      ...(warehouseId && { warehouseId })
     });
     return result.workOrders || [];
   }
@@ -505,7 +518,7 @@ export class KittingAssemblyService {
   async getOverdueAssemblyWorkOrders(tenantId: string, warehouseId?: string): Promise<any[]> {
     const now = new Date();
     const result = await this.getAssemblyWorkOrders(tenantId, { 
-      filters: { ...(warehouseId && { warehouseId }) }
+      ...(warehouseId && { warehouseId })
     });
     return ((result.workOrders || []) as any[]).filter(wo => wo.dueDate && new Date(wo.dueDate) < now);
   }

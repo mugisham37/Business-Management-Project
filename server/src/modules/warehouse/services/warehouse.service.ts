@@ -398,15 +398,15 @@ export class WarehouseService {
   }
 
   async updateWarehouseConfiguration(tenantId: string, warehouseId: string, config: any): Promise<any> {
-    return this.updateWarehouse(tenantId, warehouseId, { configuration: config }, '');
+    return this.updateWarehouse(tenantId, warehouseId, { ...config } as any, 'system');
   }
 
   async updateWarehouseOperatingHours(tenantId: string, warehouseId: string, hours: any): Promise<any> {
-    return this.updateWarehouse(tenantId, warehouseId, { operatingHours: hours }, '');
+    return this.updateWarehouse(tenantId, warehouseId, { ...hours } as any, 'system');
   }
 
   async updateWarehousePerformanceMetrics(tenantId: string, warehouseId: string, metrics: any): Promise<any> {
-    return this.updateWarehouse(tenantId, warehouseId, { ...metrics }, '');
+    return this.updateWarehouse(tenantId, warehouseId, { ...metrics } as any, 'system');
   }
 
   // End of wrapper methods

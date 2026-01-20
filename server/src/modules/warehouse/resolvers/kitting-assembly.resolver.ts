@@ -121,7 +121,8 @@ export class KittingAssemblyResolver extends BaseResolver {
     @Args('id', { type: () => ID }) id: string,
     @CurrentTenant() tenantId: string,
   ): Promise<AssemblyWorkOrderType | null> {
-    return this.kittingAssemblyService.getAssemblyWorkOrder(tenantId, id);
+    const workOrder = await this.kittingAssemblyService.getAssemblyWorkOrder(tenantId, id);
+    return workOrder as AssemblyWorkOrderType | null;
   }
 
   @Query(() => AssemblyWorkOrderConnection, { name: 'assemblyWorkOrders' })
@@ -421,7 +422,8 @@ export class KittingAssemblyResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
   ): Promise<AssemblyWorkOrderType> {
-    return this.kittingAssemblyService.consumeComponentsFromResolver(tenantId, workOrderId, components, user.id);
+    const result = await this.kittingAssemblyService.consumeComponentsFromResolver(tenantId, workOrderId, components, user.id);
+    return (result || {}) as any as AssemblyWorkOrderType;
   }
 
   @Mutation(() => AssemblyWorkOrderType, { name: 'recordQualityCheck' })
@@ -538,7 +540,7 @@ export class KittingAssemblyResolver extends BaseResolver {
   ): Promise<WarehouseType> {
     return this.dataLoaderService.getLoader(
       'warehouses',
-      (warehouseIds: readonly string[]) => this.warehouseService.getWarehousesByIds(tenantId, Array.from(warehouseIds)),
+      (warehouseIds: readonly string[]) => this.warehouseService.getWarehousesByIds(Array.from(warehouseIds) as string[], tenantId),
     ).load(workOrder.warehouseId);
   }
 

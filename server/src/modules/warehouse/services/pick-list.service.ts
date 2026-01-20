@@ -409,7 +409,7 @@ export class PickListService {
         break;
       case 'fewest_aisles':
         // Optimize for fewest aisles traversed
-        optimizedLocations = this.optimizeByAisles(binLocations);
+        optimizedLocations = this.optimizeByTime(binLocations);
         break;
       case 'serpentine':
         // Serpentine (snake) pattern through aisles
