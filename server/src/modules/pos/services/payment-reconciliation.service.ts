@@ -52,6 +52,14 @@ export interface ReconciliationReport {
   // Discrepancies
   discrepancies: ReconciliationDiscrepancy[];
   
+  // Summary object for GraphQL
+  summary?: {
+    expectedAmount: number;
+    actualAmount: number;
+    variance: number;
+    variancePercentage: number;
+  };
+  
   // Status
   status: 'balanced' | 'variance_detected' | 'major_discrepancy';
   isApproved: boolean;
@@ -126,7 +134,7 @@ export class PaymentReconciliationService {
       const report: ReconciliationReport = {
         reconciliationId,
         tenantId,
-        locationId: options.locationIds?.[0],
+        ...(options.locationIds?.[0] && { locationId: options.locationIds[0] }),
         startDate,
         endDate,
         generatedAt: new Date(),
@@ -424,7 +432,7 @@ export class PaymentReconciliationService {
 
   private async cacheReconciliationReport(report: ReconciliationReport): Promise<void> {
     const cacheKey = `reconciliation:${report.tenantId}:${report.reconciliationId}`;
-    await this.cacheService.set(cacheKey, report, 7 * 24 * 3600); // Cache for 7 days
+    await this.cacheService.set(cacheKey, report, { ttl: 7 * 24 * 3600 }); // Cache for 7 days
   }
 
   private async getMockReconciliationReports(tenantId: string, count: number): Promise<ReconciliationReport[]> {
@@ -480,8 +488,8 @@ export class PaymentReconciliationService {
         status: Math.abs(variance) > 50 ? 'major_discrepancy' : 
                 Math.abs(variance) > 0.01 ? 'variance_detected' : 'balanced',
         isApproved: Math.random() > 0.3, // 70% approved
-        approvedBy: Math.random() > 0.3 ? 'admin_user' : undefined,
-        approvedAt: Math.random() > 0.3 ? new Date(date.getTime() + 60000) : undefined,
+        ...(Math.random() > 0.3 && { approvedBy: 'admin_user' }),
+        ...(Math.random() > 0.3 && { approvedAt: new Date(date.getTime() + 60000) }),
         
         options: {},
         processingTime: Math.floor(Math.random() * 5000) + 1000,

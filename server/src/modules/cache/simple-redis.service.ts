@@ -104,6 +104,32 @@ export class SimpleRedisService {
     return this.isConnected ? this.client : null;
   }
 
+  async getKeysByPattern(pattern: string): Promise<string[]> {
+    try {
+      if (!this.isConnected) {
+        return [];
+      }
+
+      const keys: string[] = [];
+      let cursor = 0;
+
+      do {
+        const result = await this.client.scan(cursor, {
+          MATCH: pattern,
+          COUNT: 100,
+        });
+
+        cursor = result.cursor;
+        keys.push(...result.keys);
+      } while (cursor !== 0);
+
+      return keys;
+    } catch (error) {
+      this.logger.error('Redis SCAN error', error instanceof Error ? error.message : 'Unknown error', { pattern });
+      return [];
+    }
+  }
+
   async getInfo(): Promise<{ isHealthy: boolean; connections: number; memory: string }> {
     try {
       if (!this.isConnected) {

@@ -5,7 +5,7 @@ import { BaseEntity } from '../../../common/graphql/base.types';
 @ObjectType({ description: 'Offline operation queue item' })
 export class OfflineQueueItem extends BaseEntity {
   @Field(() => ID)
-  id!: string;
+  override id!: string;
 
   @Field(() => ID)
   queueId!: string;

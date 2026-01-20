@@ -281,7 +281,7 @@ export class TransactionEventHandler {
 
   private async updateTransactionCache(tenantId: string, transaction: TransactionWithItems): Promise<void> {
     const cacheKey = `transaction:${tenantId}:${transaction.id}`;
-    await this.cacheService.set(cacheKey, transaction, 3600); // Cache for 1 hour
+    await this.cacheService.set(cacheKey, transaction, { ttl: 3600 }); // Cache for 1 hour
   }
 
   private async invalidateTransactionCache(tenantId: string, transactionId: string): Promise<void> {
@@ -321,7 +321,7 @@ export class TransactionEventHandler {
           break;
       }
 
-      await this.cacheService.set(statsKey, currentStats, 86400); // Cache for 24 hours
+      await this.cacheService.set(statsKey, currentStats, { ttl: 86400 }); // Cache for 24 hours
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       this.logger.error(`Error updating location stats: ${errorMessage}`);
@@ -344,10 +344,10 @@ export class TransactionEventHandler {
       const errorType = this.categorizeError(error);
       currentStats.errorTypes[errorType] = (currentStats.errorTypes[errorType] || 0) + 1;
 
-      await this.cacheService.set(statsKey, currentStats, 86400);
+      await this.cacheService.set(statsKey, currentStats, { ttl: 86400 });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Error updating failure stats: ${errorMessage}`);
+      this.logger.error(`Error updating failure stats: ${errorMessage}`);;
     }
   }
 
@@ -370,10 +370,10 @@ export class TransactionEventHandler {
       currentMetrics.minProcessingTime = Math.min(currentMetrics.minProcessingTime, processingTime);
       currentMetrics.maxProcessingTime = Math.max(currentMetrics.maxProcessingTime, processingTime);
 
-      await this.cacheService.set(metricsKey, currentMetrics, 86400);
+      await this.cacheService.set(metricsKey, currentMetrics, { ttl: 86400 });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Error updating performance metrics: ${errorMessage}`);
+      this.logger.error(`Error updating performance metrics: ${errorMessage}`);;
     }
   }
 
@@ -393,10 +393,10 @@ export class TransactionEventHandler {
       currentSales.transactionCount++;
       currentSales.averageTransactionValue = currentSales.totalSales / currentSales.transactionCount;
 
-      await this.cacheService.set(salesKey, currentSales, 86400);
+      await this.cacheService.set(salesKey, currentSales, { ttl: 86400 });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Error updating daily sales cache: ${errorMessage}`);
+      this.logger.error(`Error updating daily sales cache: ${errorMessage}`);;
     }
   }
 
@@ -413,10 +413,10 @@ export class TransactionEventHandler {
       currentStats.totalVoids++;
       currentStats.voidReasons[reason] = (currentStats.voidReasons[reason] || 0) + 1;
 
-      await this.cacheService.set(statsKey, currentStats, 86400);
+      await this.cacheService.set(statsKey, currentStats, { ttl: 86400 });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Error updating void stats: ${errorMessage}`);
+      this.logger.error(`Error updating void stats: ${errorMessage}`);;
     }
   }
 
@@ -435,10 +435,10 @@ export class TransactionEventHandler {
       currentStats.totalRefundAmount += amount;
       currentStats.refundReasons[reason] = (currentStats.refundReasons[reason] || 0) + 1;
 
-      await this.cacheService.set(statsKey, currentStats, 86400);
+      await this.cacheService.set(statsKey, currentStats, { ttl: 86400 });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Error updating refund stats: ${errorMessage}`);
+      this.logger.error(`Error updating refund stats: ${errorMessage}`);;
     }
   }
 
@@ -458,10 +458,10 @@ export class TransactionEventHandler {
         currentStats.failedOperations++;
       }
 
-      await this.cacheService.set(statsKey, currentStats, 86400);
+      await this.cacheService.set(statsKey, currentStats, { ttl: 86400 });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.logger.error(`Error updating offline stats: ${errorMessage}`);
+      this.logger.error(`Error updating offline stats: ${errorMessage}`);;
     }
   }
 
@@ -484,7 +484,7 @@ export class TransactionEventHandler {
       currentStats.processedOperations += result.processedOperations;
       currentStats.failedOperations += result.failedOperations;
 
-      await this.cacheService.set(statsKey, currentStats, 86400);
+      await this.cacheService.set(statsKey, currentStats, { ttl: 86400 });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       this.logger.error(`Error updating sync stats: ${errorMessage}`);

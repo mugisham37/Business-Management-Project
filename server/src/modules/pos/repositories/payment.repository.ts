@@ -30,8 +30,8 @@ export class PaymentRepository {
       paymentMethod: paymentData.paymentMethod,
       amount: paymentData.amount,
       status: 'pending',
-      paymentProvider: paymentData.paymentProvider,
-      providerTransactionId: paymentData.providerTransactionId,
+      ...(paymentData.paymentProvider && { paymentProvider: paymentData.paymentProvider }),
+      ...(paymentData.providerTransactionId && { providerTransactionId: paymentData.providerTransactionId }),
       providerResponse: paymentData.providerResponse || {},
       refundedAmount: 0,
       metadata: paymentData.metadata || {},
@@ -150,7 +150,10 @@ export class PaymentRepository {
     this.logger.debug(`Getting payment method totals for tenant ${tenantId}`);
 
     // In a real implementation, this would use SQL aggregation
-    const payments = await this.findByTenant(tenantId, { startDate, endDate });
+    const payments = await this.findByTenant(tenantId, {
+      ...(startDate && { startDate }),
+      ...(endDate && { endDate }),
+    });
     
     const totals = new Map<string, { count: number; totalAmount: number }>();
 
@@ -176,7 +179,10 @@ export class PaymentRepository {
   ): Promise<{ totalRefunds: number; totalRefundAmount: number }> {
     this.logger.debug(`Getting refund totals for tenant ${tenantId}`);
 
-    const payments = await this.findByTenant(tenantId, { startDate, endDate });
+    const payments = await this.findByTenant(tenantId, {
+      ...(startDate && { startDate }),
+      ...(endDate && { endDate }),
+    });
     
     let totalRefunds = 0;
     let totalRefundAmount = 0;
@@ -264,15 +270,17 @@ export class PaymentRepository {
 
   private createMockPayments(tenantId: string, transactionId?: string, count: number = 1): PaymentRecord[] {
     const payments: PaymentRecord[] = [];
+    const paymentMethods = ['cash', 'card', 'mobile_money'] as const;
+    const statuses = ['pending', 'captured', 'failed'] as const;
     
     for (let i = 0; i < count; i++) {
       payments.push({
         id: `payment_mock_${i}`,
         tenantId,
         transactionId: transactionId || `txn_mock_${i}`,
-        paymentMethod: ['cash', 'card', 'mobile_money'][Math.floor(Math.random() * 3)],
+        paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)] || 'cash',
         amount: Math.round((Math.random() * 100 + 10) * 100) / 100,
-        status: ['pending', 'captured', 'failed'][Math.floor(Math.random() * 3)],
+        status: statuses[Math.floor(Math.random() * statuses.length)] || 'pending',
         paymentProvider: 'stripe',
         providerTransactionId: `pi_mock_${Date.now()}_${i}`,
         providerResponse: {},

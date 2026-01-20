@@ -58,7 +58,8 @@ export class StripePaymentProvider {
           },
         };
       } else {
-        const errorCode = ['card_declined', 'insufficient_funds', 'expired_card'][Math.floor(Math.random() * 3)];
+        const errorCodes = ['card_declined', 'insufficient_funds', 'expired_card'] as const;
+        const errorCode = errorCodes[Math.floor(Math.random() * errorCodes.length)] || 'card_error';
         const errorMessage = this.getErrorMessage(errorCode);
 
         this.logger.error(`Stripe payment failed: ${errorMessage}`);

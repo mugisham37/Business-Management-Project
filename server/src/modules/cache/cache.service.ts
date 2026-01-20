@@ -26,6 +26,10 @@ export class CacheService {
     return this.redisService.exists(key);
   }
 
+  async getKeysByPattern(pattern: string): Promise<string[]> {
+    return this.redisService.getKeysByPattern(pattern);
+  }
+
   async getClient() {
     return this.redisService.getClient();
   }

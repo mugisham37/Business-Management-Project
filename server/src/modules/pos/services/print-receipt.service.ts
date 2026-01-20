@@ -69,7 +69,7 @@ export class PrintReceiptService {
         this.logger.error(`Print job failed: ${result.error}`);
         return {
           success: false,
-          error: result.error,
+          error: result.error || 'Unknown error',
         };
       }
 

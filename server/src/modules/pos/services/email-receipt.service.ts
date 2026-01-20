@@ -36,30 +36,32 @@ export class EmailReceiptService {
       const textContent = this.generateTextContent(receiptData, options);
 
       // Send email using the communication service
-      const result = await this.emailNotificationService.sendEmail({
+      const result = await this.emailNotificationService.sendEmail(
         tenantId,
-        to: emailAddress,
-        subject,
-        htmlContent,
-        textContent,
-        metadata: {
-          type: 'receipt',
-          transactionId: receiptData.transactionId,
-          receiptId: receiptData.receiptId,
+        {
+          to: emailAddress,
+          subject,
+          html: htmlContent,
+          text: textContent,
+          metadata: {
+            type: 'receipt',
+            transactionId: receiptData.transactionId,
+            receiptId: receiptData.receiptId,
+          },
         },
-      });
+      );
 
       if (result.success) {
         this.logger.log(`Email receipt sent successfully to ${emailAddress}, messageId: ${result.messageId}`);
         return {
           success: true,
-          messageId: result.messageId,
+          messageId: result.messageId || '',
         };
       } else {
         this.logger.error(`Failed to send email receipt: ${result.error}`);
         return {
           success: false,
-          error: result.error,
+          error: result.error || 'Unknown error',
         };
       }
 
@@ -88,34 +90,42 @@ export class EmailReceiptService {
       const htmlContent = this.generateEmailContent(receiptData, options);
       const textContent = this.generateTextContent(receiptData, options);
 
-      const result = await this.emailNotificationService.sendEmailWithAttachment({
+      const result = await this.emailNotificationService.sendEmail(
         tenantId,
-        to: emailAddress,
-        subject,
-        htmlContent,
-        textContent,
-        attachments: [{
-          filename: `receipt_${receiptData.transactionNumber}.pdf`,
-          content: pdfBuffer,
-          contentType: 'application/pdf',
-        }],
-        metadata: {
-          type: 'receipt_with_pdf',
-          transactionId: receiptData.transactionId,
-          receiptId: receiptData.receiptId,
+        {
+          to: emailAddress,
+          subject,
+          html: htmlContent,
+          text: textContent,
+          attachments: [{
+            filename: `receipt_${receiptData.transactionNumber}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          }],
+          metadata: {
+            type: 'receipt_with_pdf',
+            transactionId: receiptData.transactionId,
+            receiptId: receiptData.receiptId,
+          },
         },
-      });
+      );
 
       return {
         success: result.success,
-        messageId: result.messageId,
-        error: result.error,
+        messageId: result.messageId || '',
+        ...(result.error && { error: result.error }),
       };
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       this.logger.error(`Email receipt with attachment error: ${errorMessage}`);
       
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }      
       return {
         success: false,
         error: errorMessage,

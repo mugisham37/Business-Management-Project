@@ -212,14 +212,15 @@ export class POSResolver extends BaseResolver {
     @Args('endDate', { nullable: true }) endDate: Date | undefined,
     @CurrentTenant() tenantId: string,
   ): Promise<TransactionHistoryResponse> {
-    return this.posService.getTransactionHistory(tenantId, {
-      limit,
-      offset,
-      locationId,
-      status,
-      startDate,
-      endDate,
-    });
+    const options: any = {};
+    if (limit !== undefined) options.limit = limit;
+    if (offset !== undefined) options.offset = offset;
+    if (locationId !== undefined) options.locationId = locationId;
+    if (status !== undefined) options.status = status;
+    if (startDate !== undefined) options.startDate = startDate;
+    if (endDate !== undefined) options.endDate = endDate;
+
+    return this.posService.getTransactionHistory(tenantId, options);
   }
 
   @Query(() => DailySalesSummary, { description: 'Get daily sales summary' })
@@ -255,7 +256,16 @@ export class POSResolver extends BaseResolver {
       limit,
       offset
     );
-    return reports;
+    // Ensure summary property exists for GraphQL type
+    return reports.map(report => ({
+      ...report,
+      summary: report.summary || {
+        expectedAmount: report.expectedAmount,
+        actualAmount: report.actualAmount,
+        variance: report.variance,
+        variancePercentage: report.variancePercentage,
+      },
+    }));
   }
 
   @Query(() => String, { description: 'Get reconciliation summary statistics' })
@@ -364,17 +374,19 @@ export class POSResolver extends BaseResolver {
     @Args('isDefault', { nullable: true }) isDefault: boolean | undefined,
     @CurrentTenant() tenantId: string,
   ): Promise<PrinterConfiguration> {
-    return this.printReceiptService.addPrinter(tenantId, {
+    const printerConfig: any = {
       name,
       type: type as any,
       connectionType: connectionType as any,
       paperWidth,
-      ipAddress,
-      port,
-      devicePath,
       isDefault: isDefault || false,
-      isOnline: true,
-    });
+    };
+    
+    if (ipAddress !== undefined) printerConfig.ipAddress = ipAddress;
+    if (port !== undefined) printerConfig.port = port;
+    if (devicePath !== undefined) printerConfig.devicePath = devicePath;
+    
+    return this.printReceiptService.addPrinter(tenantId, printerConfig as any);
   }
 
   @Mutation(() => MutationResponse, { description: 'Test printer connectivity' })
@@ -417,12 +429,22 @@ export class POSResolver extends BaseResolver {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<ReconciliationReport> {
-    return this.reconciliationService.performDailyReconciliation(
+    const report = await this.reconciliationService.performDailyReconciliation(
       tenantId,
       date,
       options,
       user.id
     );
+    // Ensure summary property exists for GraphQL type
+    return {
+      ...report,
+      summary: report.summary || {
+        expectedAmount: report.expectedAmount,
+        actualAmount: report.actualAmount,
+        variance: report.variance,
+        variancePercentage: report.variancePercentage,
+      },
+    };
   }
 
   @Mutation(() => ReconciliationReport, { description: 'Approve reconciliation report' })
@@ -434,12 +456,27 @@ export class POSResolver extends BaseResolver {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<ReconciliationReport | null> {
-    return this.reconciliationService.approveReconciliation(
+    const report = await this.reconciliationService.approveReconciliation(
       tenantId,
       reconciliationId,
       user.id,
       notes
     );
+    
+    if (!report) {
+      return null;
+    }
+    
+    // Ensure summary property exists for GraphQL type
+    return {
+      ...report,
+      summary: report.summary || {
+        expectedAmount: report.expectedAmount,
+        actualAmount: report.actualAmount,
+        variance: report.variance,
+        variancePercentage: report.variancePercentage,
+      },
+    };
   }
 
   @ResolveField(() => String, { nullable: true, description: 'Employee who opened the session' })

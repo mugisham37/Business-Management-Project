@@ -360,7 +360,7 @@ export class ReceiptResolver extends BaseResolver {
       success: result.success,
       receiptId: `receipt_${transaction.id}`,
       deliveryMethod: 'email_pdf',
-      error: result.error || undefined,
+      ...(result.error && { error: result.error }),
     };
   }
 

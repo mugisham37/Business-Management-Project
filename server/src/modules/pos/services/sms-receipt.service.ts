@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { SmsNotificationService } from '../../communication/services/sms-notification.service';
+import { SMSNotificationService } from '../../communication/services/sms-notification.service';
 import { ReceiptOptions } from './receipt.service';
 
 export interface SmsReceiptResult {
@@ -14,7 +14,7 @@ export class SmsReceiptService {
   private readonly MAX_SMS_LENGTH = 160; // Standard SMS length limit
 
   constructor(
-    private readonly smsNotificationService: SmsNotificationService,
+    private readonly smsNotificationService: SMSNotificationService,
   ) {}
 
   async sendReceipt(
@@ -40,7 +40,7 @@ export class SmsReceiptService {
       }
 
       // Send SMS using the communication service
-      const result = await this.smsNotificationService.sendSms({
+      const result = await this.smsNotificationService.sendSMS({
         tenantId,
         to: phoneNumber,
         message: smsContent,
@@ -85,7 +85,7 @@ export class SmsReceiptService {
       // Generate a very short summary for SMS
       const summaryContent = this.generateSummaryContent(receiptData);
 
-      const result = await this.smsNotificationService.sendSms({
+      const result = await this.smsNotificationService.sendSMS({
         tenantId,
         to: phoneNumber,
         message: summaryContent,

@@ -12,6 +12,7 @@ import {
 import { Transaction } from '../types/transaction.types';
 import { Transaction as TransactionEntity, TransactionWithItems, PaymentRecord } from '../entities/transaction.entity';
 import { UpdateTransactionDto, VoidTransactionDto, RefundTransactionDto, TransactionResponseDto } from '../types/shared.types';
+import { TransactionStatusEnum } from '../types/pos.types';
 
 @Injectable()
 export class TransactionService {
@@ -136,7 +137,14 @@ export class TransactionService {
       userId,
     });
 
-    return updatedTransaction;
+    // Fetch items and payments for the response
+    const transactionWithItems = await this.transactionRepository.findByIdWithItems(tenantId, id);
+    
+    if (!transactionWithItems) {
+      throw new NotFoundException(`Transaction with ID ${id} not found`);
+    }
+
+    return transactionWithItems;
   }
 
   async voidTransaction(
@@ -155,11 +163,11 @@ export class TransactionService {
     this.validationService.validateVoid(transaction.status);
 
     // Update transaction status to voided
-    const voidedTransaction = await this.transactionRepository.update(
+    await this.transactionRepository.update(
       tenantId,
       id,
       {
-        status: 'voided',
+        status: TransactionStatusEnum.VOIDED,
         notes: `${transaction.notes || ''}\n\nVOIDED: ${voidData.reason}${voidData.notes ? ` - ${voidData.notes}` : ''}`.trim(),
         metadata: {
           ...transaction.metadata,
@@ -174,10 +182,6 @@ export class TransactionService {
       userId
     );
 
-    if (!voidedTransaction) {
-      throw new NotFoundException(`Transaction with ID ${id} not found`);
-    }
-
     // Update payment status
     const payments = await this.paymentRepository.findByTransactionId(tenantId, id);
     for (const payment of payments) {
@@ -189,15 +193,22 @@ export class TransactionService {
       );
     }
 
+    // Get transaction with items
+    const voidedTransactionWithItems = await this.transactionRepository.findByIdWithItems(tenantId, id);
+
+    if (!voidedTransactionWithItems) {
+      throw new NotFoundException(`Transaction with ID ${id} not found`);
+    }
+
     // Emit transaction voided event
     this.eventEmitter.emit('transaction.voided', {
       tenantId,
-      transaction: voidedTransaction,
+      transaction: voidedTransactionWithItems,
       voidData,
       userId,
     });
 
-    return voidedTransaction;
+    return voidedTransactionWithItems;
   }
 
   async refundTransaction(
@@ -273,24 +284,31 @@ export class TransactionService {
         tenantId,
         id,
         {
-          status: 'refunded',
+          status: TransactionStatusEnum.REFUNDED,
           notes: `${transaction.notes || ''}\n\nREFUNDED: ${refundData.reason}${refundData.notes ? ` - ${refundData.notes}` : ''}`.trim(),
         },
         userId
       ) || transaction;
     }
 
+    // Get transaction with items for the response
+    const transactionWithItems = await this.transactionRepository.findByIdWithItems(tenantId, id);
+
+    if (!transactionWithItems) {
+      throw new NotFoundException(`Transaction with ID ${id} not found`);
+    }
+
     // Emit transaction refunded event
     this.eventEmitter.emit('transaction.refunded', {
       tenantId,
-      transaction: updatedTransaction,
+      transaction: transactionWithItems,
       refundData,
       refundAmount: refundData.amount,
       userId,
     });
 
     return {
-      transaction: updatedTransaction,
+      transaction: transactionWithItems,
       refundPayment,
     };
   }
@@ -306,7 +324,11 @@ export class TransactionService {
       endDate?: Date;
     } = {},
   ): Promise<{ transactions: Transaction[]; total: number }> {
-    return this.transactionRepository.findByTenant(tenantId, options);
+    const result = await this.transactionRepository.findByTenant(tenantId, options);
+    return {
+      transactions: result.transactions as Transaction[],
+      total: result.total,
+    };
   }
 
   async getTransactionSummary(

@@ -120,11 +120,11 @@ export class ReceiptService {
         success: result.success,
         receiptId,
         deliveryMethod: 'email',
-        deliveredAt: result.success ? new Date() : undefined,
-        error: result.error,
+        ...(result.success && { deliveredAt: new Date() }),
+        ...(result.error && { error: result.error }),
         metadata: {
           emailAddress,
-          messageId: result.messageId,
+          messageId: result.messageId || '',
         },
       };
     } catch (error) {
@@ -160,11 +160,11 @@ export class ReceiptService {
         success: result.success,
         receiptId,
         deliveryMethod: 'sms',
-        deliveredAt: result.success ? new Date() : undefined,
-        error: result.error,
+        ...(result.success && { deliveredAt: new Date() }),
+        ...(result.error && { error: result.error }),
         metadata: {
           phoneNumber,
-          messageId: result.messageId,
+          messageId: result.messageId || '',
         },
       };
     } catch (error) {
@@ -200,11 +200,11 @@ export class ReceiptService {
         success: result.success,
         receiptId,
         deliveryMethod: 'print',
-        deliveredAt: result.success ? new Date() : undefined,
-        error: result.error,
+        ...(result.success && { deliveredAt: new Date() }),
+        ...(result.error && { error: result.error }),
         metadata: {
           printerId,
-          printJobId: result.printJobId,
+          printJobId: result.printJobId || '',
         },
       };
     } catch (error) {

@@ -35,7 +35,7 @@ export class TransactionRepository {
       id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       tenantId,
       transactionNumber,
-      customerId: transactionData.customerId,
+      ...(transactionData.customerId && { customerId: transactionData.customerId }),
       locationId: transactionData.locationId,
       subtotal,
       taxAmount,
@@ -315,6 +315,8 @@ export class TransactionRepository {
 
   private createMockTransactions(tenantId: string, count: number): Transaction[] {
     const transactions: Transaction[] = [];
+    const statuses = ['pending', 'completed', 'failed'] as const;
+    const paymentMethods = ['cash', 'card', 'mobile_money'] as const;
     
     for (let i = 0; i < count; i++) {
       transactions.push({
@@ -327,9 +329,9 @@ export class TransactionRepository {
         discountAmount: 0,
         tipAmount: 0,
         total: 0, // Would be calculated
-        status: ['pending', 'completed', 'failed'][Math.floor(Math.random() * 3)],
+        status: statuses[Math.floor(Math.random() * statuses.length)] || 'pending',
         itemCount: Math.floor(Math.random() * 5) + 1,
-        paymentMethod: ['cash', 'card', 'mobile_money'][Math.floor(Math.random() * 3)],
+        paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)] || 'cash',
         paymentStatus: 'captured',
         isOfflineTransaction: Math.random() > 0.8,
         metadata: {},

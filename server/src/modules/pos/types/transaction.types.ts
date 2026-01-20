@@ -80,7 +80,7 @@ export class PaymentRecord {
 @ObjectType({ description: 'POS transaction' })
 export class Transaction extends BaseEntity {
   @Field(() => ID)
-  id!: string;
+  override id!: string;
 
   @Field()
   transactionNumber!: string;
@@ -221,6 +221,27 @@ export class PaymentMethodBreakdown {
   amount!: number;
 }
 
+@ObjectType({ description: 'Payment method summary for reconciliation' })
+export class PaymentMethodSummary {
+  @Field()
+  paymentMethod!: string;
+
+  @Field(() => Int)
+  transactionCount!: number;
+
+  @Field(() => Float)
+  totalAmount!: number;
+
+  @Field(() => Float)
+  averageAmount!: number;
+
+  @Field(() => Int)
+  refundCount!: number;
+
+  @Field(() => Float)
+  refundAmount!: number;
+}
+
 @ObjectType({ description: 'Reconciliation summary' })
 export class ReconciliationSummary {
   @Field(() => Float)
@@ -304,5 +325,5 @@ export class TransactionConnection extends Connection<Transaction> {
   edges!: TransactionEdge[];
 
   @Field(() => PageInfo)
-  pageInfo!: PageInfo;
+  override pageInfo!: PageInfo;
 }

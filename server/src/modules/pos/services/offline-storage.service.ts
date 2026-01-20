@@ -52,7 +52,7 @@ export class OfflineStorageService {
       },
     };
 
-    await this.cacheService.set(key, storageItem, ttl);
+    await this.cacheService.set(key, storageItem, { ttl });
     await this.updateStorageStats(tenantId, category, 1, storageItem.metadata.size);
 
     this.logger.debug(`Stored item ${itemId} in category ${category} for tenant ${tenantId}`);
@@ -192,7 +192,7 @@ export class OfflineStorageService {
     const updated = { ...current, ...updates };
 
     const metadataKey = this.buildKey(tenantId, 'metadata', this.METADATA_KEY);
-    await this.cacheService.set(metadataKey, updated, 7 * 24 * 3600); // 7 days TTL
+    await this.cacheService.set(metadataKey, updated, { ttl: 7 * 24 * 3600 }); // 7 days TTL
   }
 
   async compactStorage(tenantId: string): Promise<{
@@ -264,7 +264,7 @@ export class OfflineStorageService {
       delete currentStats.categories[category];
     }
 
-    await this.cacheService.set(statsKey, currentStats, 24 * 3600); // 24 hours TTL
+    await this.cacheService.set(statsKey, currentStats, { ttl: 24 * 3600 }); // 24 hours TTL
   }
 
   private async calculateStorageStats(tenantId: string): Promise<StorageStats> {
@@ -298,7 +298,7 @@ export class OfflineStorageService {
 
     // Cache the calculated stats
     const statsKey = this.buildKey(tenantId, 'stats', 'storage');
-    await this.cacheService.set(statsKey, stats, 24 * 3600);
+    await this.cacheService.set(statsKey, stats, { ttl: 24 * 3600 });
 
     return stats;
   }

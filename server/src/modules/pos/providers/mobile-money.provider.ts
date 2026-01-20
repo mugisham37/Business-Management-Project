@@ -61,7 +61,8 @@ export class MobileMoneyProvider {
           },
         };
       } else {
-        const errorCode = ['insufficient_balance', 'invalid_pin', 'network_error', 'account_blocked'][Math.floor(Math.random() * 4)];
+        const errorCodes = ['insufficient_balance', 'invalid_pin', 'network_error', 'account_blocked'] as const;
+        const errorCode = errorCodes[Math.floor(Math.random() * errorCodes.length)] || 'unknown_error';
         const errorMessage = this.getErrorMessage(errorCode);
 
         this.logger.error(`Mobile money payment failed: ${errorMessage}`);
@@ -335,7 +336,7 @@ export class MobileMoneyProvider {
   private extractProviderFromTransactionId(transactionId: string): string {
     // Extract provider from transaction ID format: mm_{provider}_{timestamp}_{random}
     const parts = transactionId.split('_');
-    return parts.length > 2 ? parts[1] : 'unknown';
+    return (parts.length > 2 ? parts[1] : 'unknown') || 'unknown';
   }
 
   private getCurrencyForProvider(provider: string): string {
