@@ -144,7 +144,7 @@ export class TransactionService {
       throw new NotFoundException(`Transaction with ID ${id} not found`);
     }
 
-    return transactionWithItems;
+    return transactionWithItems as Transaction;
   }
 
   async voidTransaction(
@@ -208,7 +208,7 @@ export class TransactionService {
       userId,
     });
 
-    return voidedTransactionWithItems;
+    return voidedTransactionWithItems as Transaction;
   }
 
   async refundTransaction(
@@ -308,7 +308,7 @@ export class TransactionService {
     });
 
     return {
-      transaction: transactionWithItems,
+      transaction: transactionWithItems as Transaction,
       refundPayment,
     };
   }
@@ -326,7 +326,7 @@ export class TransactionService {
   ): Promise<{ transactions: Transaction[]; total: number }> {
     const result = await this.transactionRepository.findByTenant(tenantId, options);
     return {
-      transactions: result.transactions as Transaction[],
+      transactions: result.transactions as unknown as Transaction[],
       total: result.total,
     };
   }

@@ -26,13 +26,13 @@ export class PaymentValidationResult {
   valid!: boolean;
 
   @Field({ nullable: true })
-  error?: string;
+  error?: string | undefined;
 
   @Field({ nullable: true })
-  provider?: string;
+  provider?: string | undefined;
 
   @Field({ nullable: true })
-  supportedFeatures?: string[];
+  supportedFeatures?: string[] | undefined;
 }
 
 @ObjectType({ description: 'Cash drawer status' })

@@ -31,11 +31,10 @@ export class TransactionRepository {
     const transactionNumber = await this.generateTransactionNumber(tenantId);
 
     // Create transaction entity
-    const transaction: Transaction = {
+    const transactionEntity: Partial<Transaction> = {
       id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       tenantId,
       transactionNumber,
-      ...(transactionData.customerId && { customerId: transactionData.customerId }),
       locationId: transactionData.locationId,
       subtotal,
       taxAmount,
@@ -44,12 +43,9 @@ export class TransactionRepository {
       total,
       status: 'pending',
       itemCount: transactionData.items.length,
-      notes: transactionData.notes,
       paymentMethod: transactionData.paymentMethod,
       paymentStatus: 'pending',
-      paymentReference: transactionData.paymentReference,
       isOfflineTransaction: transactionData.isOfflineTransaction || false,
-      offlineTimestamp: transactionData.isOfflineTransaction ? new Date() : undefined,
       metadata: transactionData.metadata || {},
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -58,6 +54,22 @@ export class TransactionRepository {
       version: 1,
       isActive: true,
     };
+
+    // Add optional properties
+    if (transactionData.customerId) {
+      transactionEntity.customerId = transactionData.customerId;
+    }
+    if (transactionData.notes) {
+      transactionEntity.notes = transactionData.notes;
+    }
+    if (transactionData.paymentReference) {
+      transactionEntity.paymentReference = transactionData.paymentReference;
+    }
+    if (transactionData.isOfflineTransaction) {
+      transactionEntity.offlineTimestamp = new Date();
+    }
+
+    const transaction = transactionEntity as unknown as Transaction;
 
     // In a real implementation, this would use Drizzle ORM to insert into database
     // For now, we'll simulate the database operation

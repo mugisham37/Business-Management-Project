@@ -43,11 +43,6 @@ export class EmailReceiptService {
           subject,
           html: htmlContent,
           text: textContent,
-          metadata: {
-            type: 'receipt',
-            transactionId: receiptData.transactionId,
-            receiptId: receiptData.receiptId,
-          },
         },
       );
 
@@ -102,11 +97,6 @@ export class EmailReceiptService {
             content: pdfBuffer,
             contentType: 'application/pdf',
           }],
-          metadata: {
-            type: 'receipt_with_pdf',
-            transactionId: receiptData.transactionId,
-            receiptId: receiptData.receiptId,
-          },
         },
       );
 
@@ -120,12 +110,6 @@ export class EmailReceiptService {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       this.logger.error(`Email receipt with attachment error: ${errorMessage}`);
       
-      return {
-        success: false,
-        error: errorMessage,
-      };
-    }
-  }      
       return {
         success: false,
         error: errorMessage,

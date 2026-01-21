@@ -4,8 +4,8 @@ import { ReceiptOptions } from './receipt.service';
 
 export interface SmsReceiptResult {
   success: boolean;
-  messageId?: string;
-  error?: string;
+  messageId?: string | undefined;
+  error?: string | undefined;
 }
 
 @Injectable()
@@ -40,28 +40,25 @@ export class SmsReceiptService {
       }
 
       // Send SMS using the communication service
-      const result = await this.smsNotificationService.sendSMS({
+      const result = await this.smsNotificationService.sendSMS(
         tenantId,
-        to: phoneNumber,
-        message: smsContent,
-        metadata: {
-          type: 'receipt',
-          transactionId: receiptData.transactionId,
-          receiptId: receiptData.receiptId,
-        },
-      });
+        {
+          to: phoneNumber,
+          message: smsContent,
+        }
+      );
 
       if (result.success) {
         this.logger.log(`SMS receipt sent successfully to ${phoneNumber}, messageId: ${result.messageId}`);
         return {
           success: true,
-          messageId: result.messageId,
+          messageId: result.messageId || undefined,
         };
       } else {
         this.logger.error(`Failed to send SMS receipt: ${result.error}`);
         return {
           success: false,
-          error: result.error,
+          error: result.error || undefined,
         };
       }
 
@@ -85,21 +82,18 @@ export class SmsReceiptService {
       // Generate a very short summary for SMS
       const summaryContent = this.generateSummaryContent(receiptData);
 
-      const result = await this.smsNotificationService.sendSMS({
+      const result = await this.smsNotificationService.sendSMS(
         tenantId,
-        to: phoneNumber,
-        message: summaryContent,
-        metadata: {
-          type: 'receipt_summary',
-          transactionId: receiptData.transactionId,
-          receiptId: receiptData.receiptId,
-        },
-      });
+        {
+          to: phoneNumber,
+          message: summaryContent,
+        }
+      );
 
       return {
         success: result.success,
-        messageId: result.messageId,
-        error: result.error,
+        messageId: result.messageId || undefined,
+        error: result.error || undefined,
       };
 
     } catch (error) {

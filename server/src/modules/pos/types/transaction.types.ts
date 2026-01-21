@@ -80,7 +80,7 @@ export class PaymentRecord {
 @ObjectType({ description: 'POS transaction' })
 export class Transaction extends BaseEntity {
   @Field(() => ID)
-  override id!: string;
+  declare id: string;
 
   @Field()
   transactionNumber!: string;
@@ -172,7 +172,7 @@ export class ReceiptResult {
   deliveryMethod!: string;
 
   @Field({ nullable: true })
-  error?: string;
+  error?: string | undefined;
 }
 
 @ObjectType({ description: 'Email delivery result' })
@@ -325,5 +325,5 @@ export class TransactionConnection extends Connection<Transaction> {
   edges!: TransactionEdge[];
 
   @Field(() => PageInfo)
-  override pageInfo!: PageInfo;
+  declare pageInfo: PageInfo;
 }

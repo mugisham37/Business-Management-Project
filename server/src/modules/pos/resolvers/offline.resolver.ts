@@ -241,23 +241,43 @@ export class OfflineResolver extends BaseResolver {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<SyncResult> {
+    const syncStartedAt = new Date();
     const result = await this.offlineSyncService.syncPendingOperations(
       tenantId,
       input.deviceId,
       user.id
     );
+    const syncCompletedAt = new Date();
+
+    // Ensure all required properties are present for SyncResult
+    const fullResult: SyncResult = {
+      success: result.success ?? false,
+      processedOperations: result.processedOperations ?? 0,
+      failedOperations: result.failedOperations ?? 0,
+      errors: (result.errors ?? []).map((err: any) => ({
+        operationId: err.operationId ?? '',
+        operationType: err.operationType ?? 'unknown',
+        error: err.error ?? 'Unknown error',
+        timestamp: err.timestamp ?? new Date(),
+        attemptNumber: err.attemptNumber ?? 1,
+        isRetryable: err.isRetryable ?? false,
+      })),
+      syncStartedAt,
+      syncCompletedAt,
+      syncDuration: syncCompletedAt.getTime() - syncStartedAt.getTime(),
+    };
 
     // Emit sync completed event
     await this.pubSub.publish('OFFLINE_STATUS_CHANGED', {
       offlineStatusChanged: {
         tenantId,
         deviceId: input.deviceId,
-        status: result.success ? 'synced' : 'failed',
+        status: fullResult.success ? 'synced' : 'failed',
         timestamp: new Date(),
       },
     });
 
-    return result;
+    return fullResult;
   }
 
   @Mutation(() => MutationResponse, { description: 'Resolve a sync conflict' })
@@ -431,15 +451,19 @@ export class OfflineResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
   ): Promise<MutationResponse> {
     try {
+      const storageOptions: any = {
+        priority: priority as any,
+      };
+      if (ttl !== undefined) {
+        storageOptions.ttl = ttl;
+      }
+
       await this.offlineStorageService.storeItem(
         tenantId,
         category,
         itemId,
         data,
-        {
-          ttl,
-          priority: priority as any,
-        }
+        storageOptions
       );
 
       return {
@@ -465,7 +489,7 @@ export class OfflineResolver extends BaseResolver {
     @Args('deviceId', { type: () => ID, nullable: true }) deviceId: string | undefined,
     @CurrentTenant() tenantId: string,
   ) {
-    return this.pubSub.asyncIterator('OFFLINE_STATUS_CHANGED');
+    return (this.pubSub as any).asyncIterator('OFFLINE_STATUS_CHANGED');
   }
 
   @Subscription(() => SyncResult, {
@@ -478,7 +502,7 @@ export class OfflineResolver extends BaseResolver {
     @Args('deviceId', { type: () => ID, nullable: true }) deviceId: string | undefined,
     @CurrentTenant() tenantId: string,
   ) {
-    return this.pubSub.asyncIterator('SYNC_COMPLETED');
+    return (this.pubSub as any).asyncIterator('SYNC_COMPLETED');
   }
 
   @Subscription(() => String, {
@@ -491,6 +515,6 @@ export class OfflineResolver extends BaseResolver {
     @Args('category', { nullable: true }) category: string | undefined,
     @CurrentTenant() tenantId: string,
   ) {
-    return this.pubSub.asyncIterator('CACHE_UPDATED');
+    return (this.pubSub as any).asyncIterator('CACHE_UPDATED');
   }
 }

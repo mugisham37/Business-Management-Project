@@ -38,7 +38,7 @@ registerEnumType(TransactionStatusEnum, { name: 'TransactionStatus' });
 export class POSSession extends BaseEntity {
   @Field(() => ID)
   @ApiProperty({ description: 'Session ID' })
-  override id!: string;
+  declare id: string;
 
   @Field()
   @ApiProperty({ description: 'Session number' })

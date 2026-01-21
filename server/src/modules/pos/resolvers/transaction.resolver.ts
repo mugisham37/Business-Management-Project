@@ -70,6 +70,8 @@ export class TransactionResolver extends BaseResolver {
       ...transaction,
       status: transaction.status as any,
       paymentMethod: transaction.paymentMethod as any,
+      items: [],
+      payments: [],
     };
   }
 
@@ -176,6 +178,8 @@ export class TransactionResolver extends BaseResolver {
       status: result.status as any,
       paymentMethod: result.paymentMethod as any,
       version: 1,
+      items: [],
+      payments: [],
     };
   }
 
@@ -225,6 +229,8 @@ export class TransactionResolver extends BaseResolver {
       status: result.status as any,
       paymentMethod: result.paymentMethod as any,
       version: 1,
+      items: [],
+      payments: [],
     };
   }
 
@@ -251,6 +257,8 @@ export class TransactionResolver extends BaseResolver {
       status: result.status as any,
       paymentMethod: result.paymentMethod as any,
       version: 1,
+      items: [],
+      payments: [],
     };
   }
 
@@ -353,7 +361,20 @@ export class TransactionResolver extends BaseResolver {
     @Args('reconciliationId', { type: () => ID }) reconciliationId: string,
     @CurrentTenant() tenantId: string,
   ): Promise<ReconciliationReport | null> {
-    return this.reconciliationService.getReconciliationReport(tenantId, reconciliationId);
+    const report = await this.reconciliationService.getReconciliationReport(tenantId, reconciliationId);
+    if (!report) {
+      return null;
+    }
+    // Ensure summary object is always present for GraphQL
+    if (!report.summary) {
+      report.summary = {
+        expectedAmount: report.expectedAmount,
+        actualAmount: report.actualAmount,
+        variance: report.variance,
+        variancePercentage: report.variancePercentage,
+      };
+    }
+    return report as ReconciliationReport;
   }
 
   @Mutation(() => ReconciliationReport, { description: 'Perform payment reconciliation' })
@@ -366,13 +387,23 @@ export class TransactionResolver extends BaseResolver {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<ReconciliationReport> {
-    return this.reconciliationService.performReconciliation(
+    const report = await this.reconciliationService.performReconciliation(
       tenantId,
       startDate,
       endDate,
       options,
       user.id
     );
+    // Ensure summary object is always present for GraphQL
+    if (!report.summary) {
+      report.summary = {
+        expectedAmount: report.expectedAmount,
+        actualAmount: report.actualAmount,
+        variance: report.variance,
+        variancePercentage: report.variancePercentage,
+      };
+    }
+    return report as ReconciliationReport;
   }
 
   @ResolveField(() => [TransactionItem], { description: 'Transaction line items' })
@@ -405,7 +436,12 @@ export class TransactionResolver extends BaseResolver {
     @Parent() transaction: Transaction,
     @CurrentTenant() tenantId: string,
   ): Promise<PaymentRecord[]> {
-    return this.paymentService.getPaymentHistory(tenantId, transaction.id);
+    const payments = await this.paymentService.getPaymentHistory(tenantId, transaction.id);
+    // Map entity PaymentRecord to GraphQL type, ensuring paymentMethod is cast properly
+    return payments.map(p => ({
+      ...p,
+      paymentMethod: p.paymentMethod as any,
+    })) as PaymentRecord[];
   }
 
   @ResolveField(() => String, { nullable: true, description: 'Customer who made the transaction' })
@@ -441,7 +477,7 @@ export class TransactionResolver extends BaseResolver {
     },
   })
   transactionCreated(@CurrentTenant() tenantId: string) {
-    return this.pubSub.asyncIterator('TRANSACTION_CREATED');
+    return (this.pubSub as any).asyncIterator('TRANSACTION_CREATED');
   }
 
   @Subscription(() => Transaction, {
@@ -451,7 +487,7 @@ export class TransactionResolver extends BaseResolver {
     },
   })
   transactionUpdated(@CurrentTenant() tenantId: string) {
-    return this.pubSub.asyncIterator('TRANSACTION_UPDATED');
+    return (this.pubSub as any).asyncIterator('TRANSACTION_UPDATED');
   }
 
   @Subscription(() => PaymentResult, {
@@ -461,7 +497,7 @@ export class TransactionResolver extends BaseResolver {
     },
   })
   paymentProcessed(@CurrentTenant() tenantId: string) {
-    return this.pubSub.asyncIterator('PAYMENT_PROCESSED');
+    return (this.pubSub as any).asyncIterator('PAYMENT_PROCESSED');
   }
 
   // NEW: Transaction Validation Mutations
@@ -564,7 +600,7 @@ export class TransactionResolver extends BaseResolver {
     @Args('inventoryLevels') inventoryLevels: any,
   ): Promise<MutationResponse> {
     try {
-      const inventoryMap = new Map(Object.entries(inventoryLevels));
+      const inventoryMap = new Map<string, number>(Object.entries(inventoryLevels).map(([k, v]) => [k, Number(v)]));
       this.validationService.validateInventoryAvailability(items, inventoryMap);
       
       return {
