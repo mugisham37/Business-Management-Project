@@ -5,7 +5,6 @@
 
 import { ComponentType } from 'react';
 import { moduleLoader } from './module-loader';
-import type { ModuleConfig } from './module-loader';
 
 export interface RouteConfig {
   path: string;

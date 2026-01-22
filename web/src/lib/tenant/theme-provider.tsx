@@ -11,6 +11,7 @@ import {
   tenantThemingService 
 } from './tenant-theming';
 import { useTenantProvider } from './tenant-provider';
+import { Tenant } from '@/types/core';
 
 interface ThemeProviderProps {
   children: ReactNode;
@@ -19,7 +20,7 @@ interface ThemeProviderProps {
 
 interface ThemeContextValue {
   theme: ThemeConfig;
-  applyTenantTheme: (tenant: any) => void;
+  applyTenantTheme: (tenant: Tenant | null) => void;
   resetToDefault: () => void;
   getThemeVariables: () => Record<string, string | number>;
 }
@@ -48,7 +49,7 @@ export function ThemeProvider({ children, themingService }: ThemeProviderProps) 
 
   const contextValue: ThemeContextValue = {
     theme,
-    applyTenantTheme: (tenant) => service.applyTenantTheme(tenant),
+    applyTenantTheme: (tenant: Tenant | null) => service.applyTenantTheme(tenant),
     resetToDefault: () => service.resetToDefault(),
     getThemeVariables: () => service.getThemeVariables(),
   };
@@ -115,10 +116,6 @@ interface ThemeFeatureProps {
   fallback?: ReactNode;
 }
 
-export function ThemeFeature({ feature, children, fallback = null }: ThemeFeatureProps) {
-  const { theme } = useTheme();
-  
-  // This could be extended to check for specific theme features
-  // For now, we'll just render children
+export function ThemeFeature({ children }: ThemeFeatureProps) {
   return <>{children}</>;
 }

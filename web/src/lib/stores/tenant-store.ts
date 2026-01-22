@@ -6,7 +6,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middleware';
-import { Tenant, TenantSettings, BusinessTier } from '@/types/core';
+import { Tenant, BusinessTier } from '@/types/core';
 
 export interface TenantState {
   // Current tenant context

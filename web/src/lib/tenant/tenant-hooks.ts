@@ -10,7 +10,7 @@ import {
   TenantContextState, 
   tenantContextManager 
 } from './tenant-context';
-import { Tenant, FeatureFlag, BusinessTier, TenantSettings } from '@/types/core';
+import { BusinessTier, TenantSettings } from '@/types/core';
 
 /**
  * Hook for accessing tenant context state
@@ -67,7 +67,7 @@ export function useCurrentTenant(manager?: TenantContextManager) {
  */
 export function useFeatureFlags(manager?: TenantContextManager) {
   const contextManager = manager || tenantContextManager;
-  const { features, businessTier, isLoading } = useTenantContext(manager);
+  const { features, isLoading } = useTenantContext(manager);
 
   const hasFeature = useCallback((featureKey: string): boolean => {
     return contextManager.hasFeature(featureKey);
@@ -79,13 +79,13 @@ export function useFeatureFlags(manager?: TenantContextManager) {
 
   const availableFeatures = useMemo(() => {
     return contextManager.getAvailableFeatures();
-  }, [contextManager, features, businessTier]);
+  }, [contextManager]);
 
   const enabledFeatures = useMemo(() => {
     return features.filter(feature => 
       feature.enabled && contextManager.isTierSufficient(feature.requiredTier)
     );
-  }, [features, businessTier, contextManager]);
+  }, [features, contextManager]);
 
   return {
     features,
@@ -148,16 +148,16 @@ export function useBusinessTier(manager?: TenantContextManager) {
 
   const isTierSufficient = useCallback((requiredTier: BusinessTier): boolean => {
     return contextManager.isTierSufficient(requiredTier);
-  }, [contextManager, businessTier]);
+  }, [contextManager]);
 
   const getTierFeatures = useCallback(() => {
     return contextManager.getAvailableFeatures();
-  }, [contextManager, businessTier]);
+  }, [contextManager]);
 
   const tierLimits = useMemo(() => {
     const settings = contextManager.getTenantSettings();
     return settings?.limits || null;
-  }, [contextManager, businessTier]);
+  }, [contextManager]);
 
   return {
     businessTier,
@@ -172,13 +172,12 @@ export function useBusinessTier(manager?: TenantContextManager) {
  */
 export function useTenantSettings(manager?: TenantContextManager) {
   const contextManager = manager || tenantContextManager;
-  const { currentTenant } = useTenantContext(manager);
 
   const settings = useMemo(() => {
     return contextManager.getTenantSettings();
-  }, [contextManager, currentTenant]);
+  }, [contextManager]);
 
-  const getSetting = useCallback(<T = any>(key: keyof TenantSettings): T | null => {
+  const getSetting = useCallback(<T = unknown>(key: keyof TenantSettings): T | null => {
     return settings?.[key] as T || null;
   }, [settings]);
 

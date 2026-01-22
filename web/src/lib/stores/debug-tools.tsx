@@ -7,14 +7,19 @@
 import { useAuthStore } from './auth-store';
 import { useTenantStore } from './tenant-store';
 import { useFeatureStore } from './feature-store';
-import { useSyncManager } from './sync-manager';
+
+export interface SyncManagerReference {
+  getStatus?: () => Record<string, unknown>;
+  getSyncStatus?: () => Record<string, unknown>;
+  getSyncState?: () => unknown;
+}
 
 export interface StateSnapshot {
   timestamp: Date;
   auth: ReturnType<typeof useAuthStore.getState>;
   tenant: ReturnType<typeof useTenantStore.getState>;
   feature: ReturnType<typeof useFeatureStore.getState>;
-  sync: ReturnType<typeof useSyncManager>['getSyncStatus'];
+  sync: () => Record<string, unknown>; // Dynamic sync status based on manager availability
 }
 
 export interface StateChange {
@@ -38,6 +43,7 @@ export class StateDebugManager {
   private maxSnapshots = 50;
   private maxChanges = 100;
   private unsubscribers: (() => void)[] = [];
+  private syncManagerRef: SyncManagerReference | null = null; // Will be set via setSyncManager
 
   constructor() {
     this.isEnabled = process.env.NODE_ENV === 'development';
@@ -46,6 +52,13 @@ export class StateDebugManager {
       this.initializeDebugging();
       this.setupReduxDevTools();
     }
+  }
+
+  /**
+   * Set sync manager reference after initialization
+   */
+  setSyncManager(syncManager: SyncManagerReference | null): void {
+    this.syncManagerRef = syncManager;
   }
 
   /**
@@ -75,7 +88,7 @@ export class StateDebugManager {
     let previousState = useAuthStore.getState();
 
     const unsubscribe = useAuthStore.subscribe((state) => {
-      const changes = this.detectChanges(previousState, state);
+      const changes = this.detectChanges(previousState as unknown as Record<string, unknown>, state as unknown as Record<string, unknown>);
       
       if (Object.keys(changes).length > 0) {
         this.recordChange('auth', 'state_change', previousState, state, changes);
@@ -94,7 +107,7 @@ export class StateDebugManager {
     let previousState = useTenantStore.getState();
 
     const unsubscribe = useTenantStore.subscribe((state) => {
-      const changes = this.detectChanges(previousState, state);
+      const changes = this.detectChanges(previousState as unknown as Record<string, unknown>, state as unknown as Record<string, unknown>);
       
       if (Object.keys(changes).length > 0) {
         this.recordChange('tenant', 'state_change', previousState, state, changes);
@@ -113,7 +126,7 @@ export class StateDebugManager {
     let previousState = useFeatureStore.getState();
 
     const unsubscribe = useFeatureStore.subscribe((state) => {
-      const changes = this.detectChanges(previousState, state);
+      const changes = this.detectChanges(previousState as unknown as Record<string, unknown>, state as unknown as Record<string, unknown>);
       
       if (Object.keys(changes).length > 0) {
         this.recordChange('feature', 'state_change', previousState, state, changes);
@@ -131,6 +144,7 @@ export class StateDebugManager {
   private setupReduxDevTools(): void {
     if (typeof window === 'undefined') return;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const devTools = (window as any).__REDUX_DEVTOOLS_EXTENSION__;
     if (!devTools) return;
 
@@ -194,7 +208,7 @@ export class StateDebugManager {
       auth: useAuthStore.getState(),
       tenant: useTenantStore.getState(),
       feature: useFeatureStore.getState(),
-      sync: useSyncManager().getSyncStatus(),
+      sync: () => this.syncManagerRef?.getSyncStatus?.() ?? { isInProgress: false, lastSync: new Date() },
     };
 
     this.snapshots.push(snapshot);
@@ -316,9 +330,9 @@ export class StateDebugManager {
       snapshots: this.snapshots,
       changes: this.changes,
       currentState: {
-        auth: useAuthStore.getState(),
-        tenant: useTenantStore.getState(),
-        feature: useFeatureStore.getState(),
+        auth: useAuthStore.getState() as unknown,
+        tenant: useTenantStore.getState() as unknown,
+        feature: useFeatureStore.getState() as unknown,
       },
     };
 
@@ -344,7 +358,9 @@ export class StateDebugManager {
     console.log('Auth:', useAuthStore.getState());
     console.log('Tenant:', useTenantStore.getState());
     console.log('Feature:', useFeatureStore.getState());
-    console.log('Sync:', useSyncManager().getSyncStatus());
+    if (this.syncManagerRef && this.syncManagerRef.getSyncStatus) {
+      console.log('Sync:', this.syncManagerRef.getSyncStatus());
+    }
     console.groupEnd();
   }
 
@@ -393,11 +409,12 @@ export function useStateDebug(): StateDebugManager {
  * Debug component for development
  */
 export function StateDebugPanel() {
+  const debugManager = useStateDebug();
+  
   if (process.env.NODE_ENV !== 'development') {
     return null;
   }
 
-  const debugManager = useStateDebug();
   const debugInfo = debugManager.getDebugInfo();
 
   return (
@@ -463,5 +480,6 @@ export const stateDebugUtils = {
 
 // Make debug utils available globally in development
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).stateDebug = stateDebugUtils;
 }

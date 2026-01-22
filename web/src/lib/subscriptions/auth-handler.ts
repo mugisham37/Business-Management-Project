@@ -1,5 +1,5 @@
 import { BehaviorSubject, fromEvent, merge, timer } from 'rxjs';
-import { filter, switchMap, tap, catchError } from 'rxjs/operators';
+import { filter, tap } from 'rxjs/operators';
 import { subscriptionManager } from './subscription-manager';
 
 export interface AuthState {
@@ -99,16 +99,20 @@ export class SubscriptionAuthHandler {
   async refreshToken(): Promise<boolean> {
     try {
       const { authManager } = await import('@/lib/auth');
-      const newToken = await authManager.refreshToken();
+      const newTokens = await authManager.refreshTokens();
       
-      if (newToken) {
-        const tokenData = this.parseJWT(newToken);
-        
-        this.setAuthState({
-          isAuthenticated: true,
-          token: newToken,
-          expiresAt: new Date(tokenData.exp * 1000)
-        });
+      if (newTokens) {
+        const tokenData = this.parseJWT(newTokens.accessToken);
+        const expTime = tokenData.exp;
+        if (typeof expTime === 'number') {
+          this.setAuthState({
+            isAuthenticated: true,
+            token: newTokens.accessToken,
+            expiresAt: new Date(expTime * 1000)
+          });
+        } else {
+          console.error('Invalid token expiration time');
+        }
         
         return true;
       }
@@ -173,19 +177,25 @@ export class SubscriptionAuthHandler {
       
       if (token) {
         const tokenData = this.parseJWT(token);
-        const expiresAt = new Date(tokenData.exp * 1000);
-        const isExpired = expiresAt <= new Date();
+        const expTime = tokenData.exp;
         
-        if (isExpired) {
-          // Token is expired, try to refresh
-          await this.refreshToken();
+        if (typeof expTime === 'number') {
+          const expiresAt = new Date(expTime * 1000);
+          const isExpired = expiresAt <= new Date();
+          
+          if (isExpired) {
+            // Token is expired, try to refresh
+            await this.refreshToken();
+          } else {
+            this.setAuthState({
+              isAuthenticated: true,
+              token,
+              expiresAt,
+              tenantId
+            });
+          }
         } else {
-          this.setAuthState({
-            isAuthenticated: true,
-            token,
-            expiresAt,
-            tenantId
-          });
+          console.error('Invalid token expiration time');
         }
       } else {
         this.setAuthState({
@@ -251,9 +261,16 @@ export class SubscriptionAuthHandler {
     }
   }
 
-  private parseJWT(token: string): any {
+  private parseJWT(token: string): Record<string, unknown> {
     try {
-      const base64Url = token.split('.')[1];
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        throw new Error('Invalid JWT format');
+      }
+      const base64Url = parts[1];
+      if (!base64Url) {
+        throw new Error('Invalid JWT: missing payload');
+      }
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const jsonPayload = decodeURIComponent(
         atob(base64)
@@ -261,7 +278,7 @@ export class SubscriptionAuthHandler {
           .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
           .join('')
       );
-      return JSON.parse(jsonPayload);
+      return JSON.parse(jsonPayload) as Record<string, unknown>;
     } catch (error) {
       console.error('Failed to parse JWT:', error);
       return {};

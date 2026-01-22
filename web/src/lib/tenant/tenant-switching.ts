@@ -4,7 +4,7 @@
  * Requirements: 4.2, 4.5, 4.6
  */
 
-import { Tenant, User } from '@/types/core';
+import { Tenant, User, TenantSettings, BrandingConfig } from '@/types/core';
 import { apolloClient } from '@/lib/apollo/client';
 import { authManager } from '@/lib/auth/auth-manager';
 // Note: SWITCH_TENANT_MUTATION will be imported when auth mutations are updated
@@ -37,7 +37,7 @@ export interface TenantSwitchOptions {
  */
 export class TenantSwitchingService {
   private switchingInProgress = false;
-  private switchingQueue: Array<{ tenantId: string; resolve: Function; reject: Function }> = [];
+  private switchingQueue: Array<{ tenantId: string; resolve: (value: TenantSwitchResult) => void; reject: (error: Error) => void }> = [];
 
   /**
    * Switch to a different tenant with full validation and cache management
@@ -198,8 +198,18 @@ export class TenantSwitchingService {
         name: `Tenant ${id}`,
         subdomain: `tenant-${id}`,
         businessTier: 'SMALL' as const,
-        settings: {} as any,
-        branding: {} as any,
+        settings: {
+          timezone: 'UTC',
+          currency: 'USD',
+          dateFormat: 'yyyy-MM-dd',
+          language: 'en',
+          features: {},
+          limits: { maxUsers: 10, maxStorage: 1000, maxApiCalls: 10000, maxIntegrations: 5 }
+        } as TenantSettings,
+        branding: {
+          primaryColor: '#000000',
+          secondaryColor: '#ffffff',
+        } as BrandingConfig,
       }));
 
     } catch (error) {
@@ -218,6 +228,7 @@ export class TenantSwitchingService {
   /**
    * Execute the actual tenant switch mutation
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private async executeTenantSwitch(tenantId: string): Promise<{ success: boolean; message?: string }> {
     try {
       // TODO: Implement SWITCH_TENANT_MUTATION when auth mutations are updated
@@ -353,7 +364,7 @@ export class TenantSwitchingService {
       const result = await this.switchTenant(tenantId);
       resolve(result);
     } catch (error) {
-      reject(error);
+      reject(error instanceof Error ? error : new Error(String(error)));
     }
   }
 }

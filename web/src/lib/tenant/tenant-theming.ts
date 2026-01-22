@@ -159,7 +159,7 @@ export class TenantThemingService {
         primary: branding.primaryColor || DEFAULT_THEME.colors.primary,
         secondary: branding.secondaryColor || DEFAULT_THEME.colors.secondary,
       },
-      customCss: branding.customCss,
+      ...(branding.customCss && { customCss: branding.customCss }),
     };
 
     // Generate complementary colors based on primary color
@@ -180,7 +180,7 @@ export class TenantThemingService {
     this.currentTheme = theme;
     
     // Apply CSS variables
-    this.applyCssVariables(theme);
+    this.applyCssVariables();
     
     // Apply custom CSS if provided
     if (theme.customCss) {
@@ -261,7 +261,7 @@ export class TenantThemingService {
   /**
    * Apply CSS variables to document root
    */
-  private applyCssVariables(theme: ThemeConfig): void {
+  private applyCssVariables(): void {
     if (typeof document === 'undefined') return;
     
     const root = document.documentElement;

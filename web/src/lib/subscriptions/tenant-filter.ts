@@ -168,10 +168,10 @@ export class TenantSubscriptionFilter {
   /**
    * Create a subscription with automatic cache updates for common patterns
    */
-  createAutoUpdatingSubscription<T = any>(
+  createAutoUpdatingSubscription<T = unknown>(
     subscription: DocumentNode | TypedDocumentNode,
     config: {
-      variables?: any;
+      variables?: Record<string, unknown>;
       entityType: string;
       updateType: 'CREATE' | 'UPDATE' | 'DELETE';
       cacheQueries?: string[];
@@ -231,20 +231,31 @@ export class TenantSubscriptionFilter {
     if (config.cacheQueries && Array.isArray(config.cacheQueries)) {
       (config.cacheQueries as string[]).forEach((queryName: string) => {
         try {
-          const existingData = (cache as Record<string, unknown>).readQuery?.({
-            query: this.getQueryByName(queryName),
+          const cacheObj = cache as Record<string, unknown>;
+          const readQuery = cacheObj.readQuery as ((opts: unknown) => unknown) | undefined;
+          const writeQuery = cacheObj.writeQuery as ((opts: unknown) => unknown) | undefined;
+          
+          if (!readQuery || !writeQuery) return;
+          
+          const queryDoc = this.getQueryByName(queryName);
+          const existingData = readQuery({
+            query: queryDoc,
             variables: { tenantId: this.tenantConfig!.tenantId }
           });
 
-          if (existingData && (existingData as Record<string, unknown>)[queryName]) {
-            (cache as Record<string, unknown>).writeQuery?.({
-              query: this.getQueryByName(queryName),
-              variables: { tenantId: this.tenantConfig!.tenantId },
-              data: {
-                ...existingData,
-                [queryName]: [...existingData[queryName], data]
-              }
-            });
+          if (existingData) {
+            const typedExistingData = existingData as Record<string, unknown>;
+            if (typedExistingData[queryName]) {
+              const existingList = (typedExistingData[queryName] as unknown[]) || [];
+              writeQuery({
+                query: queryDoc,
+                variables: { tenantId: this.tenantConfig!.tenantId },
+                data: {
+                  ...typedExistingData,
+                  [queryName]: [...existingList, data]
+                }
+              });
+            }
           }
         } catch (error) {
           // Query might not be in cache yet, which is fine
@@ -262,35 +273,48 @@ export class TenantSubscriptionFilter {
 
     // Update the entity directly
     const cacheObj = cache as Record<string, unknown>;
-    cacheObj.writeFragment?.({
-      id: (cacheObj.identify as (val: unknown) => string)?.(data),
-      fragment: this.getFragmentForEntity(config.entityType as string),
-      data
-    });
+    const writeFragment = cacheObj.writeFragment as ((opts: unknown) => void) | undefined;
+    const identify = cacheObj.identify as ((val: unknown) => string) | undefined;
+    
+    if (writeFragment && identify) {
+      writeFragment({
+        id: identify(data),
+        fragment: this.getFragmentForEntity(config.entityType as string),
+        data
+      });
+    }
 
     // Update in list queries
     if (config.cacheQueries && Array.isArray(config.cacheQueries)) {
       (config.cacheQueries as string[]).forEach((queryName: string) => {
         try {
-          const existingData = cacheObj.readQuery?.({
+          const readQuery = cacheObj.readQuery as ((opts: unknown) => unknown) | undefined;
+          const writeQuery = cacheObj.writeQuery as ((opts: unknown) => void) | undefined;
+          
+          if (!readQuery || !writeQuery) return;
+          
+          const existingData = readQuery({
             query: this.getQueryByName(queryName),
             variables: { tenantId: this.tenantConfig!.tenantId }
           });
 
-          if (existingData && (existingData as Record<string, unknown>)[queryName]) {
-            const existingList = (existingData as Record<string, unknown>)[queryName] as Record<string, unknown>[];
-            const updatedList = existingList.map((item: unknown) =>
-              (item as Record<string, unknown>).id === entityId ? { ...item, ...data } : item
-            );
+          if (existingData) {
+            const typedExistingData = existingData as Record<string, unknown>;
+            if (typedExistingData[queryName]) {
+              const existingList = (typedExistingData[queryName] as Record<string, unknown>[]) || [];
+              const updatedList = existingList.map((item) => {
+                return (item as Record<string, unknown>).id === entityId ? { ...item, ...(data as Record<string, unknown>) } : item;
+              });
 
-            cacheObj.writeQuery?.({
-              query: this.getQueryByName(queryName),
-              variables: { tenantId: this.tenantConfig!.tenantId },
-              data: {
-                ...existingData,
-                [queryName]: updatedList
-              }
-            });
+              writeQuery({
+                query: this.getQueryByName(queryName),
+                variables: { tenantId: this.tenantConfig!.tenantId },
+                data: {
+                  ...typedExistingData,
+                  [queryName]: updatedList
+                }
+              });
+            }
           }
         } catch (error) {
           console.debug(`Query ${queryName} not in cache:`, error);
@@ -306,33 +330,46 @@ export class TenantSubscriptionFilter {
 
     // Remove from cache
     const cacheObj = cache as Record<string, unknown>;
-    cacheObj.evict?.({
-      id: (cacheObj.identify as (val: unknown) => string)?.(data)
-    });
+    const evict = cacheObj.evict as ((opts: unknown) => void) | undefined;
+    const identify = cacheObj.identify as ((val: unknown) => string) | undefined;
+    
+    if (evict && identify) {
+      evict({
+        id: identify(data)
+      });
+    }
 
     // Remove from list queries
     if (config.cacheQueries && Array.isArray(config.cacheQueries)) {
       (config.cacheQueries as string[]).forEach((queryName: string) => {
         try {
-          const existingData = cacheObj.readQuery?.({
+          const readQuery = cacheObj.readQuery as ((opts: unknown) => unknown) | undefined;
+          const writeQuery = cacheObj.writeQuery as ((opts: unknown) => void) | undefined;
+          
+          if (!readQuery || !writeQuery) return;
+          
+          const existingData = readQuery({
             query: this.getQueryByName(queryName),
             variables: { tenantId: this.tenantConfig!.tenantId }
           });
 
-          if (existingData && (existingData as Record<string, unknown>)[queryName]) {
-            const existingList = (existingData as Record<string, unknown>)[queryName] as Record<string, unknown>[];
-            const filteredList = existingList.filter(
-              (item: unknown) => (item as Record<string, unknown>).id !== entityId
-            );
+          if (existingData) {
+            const typedExistingData = existingData as Record<string, unknown>;
+            if (typedExistingData[queryName]) {
+              const existingList = (typedExistingData[queryName] as Record<string, unknown>[]) || [];
+              const filteredList = existingList.filter(
+                (item) => (item as Record<string, unknown>).id !== entityId
+              );
 
-            cacheObj.writeQuery?.({
-              query: this.getQueryByName(queryName),
-              variables: { tenantId: this.tenantConfig!.tenantId },
-              data: {
-                ...existingData,
-                [queryName]: filteredList
-              }
-            });
+              writeQuery({
+                query: this.getQueryByName(queryName),
+                variables: { tenantId: this.tenantConfig!.tenantId },
+                data: {
+                  ...typedExistingData,
+                  [queryName]: filteredList
+                }
+              });
+            }
           }
         } catch (error) {
           console.debug(`Query ${queryName} not in cache:`, error);

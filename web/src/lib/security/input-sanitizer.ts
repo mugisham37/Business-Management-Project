@@ -127,22 +127,22 @@ export class InputSanitizer {
           result.sanitized = this.sanitizeTextInput(input, rule);
           break;
         case 'html':
-          result.sanitized = this.sanitizeHTMLInput(input, rule);
+          result.sanitized = this.sanitizeHTMLInput(input);
           break;
         case 'url':
-          result.sanitized = this.sanitizeURLInput(input, rule);
+          result.sanitized = this.sanitizeURLInput(input);
           break;
         case 'email':
-          result.sanitized = this.sanitizeEmailInput(input, rule);
+          result.sanitized = this.sanitizeEmailInput(input);
           break;
         case 'phone':
-          result.sanitized = this.sanitizePhoneInput(input, rule);
+          result.sanitized = this.sanitizePhoneInput(input);
           break;
         case 'number':
-          result.sanitized = this.sanitizeNumberInput(input, rule);
+          result.sanitized = this.sanitizeNumberInput(input);
           break;
         case 'json':
-          result.sanitized = this.sanitizeJSONInput(input, rule);
+          result.sanitized = this.sanitizeJSONInput(input);
           break;
         case 'custom':
           if (rule.customSanitizer) {
@@ -212,7 +212,7 @@ export class InputSanitizer {
     return sanitized.trim();
   }
 
-  private sanitizeHTMLInput(input: unknown, _rule: SanitizationRule): string {
+  private sanitizeHTMLInput(input: unknown): string {
     let str: string;
     if (typeof input === 'string') {
       str = input;
@@ -223,7 +223,7 @@ export class InputSanitizer {
     return sanitizeHTML(str);
   }
 
-  private sanitizeURLInput(input: unknown, _rule: SanitizationRule): string {
+  private sanitizeURLInput(input: unknown): string {
     let str: string;
     if (typeof input === 'string') {
       str = input;
@@ -234,7 +234,7 @@ export class InputSanitizer {
     return sanitizeURL(str);
   }
 
-  private sanitizeEmailInput(input: unknown, _rule: SanitizationRule): string {
+  private sanitizeEmailInput(input: unknown): string {
     let str: string;
     if (typeof input === 'string') {
       str = input;
@@ -246,7 +246,7 @@ export class InputSanitizer {
     return str.toLowerCase().trim();
   }
 
-  private sanitizePhoneInput(input: unknown, _rule: SanitizationRule): string {
+  private sanitizePhoneInput(input: unknown): string {
     let str: string;
     if (typeof input === 'string') {
       str = input;
@@ -258,12 +258,12 @@ export class InputSanitizer {
     return str.replace(/[^\d+\-\s()]/g, '').trim();
   }
 
-  private sanitizeNumberInput(input: unknown, _rule: SanitizationRule): number | string {
+  private sanitizeNumberInput(input: unknown): number | string {
     const num = Number(input);
-    return isNaN(num) ? input : num;
+    return isNaN(num) ? String(input) : num;
   }
 
-  private sanitizeJSONInput(input: unknown, _rule: SanitizationRule): unknown {
+  private sanitizeJSONInput(input: unknown): unknown {
     if (typeof input === 'string') {
       try {
         return JSON.parse(input);

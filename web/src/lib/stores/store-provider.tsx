@@ -20,7 +20,7 @@ interface StoreProviderProps {
 
 interface StoreProviderContext {
   syncManager: StoreSyncManager;
-  debugManager?: StateDebugManager;
+  debugManager?: StateDebugManager | undefined;
   isInitialized: boolean;
 }
 
@@ -73,7 +73,7 @@ export function StoreProvider({ children, enableDebug = process.env.NODE_ENV ===
 
   const contextValue: StoreProviderContext = {
     syncManager,
-    debugManager,
+    debugManager: debugManager || undefined,
     isInitialized,
   };
 

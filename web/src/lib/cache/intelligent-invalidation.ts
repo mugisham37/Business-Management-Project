@@ -129,6 +129,7 @@ class MutationImpactAnalyzer {
     return this.mutationRules.get(mutationType);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   analyzeImpact(mutationType: string, _variables: unknown): {
     queries: string[];
     types: string[];
@@ -367,6 +368,7 @@ export class CacheInvalidationEngine {
     cache.gc(); // Garbage collect
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private async invalidateApolloTypes(types: string[], _tenantId?: string): Promise<void> {
     const cache = apolloClient.cache;
 
@@ -430,6 +432,7 @@ export class CacheInvalidationEngine {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private async invalidateByPattern(pattern: string, _tenantId?: string): Promise<void> {
     // For Apollo Cache, we need to extract and filter keys
     const cache = apolloClient.cache;

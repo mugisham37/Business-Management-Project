@@ -30,7 +30,7 @@ export const integrationUtils = {
       console.log('✅ GraphQL client initialized');
 
       // 3. Initialize cache system
-      const _cacheManager = getUnifiedCacheManager();
+      getUnifiedCacheManager();
       console.log('✅ Cache system initialized');
 
       console.log('🎉 All systems initialized successfully');

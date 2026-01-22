@@ -39,14 +39,13 @@ export class StoreSyncManager {
   private optimisticUpdates: Map<string, OptimisticUpdate> = new Map();
   private syncInProgress = false;
 
-  constructor(config: SyncManagerConfig = {}) {
+  constructor(config?: Partial<SyncManagerConfig>) {
     this.config = {
-      enableAuthSync: true,
-      enableTenantSync: true,
-      enableFeatureSync: true,
-      syncInterval: 30000, // 30 seconds
-      onSyncError: (error, context) => console.error(`Sync error in ${context}:`, error),
-      ...config,
+      enableAuthSync: config?.enableAuthSync ?? true,
+      enableTenantSync: config?.enableTenantSync ?? true,
+      enableFeatureSync: config?.enableFeatureSync ?? true,
+      syncInterval: config?.syncInterval ?? 30000, // 30 seconds
+      onSyncError: config?.onSyncError ?? ((error, context) => console.error(`Sync error in ${context}:`, error)),
     };
 
     this.initializeSync();
@@ -78,8 +77,6 @@ export class StoreSyncManager {
    * Set up authentication state synchronization
    */
   private setupAuthSync(): void {
-    const authStore = useAuthStore.getState();
-
     // Subscribe to auth store changes
     const unsubscribeAuth = useAuthStore.subscribe(
       (state) => state.user,
@@ -345,7 +342,6 @@ export class StoreSyncManager {
    */
   private updateAuthHeaders(accessToken: string | null): void {
     try {
-      const link = apolloClient.link;
       // Update auth headers in Apollo Client context
       // This would typically be handled by the auth link in the Apollo Client setup
       console.log('Auth headers updated:', accessToken ? 'Token present' : 'No token');
@@ -497,10 +493,9 @@ const gql = (strings: TemplateStringsArray, ...values: unknown[]): DocumentNode 
   return {
     kind: 'Document',
     definitions: [],
-    loc: undefined,
     // Store the query string for debugging
     __query: query,
-  } as DocumentNode;
+  } as unknown as DocumentNode;
 };
 
 // Default sync manager instance

@@ -1,18 +1,13 @@
-import { Observable, BehaviorSubject, fromEvent, merge, timer, EMPTY } from 'rxjs';
+import { Observable, BehaviorSubject } from 'rxjs';
 import { 
-  map, 
-  filter, 
-  switchMap, 
-  retry, 
-  retryWhen, 
-  delay, 
-  tap, 
-  catchError,
   distinctUntilChanged,
   share,
-  takeUntil
+  retryWhen,
+  tap,
+  delay
 } from 'rxjs/operators';
 import { DocumentNode, TypedDocumentNode } from '@apollo/client';
+import { print } from 'graphql';
 import { Client, createClient, ClientOptions } from 'graphql-ws';
 import { config } from '@/lib/config/env';
 
@@ -37,12 +32,12 @@ export interface SubscriptionResult<T = unknown> {
   loading: boolean;
 }
 
-interface ActiveSubscription {
+interface ActiveSubscription<T = unknown> {
   id: string;
   subscription: DocumentNode | TypedDocumentNode;
-  variables?: Record<string, unknown>;
-  options?: SubscriptionOptions;
-  observable: Observable<unknown>;
+  variables: Record<string, unknown> | undefined;
+  options: SubscriptionOptions | undefined;
+  observable: Observable<SubscriptionResult<T>>;
   unsubscribe: () => void;
 }
 
@@ -91,7 +86,7 @@ export class SubscriptionManager {
     
     // Check if subscription already exists
     if (pool.subscriptions.has(subscriptionId)) {
-      return pool.subscriptions.get(subscriptionId)!.observable;
+      return pool.subscriptions.get(subscriptionId)!.observable as Observable<SubscriptionResult<T>>;
     }
 
     // Create new subscription observable
@@ -106,8 +101,8 @@ export class SubscriptionManager {
     const activeSubscription: ActiveSubscription = {
       id: subscriptionId,
       subscription,
-      variables,
-      options,
+      variables: variables || undefined,
+      options: options || undefined,
       observable,
       unsubscribe: () => this.unsubscribe(subscriptionId, poolKey)
     };
@@ -137,7 +132,7 @@ export class SubscriptionManager {
    */
   async reconnect(): Promise<void> {
     const reconnectPromises = Array.from(this.connectionPools.entries()).map(
-      ([poolKey, pool]) => this.reconnectPool(poolKey)
+      ([poolKey]) => this.reconnectPool(poolKey)
     );
     
     await Promise.all(reconnectPromises);
@@ -175,7 +170,7 @@ export class SubscriptionManager {
    * Cleanup all connections and subscriptions
    */
   cleanup(): void {
-    this.connectionPools.forEach((pool, poolKey) => {
+    this.connectionPools.forEach((pool) => {
       pool.client.dispose();
       pool.subscriptions.clear();
     });
@@ -246,8 +241,8 @@ export class SubscriptionManager {
 
       const unsubscribe = pool.client.subscribe(
         {
-          query: subscription,
-          variables
+          query: print(subscription),
+          variables: variables || null
         },
         {
           next: (data) => {
@@ -302,7 +297,7 @@ export class SubscriptionManager {
 
   private generateSubscriptionId(
     subscription: DocumentNode | TypedDocumentNode,
-    variables?: any
+    variables?: Record<string, unknown>
   ): string {
     const operationName = subscription.definitions[0]?.kind === 'OperationDefinition' 
       ? subscription.definitions[0].name?.value || 'anonymous'

@@ -27,17 +27,11 @@ export function useAuthManagerSync() {
       authStore.setAuthenticated(authState.isAuthenticated);
       authStore.setLoading(authState.isLoading);
       authStore.setMfaRequired(authState.mfaRequired);
-      
-      if (authState.error) {
-        authStore.setError(authState.error);
-      } else {
-        authStore.clearError();
-      }
     });
 
     // Subscribe to MFA manager changes
     const unsubscribeMFA = mfaManager.onMFAStateChange((mfaState) => {
-      authStore.setMfaRequired(mfaState.isRequired);
+      authStore.setMfaRequired(mfaState.isVerificationRequired);
     });
 
     // Subscribe to store changes and update auth manager
@@ -184,10 +178,10 @@ export function useFeatureManagerSync() {
     
     // Expose feature utilities
     hasFeature: (key: string) => 
-      featureStore.hasFeature(key, tenantStore.getState().businessTier),
+      featureStore.hasFeature(key, useTenantStore.getState().businessTier),
     getFeatureConfig: featureStore.getFeatureConfig,
     getAvailableFeatures: () => 
-      featureStore.getAvailableFeatures(tenantStore.getState().businessTier),
+      featureStore.getAvailableFeatures(useTenantStore.getState().businessTier),
   };
 }
 

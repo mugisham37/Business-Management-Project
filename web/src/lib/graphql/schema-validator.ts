@@ -172,6 +172,7 @@ export class SchemaValidator {
   /**
    * Check for deprecated fields in operations
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private checkDeprecatedFields(_operation: DocumentNode, _warnings: ValidationWarning[], _operationPath?: string): void {
     // Implementation would traverse the operation AST and check against schema deprecations
     // This is a simplified version
@@ -181,6 +182,7 @@ export class SchemaValidator {
   /**
    * Check for potential performance issues
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private checkPerformanceIssues(_operation: DocumentNode, _warnings: ValidationWarning[], _operationPath?: string): void {
     // Check for deeply nested queries
     // Check for missing pagination
@@ -191,6 +193,7 @@ export class SchemaValidator {
   /**
    * Compare types between schema versions
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private compareTypes(_oldSchema: GraphQLSchema | null, _newSchema: GraphQLSchema | null, _changes: BreakingChange[]): void {
     // Implementation would compare type definitions
     console.log('Comparing types...');
@@ -199,6 +202,7 @@ export class SchemaValidator {
   /**
    * Compare fields between schema versions
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private compareFields(_oldSchema: GraphQLSchema | null, _newSchema: GraphQLSchema | null, _changes: BreakingChange[]): void {
     // Implementation would compare field definitions
     console.log('Comparing fields...');
@@ -207,6 +211,7 @@ export class SchemaValidator {
   /**
    * Compare arguments between schema versions
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private compareArguments(_oldSchema: GraphQLSchema | null, _newSchema: GraphQLSchema | null, _changes: BreakingChange[]): void {
     // Implementation would compare argument definitions
     console.log('Comparing arguments...');
@@ -217,7 +222,6 @@ export class SchemaValidator {
  * Validate all GraphQL operations in the project
  */
 export async function validateAllOperations(): Promise<ValidationResult[]> {
-  const validator = new SchemaValidator();
   const results: ValidationResult[] = [];
 
   // This would scan for all .graphql files and validate them

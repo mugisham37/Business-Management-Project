@@ -137,7 +137,7 @@ export class ComplianceMonitor {
     recentViolations: number;
   }>> {
     const frameworks: ComplianceFramework[] = ['GDPR', 'SOC2', 'PCI-DSS', 'HIPAA'];
-    const status: any = {};
+    const status: Record<ComplianceFramework, { score: number; status: 'compliant' | 'non-compliant' | 'needs-review'; recentViolations: number }> = {} as Record<ComplianceFramework, { score: number; status: 'compliant' | 'non-compliant' | 'needs-review'; recentViolations: number }>;
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
@@ -222,6 +222,7 @@ export class ComplianceMonitor {
       category: 'Access Control',
       description: 'Access must be properly authorized',
       severity: 'high',
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       validator: (event, _context) => {
         if (event.eventType === 'authorization' && event.outcome === 'denied') {
           // Multiple failed authorization attempts
@@ -253,6 +254,7 @@ export class ComplianceMonitor {
       category: 'Cardholder Data Protection',
       description: 'Cardholder data must be protected',
       severity: 'critical',
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       validator: (event, _context) => {
         if (event.details.containsCardholderData && 
             !event.details.encrypted) {
@@ -277,11 +279,12 @@ export class ComplianceMonitor {
       category: 'PHI Access Control',
       description: 'PHI access must be logged and authorized',
       severity: 'high',
-      validator: (event, _context) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      validator: (event: AuditEvent, _context: unknown): ComplianceViolation | null => {
         if (event.details.containsPHI && 
             event.eventType === 'data_access' &&
             !event.details.authorizedAccess) {
-          return {
+          const violation: ComplianceViolation = {
             ruleId: 'hipaa-phi-access',
             framework: 'HIPAA',
             severity: 'high',
@@ -290,6 +293,7 @@ export class ComplianceMonitor {
             remediation: 'Ensure all PHI access is properly authorized and documented',
             timestamp: new Date()
           };
+          return violation;
         }
         return null;
       }
@@ -389,8 +393,10 @@ export class ComplianceMonitor {
     return 'compliant';
   }
 
-  private async getTotalEventsCount(_startDate: Date, _endDate: Date): Promise<number> {
-    // In a real implementation, this would query the audit log
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private async getTotalEventsCount(_startDate?: Date, _endDate?: Date): Promise<number> {
+    // In a real implementation, this would query the audit log filtered by date range
+    // For now, return a placeholder value
     return 1000; // Placeholder
   }
 

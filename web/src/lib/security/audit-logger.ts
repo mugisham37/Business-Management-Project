@@ -265,12 +265,7 @@ export class AuditLogger {
   /**
    * Get audit events for a user
    */
-  async getUserAuditTrail(
-    _userId?: string,
-    _startDate?: Date,
-    _endDate?: Date,
-    _eventTypes?: AuditEventType[]
-  ): Promise<AuditEvent[]> {
+  async getUserAuditTrail(): Promise<AuditEvent[]> {
     // In a real implementation, this would query the audit log storage
     // For now, return empty array as this is a logging-only implementation
     return [];

@@ -211,7 +211,7 @@ class SSROptimizer {
   /**
    * Generate metadata for a page
    */
-  generateMetadata(path: string, _context?: Record<string, unknown>): Metadata {
+  generateMetadata(path: string): Metadata {
     const config = PAGE_CONFIGS[path];
     if (!config) {
       return {
@@ -288,7 +288,7 @@ class SSROptimizer {
         const requiredPermissions = Array.isArray(condition.value) 
           ? condition.value 
           : [condition.value];
-        const permissions = _context?.permissions;
+        const permissions = context?.permissions;
         const hasPermission = Array.isArray(permissions) && requiredPermissions.some(perm =>
           (permissions as string[]).includes(perm as string)
         );
@@ -299,7 +299,7 @@ class SSROptimizer {
 
       case 'device':
         // Mobile devices might prefer CSR for better interactivity
-        const userAgent = _context?.userAgent;
+        const userAgent = context?.userAgent;
         if (condition.value === 'mobile' && typeof userAgent === 'string' && this.isMobileDevice(userAgent)) {
           return condition.strategy;
         }
@@ -307,7 +307,7 @@ class SSROptimizer {
 
       case 'tenant':
         // Different strategies based on tenant tier
-        if (_context?.tenantTier === condition.value) {
+        if (context?.tenantTier === condition.value) {
           return condition.strategy;
         }
         break;

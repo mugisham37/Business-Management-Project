@@ -73,7 +73,6 @@ export {
   ThemeProvider,
   useTheme,
   withTheme,
-  ThemeVariables,
   ThemeFeature,
 } from './theme-provider';
 

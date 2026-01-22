@@ -6,7 +6,6 @@
 import { Suspense } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { moduleLoader, MODULE_REGISTRY } from '@/lib/performance/module-loader';
-import type { ModuleConfig } from '@/lib/performance/module-loader';
 import { useTenantCompat } from '@/lib/stores/integration-hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { LazyModule } from '@/components/common/LazyModule';
@@ -184,8 +183,9 @@ export function ModuleRouter({ children }: ModuleRouterProps) {
 
   // Check permissions
   if (moduleConfig.permissions && permissions) {
+    const permissionNames = permissions.map(p => p.name);
     const hasPermission = moduleConfig.permissions.some(permission => 
-      permissions.includes(permission)
+      permissionNames.includes(permission)
     );
     
     if (!hasPermission) {
@@ -252,8 +252,9 @@ export function useModuleNavigation() {
 
     // Check permissions
     if (moduleConfig.permissions && permissions) {
+      const permissionNames = permissions.map(p => p.name);
       const hasPermission = moduleConfig.permissions.some(permission => 
-        permissions.includes(permission)
+        permissionNames.includes(permission)
       );
       
       if (!hasPermission) {
@@ -269,7 +270,8 @@ export function useModuleNavigation() {
   };
 
   const getAvailableModules = () => {
-    return moduleLoader.getAvailableModules(permissions || [], businessTier || 'MICRO');
+    const permissionNames = permissions ? permissions.map(p => p.name) : [];
+    return moduleLoader.getAvailableModules(permissionNames, businessTier || 'MICRO');
   };
 
   const getModuleRoutes = (moduleName: string) => {

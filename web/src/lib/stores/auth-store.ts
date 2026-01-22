@@ -118,7 +118,7 @@ const crossTabStorage = createJSONStorage(() => ({
 export const useAuthStore = create<AuthStore>()(
   subscribeWithSelector(
     persist(
-      (set, get) => ({
+      (set) => ({
         ...initialState,
 
         // Basic setters

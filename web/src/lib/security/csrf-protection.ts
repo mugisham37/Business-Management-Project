@@ -125,7 +125,9 @@ export class CSRFProtector {
       }
 
       // Get token from header or body
-      const token = reqObj.headers?.[this.config.headerName.toLowerCase()] || 
+      const headerName = this.config.headerName.toLowerCase();
+      const headers = (reqObj.headers as Record<string, unknown>) || {};
+      const token = headers[headerName] || 
                    (reqObj.body as Record<string, unknown>)?.csrfToken;
 
       if (!token) {
@@ -136,7 +138,7 @@ export class CSRFProtector {
         return resObj.status?.(403).json?.({ error: 'Invalid CSRF token' });
       }
 
-      next();
+      return next();
     };
   }
 

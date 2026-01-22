@@ -306,7 +306,6 @@ class ModuleLoader {
   private async importModule(modulePath: string) {
     try {
       // Dynamic import with webpack magic comments for chunk naming
-      const _chunkName = modulePath.split('/').pop() || 'unknown';
       return await import(
         /* webpackChunkName: "[request]" */
         /* webpackPreload: true */

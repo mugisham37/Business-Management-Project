@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { DocumentNode, TypedDocumentNode } from '@apollo/client';
 import { Observable, Subscription } from 'rxjs';
 import { subscriptionManager, SubscriptionOptions, SubscriptionResult, ConnectionStatus } from './subscription-manager';
-import { useTenant } from '@/lib/tenant';
+import { useTenantStore } from '@/lib/stores/tenant-store';
 
 /**
  * React hook for GraphQL subscriptions with automatic cleanup
@@ -17,7 +17,7 @@ export function useSubscription<T = unknown>(
     onConnectionChange?: (status: ConnectionStatus) => void;
   }
 ) {
-  const { currentTenant } = useTenant();
+  const currentTenant = useTenantStore(state => state.currentTenant);
   const [result, setResult] = useState<SubscriptionResult<T>>({ loading: false });
   const subscriptionRef = useRef<Subscription | null>(null);
   const observableRef = useRef<Observable<SubscriptionResult<T>> | null>(null);
@@ -26,10 +26,10 @@ export function useSubscription<T = unknown>(
 
   // Memoize subscription options
   const subscriptionOptions: SubscriptionOptions = {
-    tenantFilter: currentTenant?.id,
+    ...(currentTenant?.id && { tenantFilter: currentTenant.id }),
     errorPolicy: 'all',
-    onError,
-    onConnectionChange
+    ...(onError && { onError }),
+    ...(onConnectionChange && { onConnectionChange })
   };
 
   const subscribe = useCallback(() => {
@@ -62,6 +62,7 @@ export function useSubscription<T = unknown>(
         }
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subscription, variables, skip, onData, onError, onConnectionChange, currentTenant?.id]);
 
   // Subscribe on mount and when dependencies change
@@ -127,16 +128,16 @@ export function useSubscriptionStatus() {
 /**
  * Hook for tenant-specific subscriptions with automatic filtering
  */
-export function useTenantSubscription<T = any>(
+export function useTenantSubscription<T = unknown>(
   subscription: DocumentNode | TypedDocumentNode,
   options?: {
-    variables?: any;
+    variables?: Record<string, unknown>;
     skip?: boolean;
     onData?: (data: T) => void;
     onError?: (error: Error) => void;
   }
 ) {
-  const { currentTenant } = useTenant();
+  const currentTenant = useTenantStore(state => state.currentTenant);
   
   // Automatically add tenant filter to variables
   const enhancedVariables = {
@@ -167,7 +168,7 @@ export function useMultipleSubscriptions<T = unknown>(
   }
 ) {
   const [results, setResults] = useState<Record<string, SubscriptionResult<T>>>({});
-  const { currentTenant } = useTenant();
+  const currentTenant = useTenantStore(state => state.currentTenant);
 
   useEffect(() => {
     if (options?.skip || !currentTenant?.id) return;
@@ -208,7 +209,7 @@ export function useMultipleSubscriptions<T = unknown>(
     return () => {
       Object.values(subscriptionRefs).forEach(sub => sub.unsubscribe());
     };
-  }, [subscriptions, options?.skip, currentTenant?.id, options?.onData, options?.onError]);
+  }, [subscriptions, options, currentTenant?.id]);
 
   return results;
 }
