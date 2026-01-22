@@ -25,7 +25,6 @@ query GetUsers($filter: UserFilter, $pagination: PaginationInput) {
       firstName
       lastName
       avatar
-      isActive
       createdAt
     }
     totalCount

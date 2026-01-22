@@ -7,11 +7,14 @@ import React from 'react';
 
 // Mock queries and mutations
 const GET_USERS = gql`
-  query GetUsers {
+  query GetUsersForCacheTest {
     users {
-      id
-      name
-      email
+      nodes {
+        id
+        firstName
+        lastName
+        email
+      }
     }
   }
 `;
@@ -19,9 +22,14 @@ const GET_USERS = gql`
 const CREATE_USER = gql`
   mutation CreateUser($input: CreateUserInput!) {
     createUser(input: $input) {
-      id
-      name
-      email
+      success
+      message
+      user {
+        id
+        firstName
+        lastName
+        email
+      }
     }
   }
 `;
@@ -29,9 +37,14 @@ const CREATE_USER = gql`
 const UPDATE_USER = gql`
   mutation UpdateUser($id: ID!, $input: UpdateUserInput!) {
     updateUser(id: $id, input: $input) {
-      id
-      name
-      email
+      success
+      message
+      user {
+        id
+        firstName
+        lastName
+        email
+      }
     }
   }
 `;
@@ -47,8 +60,8 @@ const DELETE_USER = gql`
 
 // Mock data
 const mockUsers = [
-  { id: '1', name: 'John Doe', email: 'john@example.com' },
-  { id: '2', name: 'Jane Smith', email: 'jane@example.com' },
+  { id: '1', firstName: 'John', lastName: 'Doe', email: 'john@example.com' },
+  { id: '2', firstName: 'Jane', lastName: 'Smith', email: 'jane@example.com' },
 ];
 
 const mocks = [
@@ -58,7 +71,9 @@ const mocks = [
     },
     result: {
       data: {
-        users: mockUsers,
+        users: {
+          nodes: mockUsers,
+        },
       },
     },
   },
@@ -66,15 +81,20 @@ const mocks = [
     request: {
       query: CREATE_USER,
       variables: {
-        input: { name: 'New User', email: 'new@example.com' },
+        input: { firstName: 'New', lastName: 'User', email: 'new@example.com', password: 'password', tenantId: '1', role: 'USER' },
       },
     },
     result: {
       data: {
         createUser: {
-          id: '3',
-          name: 'New User',
-          email: 'new@example.com',
+          success: true,
+          message: 'User created successfully',
+          user: {
+            id: '3',
+            firstName: 'New',
+            lastName: 'User',
+            email: 'new@example.com',
+          },
         },
       },
     },
@@ -84,15 +104,20 @@ const mocks = [
       query: UPDATE_USER,
       variables: {
         id: '1',
-        input: { name: 'Updated John' },
+        input: { firstName: 'Updated', lastName: 'John' },
       },
     },
     result: {
       data: {
         updateUser: {
-          id: '1',
-          name: 'Updated John',
-          email: 'john@example.com',
+          success: true,
+          message: 'User updated successfully',
+          user: {
+            id: '1',
+            firstName: 'Updated',
+            lastName: 'John',
+            email: 'john@example.com',
+          },
         },
       },
     },

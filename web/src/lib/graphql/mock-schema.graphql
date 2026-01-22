@@ -1,0 +1,239 @@
+# Mock GraphQL Schema for Development and Testing
+# This schema represents the expected structure of the backend GraphQL API
+
+scalar DateTime
+scalar JSON
+scalar Upload
+scalar BigInt
+scalar Decimal
+
+# Authentication Types
+type User {
+  id: ID!
+  email: String!
+  firstName: String!
+  lastName: String!
+  avatar: String
+  permissions: [String!]!
+  tenants: [UserTenant!]!
+  mfaEnabled: Boolean!
+  lastLoginAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type UserTenant {
+  id: ID!
+  name: String!
+  role: String!
+  isActive: Boolean!
+}
+
+type TokenPair {
+  accessToken: String!
+  refreshToken: String!
+  expiresAt: DateTime!
+}
+
+type AuthResult {
+  success: Boolean!
+  message: String
+  user: User
+  tokens: TokenPair
+}
+
+# Multi-Tenant Types
+enum BusinessTier {
+  MICRO
+  SMALL
+  MEDIUM
+  ENTERPRISE
+}
+
+type Tenant {
+  id: ID!
+  name: String!
+  subdomain: String!
+  businessTier: BusinessTier!
+  settings: TenantSettings!
+  branding: BrandingConfig
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type TenantSettings {
+  timezone: String!
+  currency: String!
+  dateFormat: String!
+  language: String!
+  features: JSON!
+  limits: TenantLimits!
+}
+
+type TenantLimits {
+  maxUsers: Int!
+  maxStorage: BigInt!
+  maxApiCalls: Int!
+  maxIntegrations: Int!
+}
+
+type BrandingConfig {
+  primaryColor: String
+  secondaryColor: String
+  logo: String
+  favicon: String
+}
+
+type FeatureFlag {
+  key: String!
+  enabled: Boolean!
+  config: JSON
+  requiredTier: BusinessTier!
+}
+
+# Pagination Types
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type UserConnection {
+  nodes: [User!]!
+  totalCount: Int!
+  pageInfo: PageInfo!
+}
+
+# Input Types
+input LoginInput {
+  email: String!
+  password: String!
+  mfaCode: String
+  rememberMe: Boolean
+}
+
+input UserFilter {
+  search: String
+  isActive: Boolean
+  tenantId: ID
+}
+
+input PaginationInput {
+  first: Int
+  after: String
+  last: Int
+  before: String
+}
+
+input CreateUserInput {
+  email: String!
+  firstName: String!
+  lastName: String!
+  password: String!
+  tenantId: ID!
+  role: String!
+}
+
+input UpdateUserInput {
+  firstName: String
+  lastName: String
+  avatar: String
+}
+
+# Mutation Response Types
+interface MutationResponse {
+  success: Boolean!
+  message: String
+}
+
+type CreateUserResult implements MutationResponse {
+  success: Boolean!
+  message: String
+  user: User
+}
+
+type UpdateUserResult implements MutationResponse {
+  success: Boolean!
+  message: String
+  user: User
+}
+
+type DeleteUserResult implements MutationResponse {
+  success: Boolean!
+  message: String
+}
+
+# Subscription Types
+type UserStatusUpdate {
+  userId: ID!
+  status: String!
+  timestamp: DateTime!
+}
+
+type TenantUpdate {
+  tenantId: ID!
+  type: String!
+  data: JSON!
+  timestamp: DateTime!
+}
+
+# Root Types
+type Query {
+  # Authentication
+  currentUser: User
+  
+  # Users
+  users(filter: UserFilter, pagination: PaginationInput): UserConnection!
+  user(id: ID!): User
+  
+  # Tenants
+  tenants: [Tenant!]!
+  tenant(id: ID!): Tenant
+  currentTenant: Tenant
+  
+  # Feature Flags
+  featureFlags: [FeatureFlag!]!
+  featureFlag(key: String!): FeatureFlag
+  
+  # Health Check
+  health: String!
+}
+
+type Mutation {
+  # Authentication
+  login(input: LoginInput!): AuthResult!
+  logout: AuthResult!
+  refreshToken(refreshToken: String!): AuthResult!
+  
+  # User Management
+  createUser(input: CreateUserInput!): CreateUserResult!
+  updateUser(id: ID!, input: UpdateUserInput!): UpdateUserResult!
+  deleteUser(id: ID!): DeleteUserResult!
+  
+  # Tenant Management
+  switchTenant(tenantId: ID!): AuthResult!
+  updateTenantSettings(tenantId: ID!, settings: JSON!): MutationResponse!
+  
+  # Feature Flags
+  toggleFeatureFlag(key: String!, enabled: Boolean!): MutationResponse!
+}
+
+type Subscription {
+  # User Status Updates
+  userStatusUpdates(tenantId: ID): UserStatusUpdate!
+  
+  # Tenant Updates
+  tenantUpdates(tenantId: ID!): TenantUpdate!
+  
+  # Feature Flag Updates
+  featureFlagUpdates(tenantId: ID): FeatureFlag!
+}
+
+# Schema Definition
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}

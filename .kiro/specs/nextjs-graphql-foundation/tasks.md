@@ -35,14 +35,14 @@ This implementation plan breaks down the Next.js GraphQL foundation into discret
     - **Property 3: Optimistic update rollback**
     - **Validates: Requirements 1.3, 1.4, 1.5**
 
-- [ ] 3. Type Generation and Schema Integration
-  - [ ] 3.1 Set up GraphQL Code Generator
+- [x] 3. Type Generation and Schema Integration
+  - [x] 3.1 Set up GraphQL Code Generator
     - Install and configure GraphQL Code Generator
     - Set up schema introspection and type generation
     - Configure typed hooks generation for operations
     - _Requirements: 2.1, 2.3_
   
-  - [ ] 3.2 Implement schema validation and error handling
+  - [x] 3.2 Implement schema validation and error handling
     - Set up build-time operation validation
     - Configure breaking change detection
     - Implement clear error messaging for invalid operations

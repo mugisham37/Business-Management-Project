@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/build-check.js && next build",
+    "build": "node scripts/build-check.js && npm run validate:graphql && next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx --fix",
     "lint:check": "eslint . --ext .ts,.tsx",
@@ -17,9 +17,11 @@
     "test:property": "jest --testPathPattern=__property_tests__",
     "codegen": "graphql-codegen --config codegen.ts",
     "codegen:watch": "graphql-codegen --config codegen.ts --watch",
+    "validate:graphql": "node scripts/validate-graphql.js",
+    "validate:schema": "npm run codegen && npm run validate:graphql",
     "prepare": "husky install",
     "build:analyze": "NEXT_PUBLIC_BUNDLE_ANALYZER=true npm run build",
-    "validate": "npm run type-check && npm run lint:check && npm run format:check && npm run test",
+    "validate": "npm run type-check && npm run lint:check && npm run format:check && npm run validate:graphql && npm run test",
     "clean": "rm -rf .next out dist",
     "postinstall": "npm run codegen || true"
   },
