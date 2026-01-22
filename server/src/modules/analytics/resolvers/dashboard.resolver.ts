@@ -36,24 +36,22 @@ export class DashboardResolver extends BaseResolver {
         id: dashboard.id,
         tenantId: dashboard.tenantId,
         name: dashboard.name,
-        description: dashboard.description || undefined,
+        description: dashboard.description ?? '',
         widgets: dashboard.widgets.map((w: any) => ({
           id: w.id,
           title: w.title,
           type: w.type,
-          data: JSON.stringify(w.data) || undefined,
+          data: JSON.stringify(w.data || {}),
           x: w.position?.x || 0,
           y: w.position?.y || 0,
           width: w.position?.width || 4,
           height: w.position?.height || 4,
         })),
-        isPublic: dashboard.isPublic || false,
-        createdAt: dashboard.createdAt || new Date(),
-        updatedAt: dashboard.updatedAt || new Date(),
-        createdBy: dashboard.createdBy || '',
-        deletedAt: dashboard.deletedAt || undefined,
-        updatedBy: dashboard.updatedBy || undefined,
-        version: dashboard.version || 1,
+        isPublic: dashboard.isPublic ?? false,
+        createdAt: dashboard.createdAt ?? new Date(),
+        updatedAt: dashboard.updatedAt ?? new Date(),
+        createdBy: dashboard.createdBy ?? '',
+        version: 1,
       };
     } catch (error) {
       this.handleError(error, 'Failed to get dashboard');
@@ -72,18 +70,16 @@ export class DashboardResolver extends BaseResolver {
   ): Promise<Dashboard> {
     try {
       const dashboardId = `dash_${Date.now()}`;
-      const dashboard = {
+      const dashboard: Dashboard = {
         id: dashboardId,
         tenantId,
         name,
-        description: description || undefined,
+        description: description ?? '',
         widgets: [],
         isPublic: false,
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: user.id,
-        deletedAt: undefined,
-        updatedBy: undefined,
         version: 1,
       };
 

@@ -122,8 +122,8 @@ export class ComparativeAnalysisResolver extends BaseResolver {
         {
           locationIds: input.locationIds,
           metricNames: input.metricNames,
-          startDate: input.startDate,
-          endDate: input.endDate,
+          ...(input.startDate !== undefined && { startDate: input.startDate }),
+          ...(input.endDate !== undefined && { endDate: input.endDate }),
         }
       ) || [];
 
@@ -161,8 +161,8 @@ export class ComparativeAnalysisResolver extends BaseResolver {
         {
           segmentIds: input.segmentIds,
           metricNames: input.metricNames,
-          startDate: input.startDate,
-          endDate: input.endDate,
+          ...(input.startDate !== undefined && { startDate: input.startDate }),
+          ...(input.endDate !== undefined && { endDate: input.endDate }),
         }
       ) || [];
 

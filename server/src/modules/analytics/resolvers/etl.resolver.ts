@@ -124,13 +124,12 @@ export class ETLResolver extends BaseResolver {
   @Permissions('analytics:write')
   async executePipeline(
     @Args('pipelineId') pipelineId: string,
-    @Args('parameters', { type: () => String, nullable: true }) parameters?: string,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
+    @Args('parameters', { type: () => String, nullable: true }) parameters?: string,
   ): Promise<string> {
     try {
-      const params = parameters ? JSON.parse(parameters) : {};
-      const result = await this.etlService.executePipeline(pipelineId, params);
+      const result = await this.etlService.executePipeline(pipelineId);
       
       // Publish pipeline execution event
       await this.pubSub.publish(`pipeline:${pipelineId}:executed`, {

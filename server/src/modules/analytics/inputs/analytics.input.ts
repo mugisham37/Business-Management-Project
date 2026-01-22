@@ -1,5 +1,5 @@
 import { InputType, Field, Int, ID } from '@nestjs/graphql';
-import { IsString, IsOptional, IsEnum, IsDate, IsArray, IsInt, Min } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsDate, IsArray, IsInt, Min, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 import { MetricCategory, TimePeriod } from '../types/analytics.types';
 

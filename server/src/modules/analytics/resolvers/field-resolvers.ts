@@ -20,6 +20,7 @@ export class MetricFieldResolver {
     try {
       const trends = await this.metricsService.getMetricTrends?.(
         metric.name,
+        metric.name,
         'day',
         7
       );
@@ -38,8 +39,9 @@ export class MetricFieldResolver {
     try {
       const trends = await this.metricsService.getMetricTrends?.(
         metric.name,
-        'day' as any,
-        7 as any
+        metric.name,
+        'day',
+        7
       );
       
       return trends?.trend?.percentage || null;
@@ -222,10 +224,11 @@ export class ReportFieldResolver {
 export class TrendFieldResolver {
   @ResolveField(() => Float, { name: 'growthRate' })
   async growthRate(@Parent() trend: Trend): Promise<number> {
-    if (!trend.dataPoints || trend.dataPoints.length < 2) return 0;
+    const dataPoints = trend.dataPoints ?? [];
+    if (!dataPoints || dataPoints.length < 2) return 0;
     
-    const firstValue = trend.dataPoints[0].value;
-    const lastValue = trend.dataPoints[trend.dataPoints.length - 1].value;
+    const firstValue = dataPoints[0]?.value ?? 0;
+    const lastValue = dataPoints[dataPoints.length - 1]?.value ?? 0;
     
     if (firstValue === 0) return 0;
     
@@ -234,12 +237,13 @@ export class TrendFieldResolver {
 
   @ResolveField(() => Float, { name: 'volatility' })
   async volatility(@Parent() trend: Trend): Promise<number> {
-    if (!trend.dataPoints || trend.dataPoints.length < 2) return 0;
+    const dataPoints = trend.dataPoints ?? [];
+    if (!dataPoints || dataPoints.length < 2) return 0;
     
-    const values = trend.dataPoints.map(dp => dp.value);
-    const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+    const values = dataPoints.map((dp: any) => dp.value);
+    const mean = values.reduce((sum: number, val: number) => sum + val, 0) / values.length;
     
-    const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+    const variance = values.reduce((sum: number, val: number) => sum + Math.pow(val - mean, 2), 0) / values.length;
     const standardDeviation = Math.sqrt(variance);
     
     return mean !== 0 ? (standardDeviation / mean) * 100 : 0;

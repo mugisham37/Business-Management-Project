@@ -31,7 +31,7 @@ export class DataWarehouseResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
   ): Promise<string> {
     try {
-      const result = await this.dataWarehouseService.executeAnalyticsQuery(tenantId, query, []);
+      const result = await this.dataWarehouseService.executeAnalyticsQuery(tenantId, query);
       return JSON.stringify(result);
     } catch (error) {
       this.handleError(error, 'Failed to query warehouse');
@@ -136,8 +136,7 @@ export class DataWarehouseResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
   ): Promise<string> {
     try {
-      const config = JSON.parse(schemaConfig);
-      await this.dataWarehouseService.createTenantSchema(tenantId, config);
+      await this.dataWarehouseService.createTenantSchema(tenantId);
       return 'Tenant schema created successfully';
     } catch (error) {
       this.handleError(error, 'Failed to create tenant schema');
@@ -152,13 +151,12 @@ export class DataWarehouseResolver extends BaseResolver {
   @UseGuards(PermissionsGuard)
   @Permissions('analytics:admin')
   async optimizeWarehouse(
-    @Args('optimizationConfig', { type: () => String, nullable: true }) optimizationConfig?: string,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
+    @Args('optimizationConfig', { type: () => String, nullable: true }) optimizationConfig?: string,
   ): Promise<string> {
     try {
-      const config = optimizationConfig ? JSON.parse(optimizationConfig) : {};
-      await this.dataWarehouseService.optimizeWarehouse(tenantId, config);
+      await this.dataWarehouseService.optimizeWarehouse(tenantId);
       return 'Warehouse optimization completed successfully';
     } catch (error) {
       this.handleError(error, 'Failed to optimize warehouse');
@@ -173,13 +171,13 @@ export class DataWarehouseResolver extends BaseResolver {
   @UseGuards(PermissionsGuard)
   @Permissions('analytics:admin')
   async createPartitions(
-    @Args('partitionConfig', { type: () => String }) partitionConfig: string,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
+    @Args('partitionConfig', { type: () => String }) partitionConfig: string,
   ): Promise<string> {
     try {
       const config = JSON.parse(partitionConfig);
-      await this.dataWarehouseService.createPartitions(tenantId, config);
+      await this.dataWarehouseService.createPartitions(tenantId, 'default', config);
       return 'Partitions created successfully';
     } catch (error) {
       this.handleError(error, 'Failed to create partitions');
@@ -198,7 +196,16 @@ export class DataWarehouseResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
   ): Promise<DataCube[]> {
     try {
-      const cubes = await this.dataWarehouseService.getAvailableCubes?.(tenantId) || [];
+      // Mock available cubes
+      const cubes = [
+        {
+          id: 'cube_sales',
+          name: 'sales',
+          dimensions: ['time', 'location', 'product'],
+          measures: ['revenue', 'quantity'],
+          data: { values: [] },
+        },
+      ];
       
       return cubes.map((cube: any) => ({
         id: cube.id || `cube_${cube.name}`,

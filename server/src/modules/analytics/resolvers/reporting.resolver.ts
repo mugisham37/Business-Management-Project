@@ -14,7 +14,7 @@ import { IntelligentCacheService } from '../../cache/intelligent-cache.service';
 @UseGuards(JwtAuthGuard)
 export class ReportingResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly analyticsAPIService: AnalyticsAPIService,
     private readonly cacheService: IntelligentCacheService,
   ) {
@@ -76,7 +76,7 @@ export class ReportingResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
   ): Promise<string> {
     try {
-      const history = [];
+      const history: any[] = [];
       return JSON.stringify(history);
     } catch (error) {
       this.handleError(error, 'Failed to get report history');

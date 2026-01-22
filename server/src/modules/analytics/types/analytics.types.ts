@@ -97,8 +97,8 @@ export class DashboardWidget {
   @Field()
   type!: string;
 
-  @Field({ nullable: true })
-  data?: string;
+  @Field()
+  data!: string;
 
   @Field(() => Int)
   x!: number;
@@ -296,8 +296,8 @@ export class Report extends BaseEntity {
   @Field(() => [String], { nullable: true })
   dimensions?: string[];
 
-  @Field({ nullable: true })
-  schedule?: string;
+  @Field()
+  schedule!: string;
 
   @Field({ nullable: true })
   lastRunAt?: Date;
@@ -359,8 +359,8 @@ export class Dashboard extends BaseEntity {
   @Field()
   name!: string;
 
-  @Field({ nullable: true })
-  description?: string;
+  @Field()
+  description!: string;
 
   @Field(() => [DashboardWidget])
   widgets!: DashboardWidget[];
