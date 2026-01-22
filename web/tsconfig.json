@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -13,13 +13,26 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
     "plugins": [
       {
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@/components/*": ["./src/components/*"],
+      "@/lib/*": ["./src/lib/*"],
+      "@/hooks/*": ["./src/hooks/*"],
+      "@/types/*": ["./src/types/*"],
+      "@/modules/*": ["./src/modules/*"],
+      "@/graphql/*": ["./src/graphql/*"],
+      "@/utils/*": ["./src/utils/*"]
     }
   },
   "include": [
@@ -30,5 +43,11 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "src/__tests__/utils/test-utils.tsx",
+    "src/__property_tests__/utils/generators.ts",
+    "src/lib/config/env.ts",
+    ".next/types/validator.ts"
+  ]
 }
