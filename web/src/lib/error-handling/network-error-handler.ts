@@ -49,7 +49,7 @@ const DEFAULT_RETRY_OPTIONS: Required<NetworkErrorOptions> = {
       error.name === 'TimeoutError' ||
       error.message.includes('fetch') ||
       error.message.includes('network') ||
-      (error as { status?: number }).status >= 500
+      ((error as { status?: number }).status ?? 0) >= 500
     );
   },
   onRetry: () => {},

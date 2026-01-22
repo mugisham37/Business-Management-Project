@@ -13,12 +13,12 @@ export interface SanitizationRule {
   minLength?: number;
   pattern?: RegExp;
   allowedChars?: string;
-  customSanitizer?: (input: any) => any;
+  customSanitizer?: (input: unknown) => unknown;
   validator?: z.ZodSchema;
 }
 
 export interface SanitizationResult {
-  sanitized: any;
+  sanitized: unknown;
   isValid: boolean;
   errors: string[];
   warnings: string[];
@@ -41,7 +41,7 @@ export class InputSanitizer {
   /**
    * Sanitize input based on registered rules
    */
-  sanitize(fieldName: string, input: any): SanitizationResult {
+  sanitize(fieldName: string, input: unknown): SanitizationResult {
     const rule = this.rules.get(fieldName);
     
     if (!rule) {
@@ -59,7 +59,7 @@ export class InputSanitizer {
   /**
    * Sanitize an object with multiple fields
    */
-  sanitizeObject(data: Record<string, any>): Record<string, SanitizationResult> {
+  sanitizeObject(data: Record<string, unknown>): Record<string, SanitizationResult> {
     const results: Record<string, SanitizationResult> = {};
 
     for (const [fieldName, value] of Object.entries(data)) {
@@ -85,8 +85,8 @@ export class InputSanitizer {
   /**
    * Get sanitized values from sanitization results
    */
-  getSanitizedValues(results: Record<string, SanitizationResult>): Record<string, any> {
-    const sanitized: Record<string, any> = {};
+  getSanitizedValues(results: Record<string, SanitizationResult>): Record<string, unknown> {
+    const sanitized: Record<string, unknown> = {};
 
     for (const [key, result] of Object.entries(results)) {
       if (result.isValid) {
@@ -112,7 +112,7 @@ export class InputSanitizer {
     return errors;
   }
 
-  private applySanitizationRule(input: any, rule: SanitizationRule): SanitizationResult {
+  private applySanitizationRule(input: unknown, rule: SanitizationRule): SanitizationResult {
     const result: SanitizationResult = {
       sanitized: input,
       isValid: true,
@@ -193,62 +193,77 @@ export class InputSanitizer {
     return result;
   }
 
-  private sanitizeTextInput(input: any, rule: SanitizationRule): string {
-    if (typeof input !== 'string') {
-      input = String(input || '');
+  private sanitizeTextInput(input: unknown, _rule: SanitizationRule): string {
+    let str: string;
+    if (typeof input === 'string') {
+      str = input;
+    } else {
+      str = String(input || '');
     }
 
-    let sanitized = sanitizeText(input);
+    let sanitized = sanitizeText(str);
 
     // Apply allowed characters filter if specified
-    if (rule.allowedChars) {
-      const allowedPattern = new RegExp(`[^${rule.allowedChars.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}]`, 'g');
+    if (_rule.allowedChars) {
+      const allowedPattern = new RegExp(`[^${_rule.allowedChars.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}]`, 'g');
       sanitized = sanitized.replace(allowedPattern, '');
     }
 
     return sanitized.trim();
   }
 
-  private sanitizeHTMLInput(input: any, rule: SanitizationRule): string {
-    if (typeof input !== 'string') {
-      input = String(input || '');
+  private sanitizeHTMLInput(input: unknown, _rule: SanitizationRule): string {
+    let str: string;
+    if (typeof input === 'string') {
+      str = input;
+    } else {
+      str = String(input || '');
     }
 
-    return sanitizeHTML(input);
+    return sanitizeHTML(str);
   }
 
-  private sanitizeURLInput(input: any, rule: SanitizationRule): string {
-    if (typeof input !== 'string') {
-      input = String(input || '');
+  private sanitizeURLInput(input: unknown, _rule: SanitizationRule): string {
+    let str: string;
+    if (typeof input === 'string') {
+      str = input;
+    } else {
+      str = String(input || '');
     }
 
-    return sanitizeURL(input);
+    return sanitizeURL(str);
   }
 
-  private sanitizeEmailInput(input: any, rule: SanitizationRule): string {
-    if (typeof input !== 'string') {
-      input = String(input || '');
+  private sanitizeEmailInput(input: unknown, _rule: SanitizationRule): string {
+    let str: string;
+    if (typeof input === 'string') {
+      str = input;
+    } else {
+      str = String(input || '');
     }
 
     // Basic email sanitization
-    return input.toLowerCase().trim();
+    return str.toLowerCase().trim();
   }
 
-  private sanitizePhoneInput(input: any, rule: SanitizationRule): string {
-    if (typeof input !== 'string') {
-      input = String(input || '');
+  private sanitizePhoneInput(input: unknown, _rule: SanitizationRule): string {
+    let str: string;
+    if (typeof input === 'string') {
+      str = input;
+    } else {
+      str = String(input || '');
     }
 
     // Remove all non-digit characters except + and -
-    return input.replace(/[^\d+\-\s()]/g, '').trim();
+    return str.replace(/[^\d+\-\s()]/g, '').trim();
   }
 
-  private sanitizeNumberInput(input: any, rule: SanitizationRule): number | string {
+  private sanitizeNumberInput(input: unknown, _rule: SanitizationRule): number | string {
     const num = Number(input);
     return isNaN(num) ? input : num;
   }
 
-  private sanitizeJSONInput(input: any, rule: SanitizationRule): any {
+  private sanitizeJSONInput(input: unknown, _rule: SanitizationRule): unknown {
     if (typeof input === 'string') {
       try {
         return JSON.parse(input);
@@ -315,11 +330,11 @@ export const inputSanitizer = new InputSanitizer();
 /**
  * Utility functions for common sanitization scenarios
  */
-export const sanitizeInput = (fieldName: string, input: any): SanitizationResult => {
+export const sanitizeInput = (fieldName: string, input: unknown): SanitizationResult => {
   return inputSanitizer.sanitize(fieldName, input);
 };
 
-export const sanitizeFormInputs = (data: Record<string, any>): Record<string, SanitizationResult> => {
+export const sanitizeFormInputs = (data: Record<string, unknown>): Record<string, SanitizationResult> => {
   return inputSanitizer.sanitizeObject(data);
 };
 

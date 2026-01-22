@@ -4,7 +4,6 @@
  */
 
 import { dependencyResolver } from './shared-utilities';
-import { MODULE_REGISTRY } from '@/lib/performance/module-loader';
 
 /**
  * Enhanced module configuration with dependencies
@@ -18,6 +17,7 @@ export interface EnhancedModuleConfig {
   lazy: boolean;
   permissions?: string[];
   businessTier?: string;
+  category?: string;
   dependencies?: string[];
   features?: string[];
   routes?: string[];

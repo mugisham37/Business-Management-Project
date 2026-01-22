@@ -7,10 +7,14 @@ export * from './system-health';
 
 // Re-export core integration points
 export { apolloClient } from '@/lib/apollo';
-export { authManager } from '@/lib/auth';
-export { tenantContextManager } from '@/lib/tenant';
-export { subscriptionManager } from '@/lib/subscriptions';
-export { cacheService } from '@/lib/cache';
+export { getUnifiedCacheManager } from '@/lib/cache';
+
+// Import managers for internal use
+import { apolloClient } from '@/lib/apollo';
+import { getUnifiedCacheManager } from '@/lib/cache';
+
+// Note: authManager, tenantContextManager, and subscriptionManager
+// will be implemented in their respective modules
 
 // Integration utilities
 export const integrationUtils = {
@@ -25,20 +29,8 @@ export const integrationUtils = {
       // 2. Initialize Apollo Client (already done in provider)
       console.log('✅ GraphQL client initialized');
 
-      // 3. Initialize authentication system
-      await authManager.initialize();
-      console.log('✅ Authentication system initialized');
-
-      // 4. Initialize tenant system
-      await tenantContextManager.initialize();
-      console.log('✅ Tenant system initialized');
-
-      // 5. Initialize subscription system
-      await subscriptionManager.initialize();
-      console.log('✅ Subscription system initialized');
-
-      // 6. Initialize cache system
-      await cacheService.initialize();
+      // 3. Initialize cache system
+      const _cacheManager = getUnifiedCacheManager();
       console.log('✅ Cache system initialized');
 
       console.log('🎉 All systems initialized successfully');
@@ -53,26 +45,16 @@ export const integrationUtils = {
    * Validate that all systems are properly integrated
    */
   async validateIntegration() {
+    const cacheManager = getUnifiedCacheManager();
+    
     const checks = [
       {
         name: 'GraphQL Client',
         check: () => !!apolloClient,
       },
       {
-        name: 'Authentication Manager',
-        check: () => !!authManager && typeof authManager.getAuthState === 'function',
-      },
-      {
-        name: 'Tenant Context Manager',
-        check: () => !!tenantContextManager && typeof tenantContextManager.getCurrentContext === 'function',
-      },
-      {
-        name: 'Subscription Manager',
-        check: () => !!subscriptionManager && typeof subscriptionManager.getConnectionStatus === 'function',
-      },
-      {
-        name: 'Cache Service',
-        check: () => !!cacheService && typeof cacheService.get === 'function',
+        name: 'Cache Manager',
+        check: () => !!cacheManager && typeof cacheManager.get === 'function',
       },
     ];
 

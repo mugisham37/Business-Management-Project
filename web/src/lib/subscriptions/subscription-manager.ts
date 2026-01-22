@@ -31,7 +31,7 @@ export interface SubscriptionOptions {
   onConnectionChange?: (status: ConnectionStatus) => void;
 }
 
-export interface SubscriptionResult<T = any> {
+export interface SubscriptionResult<T = unknown> {
   data?: T;
   error?: Error;
   loading: boolean;
@@ -40,9 +40,9 @@ export interface SubscriptionResult<T = any> {
 interface ActiveSubscription {
   id: string;
   subscription: DocumentNode | TypedDocumentNode;
-  variables?: any;
+  variables?: Record<string, unknown>;
   options?: SubscriptionOptions;
-  observable: Observable<any>;
+  observable: Observable<unknown>;
   unsubscribe: () => void;
 }
 
@@ -74,9 +74,9 @@ export class SubscriptionManager {
   /**
    * Subscribe to a GraphQL subscription with automatic connection management
    */
-  subscribe<T = any>(
+  subscribe<T = unknown>(
     subscription: DocumentNode | TypedDocumentNode,
-    variables?: any,
+    variables?: Record<string, unknown>,
     options?: SubscriptionOptions
   ): Observable<SubscriptionResult<T>> {
     const subscriptionId = this.generateSubscriptionId(subscription, variables);
@@ -237,7 +237,7 @@ export class SubscriptionManager {
   private createSubscriptionObservable<T>(
     pool: ConnectionPool,
     subscription: DocumentNode | TypedDocumentNode,
-    variables?: any,
+    variables?: Record<string, unknown>,
     options?: SubscriptionOptions
   ): Observable<SubscriptionResult<T>> {
     return new Observable<SubscriptionResult<T>>(subscriber => {
@@ -361,7 +361,7 @@ export class SubscriptionManager {
     }
   }
 
-  private handleConnectionError(poolKey: string, error: any): void {
+  private handleConnectionError(poolKey: string, error: unknown): void {
     const pool = this.connectionPools.get(poolKey);
     if (!pool) return;
 

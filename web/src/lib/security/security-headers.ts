@@ -155,8 +155,7 @@ export class SecurityHeaders {
       crossOriginEmbedderPolicy: 'unsafe-none', // Relaxed for development
       crossOriginOpenerPolicy: 'unsafe-none', // Relaxed for development
       crossOriginResourcePolicy: 'cross-origin', // Relaxed for development
-      strictTransportSecurity: undefined, // No HSTS in development
-      expectCT: undefined // No Expect-CT in development
+      // strictTransportSecurity and expectCT are omitted for development (not undefined)
     });
   }
 
@@ -204,7 +203,7 @@ export class SecurityHeaders {
    * Create middleware for Next.js
    */
   static createMiddleware(isDevelopment: boolean = false) {
-    return (req: any, res: any, next: () => void) => {
+    return (req: unknown, res: unknown, next: () => void) => {
       const securityHeaders = isDevelopment 
         ? SecurityHeaders.createDevelopmentHeaders()
         : SecurityHeaders.createProductionHeaders();
@@ -212,13 +211,14 @@ export class SecurityHeaders {
       const headers = securityHeaders.generateHeaders();
 
       // Set all security headers
+      const resObj = res as Record<string, unknown> & { setHeader?: (name: string, value: string) => void; removeHeader?: (name: string) => void };
       Object.entries(headers).forEach(([name, value]) => {
-        res.setHeader(name, value);
+        resObj.setHeader?.(name, value);
       });
 
       // Additional security measures
-      res.removeHeader('X-Powered-By'); // Remove server information
-      res.setHeader('Server', 'NextJS'); // Generic server header
+      resObj.removeHeader?.('X-Powered-By'); // Remove server information
+      resObj.setHeader?.('Server', 'NextJS'); // Generic server header
 
       next();
     };

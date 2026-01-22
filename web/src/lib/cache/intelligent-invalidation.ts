@@ -79,7 +79,6 @@ class MutationImpactAnalyzer {
       tenantSpecific: true,
       customInvalidator: async () => {
         // Clear all tenant-specific cache
-        const cache = getMultiTierCache();
         // Implementation would clear tenant cache
       },
     });
@@ -130,7 +129,7 @@ class MutationImpactAnalyzer {
     return this.mutationRules.get(mutationType);
   }
 
-  analyzeImpact(mutationType: string, variables: unknown): {
+  analyzeImpact(mutationType: string, _variables: unknown): {
     queries: string[];
     types: string[];
     tenantSpecific: boolean;
@@ -315,8 +314,6 @@ export class CacheInvalidationEngine {
 
     try {
       // Apollo Cache doesn't have built-in TTL, so we rely on multi-tier cache
-      const multiTierCache = getMultiTierCache();
-      
       // The multi-tier cache handles TTL automatically, but we can trigger cleanup
       // This is more of a maintenance operation
       
@@ -370,7 +367,7 @@ export class CacheInvalidationEngine {
     cache.gc(); // Garbage collect
   }
 
-  private async invalidateApolloTypes(types: string[], tenantId?: string): Promise<void> {
+  private async invalidateApolloTypes(types: string[], _tenantId?: string): Promise<void> {
     const cache = apolloClient.cache;
 
     for (const typeName of types) {
@@ -433,7 +430,7 @@ export class CacheInvalidationEngine {
     }
   }
 
-  private async invalidateByPattern(pattern: string, tenantId?: string): Promise<void> {
+  private async invalidateByPattern(pattern: string, _tenantId?: string): Promise<void> {
     // For Apollo Cache, we need to extract and filter keys
     const cache = apolloClient.cache;
     const cacheData = cache.extract();
@@ -450,7 +447,7 @@ export class CacheInvalidationEngine {
 
     // For multi-tier cache, we'd need to implement pattern matching
     // This is a simplified version
-    const multiTierCache = getMultiTierCache();
+    getMultiTierCache();
     // Multi-tier cache would need pattern support for full implementation
   }
 

@@ -23,7 +23,7 @@ export type Scalars = {
   BigInt: { input: bigint; output: bigint };
   DateTime: { input: Date; output: Date };
   Decimal: { input: number; output: number };
-  JSON: { input: Record<string, any>; output: Record<string, any> };
+  JSON: { input: Record<string, unknown>; output: Record<string, unknown> };
   Upload: { input: File; output: File };
 };
 
@@ -543,7 +543,7 @@ export function useGetUsersForCacheTestLazyQuery(
     GetUsersForCacheTestQueryVariables
   >(GetUsersForCacheTestDocument, options);
 }
-// @ts-ignore
+// @ts-expect-error - Apollo hook overloads
 export function useGetUsersForCacheTestSuspenseQuery(
   baseOptions?: ApolloReactHooks.SuspenseQueryHookOptions<
     GetUsersForCacheTestQuery,
@@ -799,7 +799,7 @@ export function useGetExampleDataLazyQuery(
     options
   );
 }
-// @ts-ignore
+// @ts-expect-error - Apollo hook overloads
 export function useGetExampleDataSuspenseQuery(
   baseOptions?: ApolloReactHooks.SuspenseQueryHookOptions<
     GetExampleDataQuery,
@@ -1051,7 +1051,7 @@ export function useGetCurrentUserLazyQuery(
     options
   );
 }
-// @ts-ignore
+// @ts-expect-error - Apollo hook overloads
 export function useGetCurrentUserSuspenseQuery(
   baseOptions?: ApolloReactHooks.SuspenseQueryHookOptions<
     GetCurrentUserQuery,
@@ -1149,7 +1149,7 @@ export function useGetUsersLazyQuery(
     options
   );
 }
-// @ts-ignore
+// @ts-expect-error - Apollo hook overloads
 export function useGetUsersSuspenseQuery(
   baseOptions?: ApolloReactHooks.SuspenseQueryHookOptions<GetUsersQuery, GetUsersQueryVariables>
 ): ApolloReactHooks.UseSuspenseQueryResult<GetUsersQuery, GetUsersQueryVariables>;

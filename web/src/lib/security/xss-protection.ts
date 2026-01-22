@@ -51,8 +51,6 @@ export class XSSProtector {
       return DOMPurify.sanitize(html, {
         ALLOWED_TAGS: this.config.allowedTags,
         ALLOWED_ATTR: Object.keys(this.config.allowedAttributes || {}),
-        STRIP_IGNORE_TAG: this.config.stripIgnoreTag,
-        STRIP_IGNORE_TAG_BODY: this.config.stripIgnoreTagBody,
         RETURN_DOM: false,
         RETURN_DOM_FRAGMENT: false,
         RETURN_TRUSTED_TYPE: false
@@ -106,7 +104,7 @@ export class XSSProtector {
   /**
    * Validate and sanitize JSON input
    */
-  sanitizeJSON(input: any): any {
+  sanitizeJSON(input: unknown): unknown {
     if (typeof input === 'string') {
       return this.sanitizeText(input);
     }
@@ -116,7 +114,7 @@ export class XSSProtector {
     }
 
     if (input && typeof input === 'object') {
-      const sanitized: any = {};
+      const sanitized: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(input)) {
         const sanitizedKey = this.sanitizeText(key);
         sanitized[sanitizedKey] = this.sanitizeJSON(value);
@@ -164,7 +162,7 @@ export const xssProtector = new XSSProtector();
 export const sanitizeHTML = (html: string): string => xssProtector.sanitizeHTML(html);
 export const sanitizeText = (text: string): string => xssProtector.sanitizeText(text);
 export const sanitizeURL = (url: string): string => xssProtector.sanitizeURL(url);
-export const sanitizeJSON = (input: any): any => xssProtector.sanitizeJSON(input);
+export const sanitizeJSON = (input: unknown): unknown => xssProtector.sanitizeJSON(input);
 export const containsXSS = (content: string): boolean => xssProtector.containsXSS(content);
 
 /**

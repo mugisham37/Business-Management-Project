@@ -4,6 +4,8 @@
  * Requirements: 12.1
  */
 
+import { randomBytes } from 'crypto';
+
 export interface CSPDirectives {
   'default-src'?: string[];
   'script-src'?: string[];
@@ -72,8 +74,7 @@ export class ContentSecurityPolicy {
    * Generate nonce for inline scripts/styles
    */
   generateNonce(): string {
-    const crypto = require('crypto');
-    return crypto.randomBytes(16).toString('base64');
+    return randomBytes(16).toString('base64');
   }
 
   /**
@@ -195,17 +196,17 @@ export class ContentSecurityPolicy {
    * Create CSP middleware for Next.js
    */
   static createMiddleware(isDevelopment: boolean = false, domain?: string) {
-    return (req: any, res: any, next: () => void) => {
+    return (req: Record<string, unknown>, res: Record<string, unknown> & { setHeader?: (key: string, value: string) => void }, next: () => void) => {
       const csp = isDevelopment 
         ? ContentSecurityPolicy.createDevelopmentCSP()
-        : ContentSecurityPolicy.createProductionCSP(domain || req.headers.host);
+        : ContentSecurityPolicy.createProductionCSP(domain || (req.headers as Record<string, unknown>)?.host as string);
 
       // Generate nonce for this request
       const nonce = csp.generateNonce();
       csp.addNonce(nonce);
 
       // Set CSP header
-      res.setHeader(csp.getHeaderName(), csp.generateHeader());
+      res.setHeader?.(csp.getHeaderName(), csp.generateHeader());
 
       // Make nonce available to the request
       req.cspNonce = nonce;
@@ -264,8 +265,8 @@ export class CSPReportHandler {
   /**
    * Get recent CSP violation reports
    */
-  getReports(limit: number = 100): any[] {
-    return this.reports.slice(-limit);
+  getReports(limit: number = 100): (CSPViolationReport & { timestamp?: string })[] {
+    return this.reports.slice(-limit) as (CSPViolationReport & { timestamp?: string })[];
   }
 
   /**

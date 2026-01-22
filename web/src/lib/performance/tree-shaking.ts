@@ -206,7 +206,7 @@ class TreeShakingAnalyzer {
   /**
    * Get optimization suggestions for webpack config
    */
-  getWebpackOptimizations(): Record<string, any> {
+  getWebpackOptimizations(): Record<string, unknown> {
     return {
       optimization: {
         usedExports: true,
@@ -260,20 +260,20 @@ export class ImportOptimizer {
     let match;
 
     while ((match = importRegex.exec(code)) !== null) {
-      const [, namedImports, moduleName] = match;
+      const [, namedImports, moduleNameMatch] = match;
       
-      if (namedImports) {
+      if (namedImports && moduleNameMatch) {
         const importNames = namedImports.split(',').map(s => s.trim());
         imports.push(...importNames);
 
         // Generate suggestions
-        if (moduleName === 'lodash' && importNames.length > 0) {
+        if (moduleNameMatch === 'lodash' && importNames.length > 0) {
           suggestions.push(
             `Consider importing lodash functions individually: import ${importNames[0]} from 'lodash/${importNames[0]}'`
           );
         }
 
-        if (moduleName.includes('antd') && importNames.length > 3) {
+        if (moduleNameMatch.includes('antd') && importNames.length > 3) {
           suggestions.push(
             'Consider using babel-plugin-import for antd to reduce bundle size'
           );

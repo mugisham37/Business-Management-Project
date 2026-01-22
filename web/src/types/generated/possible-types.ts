@@ -19,7 +19,7 @@ export type Scalars = {
   BigInt: { input: bigint; output: bigint };
   DateTime: { input: Date; output: Date };
   Decimal: { input: number; output: number };
-  JSON: { input: Record<string, any>; output: Record<string, any> };
+  JSON: { input: Record<string, unknown>; output: Record<string, unknown> };
   Upload: { input: File; output: File };
 };
 

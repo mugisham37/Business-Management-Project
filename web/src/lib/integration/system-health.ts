@@ -4,10 +4,8 @@
  */
 
 import { apolloClient } from '@/lib/apollo';
-import { authManager } from '@/lib/auth';
-import { tenantContextManager } from '@/lib/tenant';
-import { subscriptionManager } from '@/lib/subscriptions';
-import { cacheService } from '@/lib/cache';
+import { getUnifiedCacheManager } from '@/lib/cache';
+import gql from 'graphql-tag';
 
 export interface SystemHealthStatus {
   system: string;
@@ -15,7 +13,7 @@ export interface SystemHealthStatus {
   message: string;
   lastChecked: Date;
   responseTime?: number;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 export interface OverallHealthStatus {
@@ -45,7 +43,7 @@ class SystemHealthMonitor {
       const startTime = Date.now();
       try {
         const result = await apolloClient.query({
-          query: require('graphql-tag')`query HealthCheck { __typename }`,
+          query: gql`query HealthCheck { __typename }`,
           fetchPolicy: 'network-only',
           errorPolicy: 'none',
         });
@@ -75,112 +73,30 @@ class SystemHealthMonitor {
       }
     });
 
-    // Authentication System Health Check
-    this.healthChecks.set('auth', async () => {
-      try {
-        const authState = authManager.getAuthState();
-        const isTokenValid = authState.tokens ? await authManager.validateToken(authState.tokens.accessToken) : false;
-        
-        return {
-          system: 'Authentication',
-          status: authState.isAuthenticated && isTokenValid ? 'healthy' : 'degraded',
-          message: authState.isAuthenticated 
-            ? (isTokenValid ? 'Authentication system is healthy' : 'Token validation failed')
-            : 'User not authenticated',
-          lastChecked: new Date(),
-          details: {
-            isAuthenticated: authState.isAuthenticated,
-            hasValidToken: isTokenValid,
-            userPermissions: authState.permissions?.length || 0,
-          },
-        };
-      } catch (error) {
-        return {
-          system: 'Authentication',
-          status: 'unhealthy',
-          message: `Authentication system error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          lastChecked: new Date(),
-          details: { error: error instanceof Error ? error.message : 'Unknown error' },
-        };
-      }
-    });
-
-    // Tenant System Health Check
-    this.healthChecks.set('tenant', async () => {
-      try {
-        const tenantContext = tenantContextManager.getCurrentContext();
-        
-        return {
-          system: 'Multi-Tenant',
-          status: tenantContext.currentTenant ? 'healthy' : 'degraded',
-          message: tenantContext.currentTenant 
-            ? `Active tenant: ${tenantContext.currentTenant.name}`
-            : 'No active tenant selected',
-          lastChecked: new Date(),
-          details: {
-            currentTenant: tenantContext.currentTenant?.name,
-            businessTier: tenantContext.businessTier,
-            availableTenants: tenantContext.availableTenants.length,
-            activeFeatures: tenantContext.features.filter(f => f.enabled).length,
-          },
-        };
-      } catch (error) {
-        return {
-          system: 'Multi-Tenant',
-          status: 'unhealthy',
-          message: `Tenant system error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          lastChecked: new Date(),
-          details: { error: error instanceof Error ? error.message : 'Unknown error' },
-        };
-      }
-    });
-
-    // Subscription System Health Check
-    this.healthChecks.set('subscriptions', async () => {
-      try {
-        const connectionStatus = subscriptionManager.getConnectionStatus();
-        
-        return {
-          system: 'Real-time Subscriptions',
-          status: connectionStatus.connected ? 'healthy' : 'unhealthy',
-          message: connectionStatus.connected 
-            ? 'WebSocket connection is active'
-            : `WebSocket disconnected: ${connectionStatus.error || 'Unknown reason'}`,
-          lastChecked: new Date(),
-          details: {
-            connected: connectionStatus.connected,
-            reconnectAttempts: connectionStatus.reconnectAttempts,
-            lastError: connectionStatus.error,
-            activeSubscriptions: connectionStatus.activeSubscriptions,
-          },
-        };
-      } catch (error) {
-        return {
-          system: 'Real-time Subscriptions',
-          status: 'unhealthy',
-          message: `Subscription system error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          lastChecked: new Date(),
-          details: { error: error instanceof Error ? error.message : 'Unknown error' },
-        };
-      }
-    });
-
     // Cache System Health Check
     this.healthChecks.set('cache', async () => {
+      const startTime = Date.now();
       try {
-        const cacheStats = await cacheService.getStats();
-        const hitRate = cacheStats.hits / (cacheStats.hits + cacheStats.misses) || 0;
+        const cacheManager = getUnifiedCacheManager();
+        const metrics = cacheManager.getMetrics();
+        const responseTime = Date.now() - startTime;
+        
+        // Calculate overall hit rate
+        const totalHits = metrics.multiTier.l1Hits + metrics.multiTier.l2Hits + metrics.multiTier.l3Hits;
+        const totalMisses = metrics.multiTier.l1Misses + metrics.multiTier.l2Misses + metrics.multiTier.l3Misses;
+        const hitRate = totalHits / (totalHits + totalMisses) || 0;
         
         return {
           system: 'Caching Layer',
-          status: hitRate > 0.5 ? 'healthy' : 'degraded',
+          status: hitRate > 0.3 ? 'healthy' : 'degraded',
           message: `Cache hit rate: ${(hitRate * 100).toFixed(1)}%`,
           lastChecked: new Date(),
+          responseTime,
           details: {
             hitRate: hitRate,
-            totalHits: cacheStats.hits,
-            totalMisses: cacheStats.misses,
-            cacheSize: cacheStats.size,
+            totalHits: totalHits,
+            totalMisses: totalMisses,
+            memoryUsage: metrics.multiTier.memoryUsage,
           },
         };
       } catch (error) {

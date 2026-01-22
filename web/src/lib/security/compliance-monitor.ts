@@ -222,7 +222,7 @@ export class ComplianceMonitor {
       category: 'Access Control',
       description: 'Access must be properly authorized',
       severity: 'high',
-      validator: (event, context) => {
+      validator: (event, _context) => {
         if (event.eventType === 'authorization' && event.outcome === 'denied') {
           // Multiple failed authorization attempts
           const recentFailures = this.violations.filter(v => 
@@ -253,7 +253,7 @@ export class ComplianceMonitor {
       category: 'Cardholder Data Protection',
       description: 'Cardholder data must be protected',
       severity: 'critical',
-      validator: (event, context) => {
+      validator: (event, _context) => {
         if (event.details.containsCardholderData && 
             !event.details.encrypted) {
           return {
@@ -277,7 +277,7 @@ export class ComplianceMonitor {
       category: 'PHI Access Control',
       description: 'PHI access must be logged and authorized',
       severity: 'high',
-      validator: (event, context) => {
+      validator: (event, _context) => {
         if (event.details.containsPHI && 
             event.eventType === 'data_access' &&
             !event.details.authorizedAccess) {
@@ -389,7 +389,7 @@ export class ComplianceMonitor {
     return 'compliant';
   }
 
-  private async getTotalEventsCount(startDate: Date, endDate: Date): Promise<number> {
+  private async getTotalEventsCount(_startDate: Date, _endDate: Date): Promise<number> {
     // In a real implementation, this would query the audit log
     return 1000; // Placeholder
   }

@@ -154,8 +154,7 @@ export function setupErrorBoundaryHierarchy() {
             operationId: errorId,
           }, { errorInfo }, ['app-error', 'critical']);
         },
-        children
-      })
+      }, children)
     ),
 
     Page: ({ children }: { children: React.ReactNode }) => (
@@ -168,8 +167,7 @@ export function setupErrorBoundaryHierarchy() {
             operationId: errorId,
           }, { errorInfo }, ['page-error']);
         },
-        children
-      })
+      }, children)
     ),
 
     Module: ({ children, moduleName }: { children: React.ReactNode; moduleName?: string }) => (
@@ -182,8 +180,7 @@ export function setupErrorBoundaryHierarchy() {
             operationId: errorId,
           }, { errorInfo }, ['module-error']);
         },
-        children
-      })
+      }, children)
     ),
 
     Component: ({ children, componentName }: { children: React.ReactNode; componentName?: string }) => (
@@ -196,8 +193,7 @@ export function setupErrorBoundaryHierarchy() {
             operationId: errorId,
           }, { errorInfo }, ['component-error']);
         },
-        children
-      })
-    ),
+      }, children)
+    )
   };
 }

@@ -403,10 +403,10 @@ export class MultiTierCache {
         this.metrics.l2Hits++;
         
         // Promote to L1 cache
-        this.l1Cache.set(key, result, {
-          tenantId: options.tenantId,
-          priority: options.priority,
-        });
+        const l1Options: { priority?: 'high' | 'medium' | 'low'; tenantId?: string } = {};
+        if (options.priority !== undefined) l1Options.priority = options.priority;
+        if (options.tenantId !== undefined) l1Options.tenantId = options.tenantId;
+        this.l1Cache.set(key, result, l1Options);
         
         this.updateResponseTime(Date.now() - startTime);
         return result;
@@ -420,10 +420,10 @@ export class MultiTierCache {
           this.metrics.l3Hits++;
           
           // Store in both caches
-          await this.set(key, result, {
-            tenantId: options.tenantId,
-            priority: options.priority,
-          });
+          const setOptions: { priority?: 'high' | 'medium' | 'low'; tenantId?: string } = {};
+          if (options.priority !== undefined) setOptions.priority = options.priority;
+          if (options.tenantId !== undefined) setOptions.tenantId = options.tenantId;
+          await this.set(key, result, setOptions);
           
           this.updateResponseTime(Date.now() - startTime);
           return result;
@@ -450,18 +450,20 @@ export class MultiTierCache {
 
     try {
       // Store in L1 cache
-      this.l1Cache.set(key, data, {
-        ttl: options.l1Ttl,
-        tenantId: options.tenantId,
+      const l1Options: { priority: 'high' | 'medium' | 'low'; ttl?: number; tenantId?: string } = {
         priority,
-      });
+      };
+      if (options.l1Ttl !== undefined) l1Options.ttl = options.l1Ttl;
+      if (options.tenantId !== undefined) l1Options.tenantId = options.tenantId;
+      this.l1Cache.set(key, data, l1Options);
 
       // Store in L2 cache for persistence
-      await this.l2Cache.set(key, data, {
-        ttl: options.l2Ttl,
-        tenantId: options.tenantId,
+      const l2Options: { priority: 'high' | 'medium' | 'low'; ttl?: number; tenantId?: string } = {
         priority,
-      });
+      };
+      if (options.l2Ttl !== undefined) l2Options.ttl = options.l2Ttl;
+      if (options.tenantId !== undefined) l2Options.tenantId = options.tenantId;
+      await this.l2Cache.set(key, data, l2Options);
 
       // Mark as critical if high priority
       if (priority === 'high') {
@@ -496,7 +498,10 @@ export class MultiTierCache {
       
       try {
         const data = await loader();
-        await this.set(key, data, { priority, tenantId });
+        const setOptions: { priority?: 'high' | 'medium' | 'low'; tenantId?: string } = {};
+        if (priority !== undefined) setOptions.priority = priority;
+        if (tenantId !== undefined) setOptions.tenantId = tenantId;
+        await this.set(key, data, setOptions);
       } catch (error) {
         console.error(`Cache warming failed for key ${key}:`, error);
       } finally {

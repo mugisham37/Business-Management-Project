@@ -5,7 +5,7 @@
  * with user-friendly messages and recovery options.
  */
 
-import React from 'react';
+import React, { ErrorInfo } from 'react';
 import { ApolloError } from '@apollo/client';
 import { parseGraphQLError, GraphQLErrorResponse, createUserFriendlyErrorMessage } from './utils';
 
@@ -144,7 +144,10 @@ export class GraphQLErrorBoundary extends React.Component<
   }>,
   ErrorBoundaryState
 > {
-  constructor(props: any) {
+  constructor(props: React.PropsWithChildren<{
+    fallback?: React.ComponentType<{ error: Error; retry: () => void }>;
+    onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+  }>) {
     super(props);
     this.state = { hasError: false };
   }
@@ -174,9 +177,9 @@ export class GraphQLErrorBoundary extends React.Component<
   handleRetry = () => {
     this.setState({ 
       hasError: false, 
-      error: undefined, 
-      errorInfo: undefined 
-    } as Partial<ErrorBoundaryState>);
+      error: null as unknown as Error, 
+      errorInfo: null as unknown as ErrorInfo,
+    });
   };
 
   render() {

@@ -5,7 +5,7 @@
  * breaking change detection, and clear error messaging.
  */
 
-import { buildSchema, validate, DocumentNode, GraphQLError, GraphQLSchema } from 'graphql';
+import { validate, DocumentNode, GraphQLSchema, GraphQLError } from 'graphql';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -45,7 +45,7 @@ export interface BreakingChange {
 
 export class SchemaValidator {
   private schema: GraphQLSchema | null = null;
-  private introspectionResult: any = null;
+  private introspectionResult: Record<string, unknown> | null = null;
 
   constructor() {
     this.loadSchema();
@@ -62,7 +62,7 @@ export class SchemaValidator {
       // Build schema from introspection (simplified approach)
       // In a real implementation, you'd use buildClientSchema from graphql
       console.log('Schema loaded successfully');
-    } catch (error) {
+    } catch {
       console.warn('Could not load schema introspection. Run codegen first.');
     }
   }
@@ -126,7 +126,7 @@ export class SchemaValidator {
   /**
    * Detect breaking changes between schema versions
    */
-  detectBreakingChanges(oldSchema: any, newSchema: any): BreakingChange[] {
+  detectBreakingChanges(oldSchema: GraphQLSchema | null, newSchema: GraphQLSchema | null): BreakingChange[] {
     const changes: BreakingChange[] = [];
 
     // Compare types
@@ -172,7 +172,7 @@ export class SchemaValidator {
   /**
    * Check for deprecated fields in operations
    */
-  private checkDeprecatedFields(operation: DocumentNode, warnings: ValidationWarning[], operationPath?: string): void {
+  private checkDeprecatedFields(_operation: DocumentNode, _warnings: ValidationWarning[], _operationPath?: string): void {
     // Implementation would traverse the operation AST and check against schema deprecations
     // This is a simplified version
     console.log('Checking for deprecated fields...');
@@ -181,7 +181,7 @@ export class SchemaValidator {
   /**
    * Check for potential performance issues
    */
-  private checkPerformanceIssues(operation: DocumentNode, warnings: ValidationWarning[], operationPath?: string): void {
+  private checkPerformanceIssues(_operation: DocumentNode, _warnings: ValidationWarning[], _operationPath?: string): void {
     // Check for deeply nested queries
     // Check for missing pagination
     // Check for overly broad selections
@@ -191,7 +191,7 @@ export class SchemaValidator {
   /**
    * Compare types between schema versions
    */
-  private compareTypes(oldSchema: any, newSchema: any, changes: BreakingChange[]): void {
+  private compareTypes(_oldSchema: GraphQLSchema | null, _newSchema: GraphQLSchema | null, _changes: BreakingChange[]): void {
     // Implementation would compare type definitions
     console.log('Comparing types...');
   }
@@ -199,7 +199,7 @@ export class SchemaValidator {
   /**
    * Compare fields between schema versions
    */
-  private compareFields(oldSchema: any, newSchema: any, changes: BreakingChange[]): void {
+  private compareFields(_oldSchema: GraphQLSchema | null, _newSchema: GraphQLSchema | null, _changes: BreakingChange[]): void {
     // Implementation would compare field definitions
     console.log('Comparing fields...');
   }
@@ -207,7 +207,7 @@ export class SchemaValidator {
   /**
    * Compare arguments between schema versions
    */
-  private compareArguments(oldSchema: any, newSchema: any, changes: BreakingChange[]): void {
+  private compareArguments(_oldSchema: GraphQLSchema | null, _newSchema: GraphQLSchema | null, _changes: BreakingChange[]): void {
     // Implementation would compare argument definitions
     console.log('Comparing arguments...');
   }

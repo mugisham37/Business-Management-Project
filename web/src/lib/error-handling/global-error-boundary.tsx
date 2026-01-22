@@ -19,7 +19,7 @@ export interface ErrorBoundaryState {
 }
 
 export interface ErrorBoundaryProps {
-  children: ReactNode;
+  children?: ReactNode;
   fallback?: React.ComponentType<ErrorFallbackProps>;
   onError?: (error: Error, errorInfo: ErrorInfo, errorId: string) => void;
   level?: 'app' | 'page' | 'module' | 'component';
@@ -117,10 +117,10 @@ export class GlobalErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
   handleRetry = () => {
     this.setState({
       hasError: false,
-      error: undefined,
-      errorInfo: undefined,
-      errorId: undefined,
-      timestamp: undefined,
+      error: null as unknown as Error,
+      errorInfo: null as unknown as ErrorInfo,
+      errorId: '',
+      timestamp: 0,
     });
   };
 
@@ -131,13 +131,12 @@ export class GlobalErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
       return (
         <FallbackComponent
           error={this.state.error}
-          errorInfo={this.state.errorInfo}
+          errorInfo={this.state.errorInfo!}
           errorId={this.state.errorId || 'unknown'}
           retry={this.handleRetry}
           level={this.props.level || 'component'}
         />
-      );
-    }
+      );  }
 
     return this.props.children;
   }
@@ -315,12 +314,14 @@ export function withErrorBoundary<P extends object>(
   }
 ) {
   return function WrappedComponent(props: P) {
+    const errorBoundaryProps: ErrorBoundaryProps = {
+      level: options?.level || 'component',
+    };
+    if (options?.fallback) errorBoundaryProps.fallback = options.fallback;
+    if (options?.onError) errorBoundaryProps.onError = options.onError;
+    
     return (
-      <GlobalErrorBoundary
-        fallback={options?.fallback}
-        level={options?.level || 'component'}
-        onError={options?.onError}
-      >
+      <GlobalErrorBoundary {...errorBoundaryProps}>
         <Component {...props} />
       </GlobalErrorBoundary>
     );

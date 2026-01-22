@@ -4,7 +4,8 @@
  */
 
 import { ComponentType } from 'react';
-import { moduleLoader, ModuleConfig } from './module-loader';
+import { moduleLoader } from './module-loader';
+import type { ModuleConfig } from './module-loader';
 
 export interface RouteConfig {
   path: string;
@@ -174,12 +175,12 @@ export const ROUTE_REGISTRY: Record<string, RouteConfig> = {
  * Route loader class for managing dynamic route loading
  */
 class RouteLoader {
-  private routeCache = new Map<string, ComponentType<any>>();
+  private routeCache = new Map<string, ComponentType<unknown>>();
 
   /**
    * Load route component dynamically
    */
-  async loadRoute(path: string): Promise<ComponentType<any>> {
+  async loadRoute(path: string): Promise<ComponentType<unknown>> {
     const routeConfig = ROUTE_REGISTRY[path];
     if (!routeConfig) {
       throw new Error(`Route ${path} not found in registry`);

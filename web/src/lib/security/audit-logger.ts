@@ -15,7 +15,7 @@ export interface AuditEvent {
   resource?: string;
   resourceId?: string;
   outcome: 'success' | 'failure' | 'denied';
-  details: Record<string, any>;
+  details: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
   location?: {
@@ -24,7 +24,7 @@ export interface AuditEvent {
     city?: string;
   };
   riskLevel: 'low' | 'medium' | 'high' | 'critical';
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export type AuditEventType = 
@@ -112,16 +112,17 @@ export class AuditLogger {
     action: 'login' | 'logout' | 'token_refresh' | 'mfa_challenge' | 'mfa_verify',
     outcome: 'success' | 'failure',
     userId?: string,
-    details: Record<string, any> = {}
+    details: Record<string, unknown> = {}
   ): Promise<void> {
-    await this.logEvent({
+    const event: Omit<AuditEvent, 'id' | 'timestamp'> = {
       eventType: 'authentication',
       action,
       outcome,
-      userId,
       details,
       riskLevel: outcome === 'failure' ? 'medium' : 'low'
-    });
+    };
+    if (userId !== undefined) event.userId = userId;
+    await this.logEvent(event);
   }
 
   /**
@@ -132,17 +133,18 @@ export class AuditLogger {
     resource: string,
     outcome: 'success' | 'denied',
     userId?: string,
-    details: Record<string, any> = {}
+    details: Record<string, unknown> = {}
   ): Promise<void> {
-    await this.logEvent({
+    const event: Omit<AuditEvent, 'id' | 'timestamp'> = {
       eventType: 'authorization',
       action,
       resource,
       outcome,
-      userId,
       details,
       riskLevel: outcome === 'denied' ? 'medium' : 'low'
-    });
+    };
+    if (userId !== undefined) event.userId = userId;
+    await this.logEvent(event);
   }
 
   /**
@@ -153,18 +155,19 @@ export class AuditLogger {
     resource: string,
     resourceId?: string,
     userId?: string,
-    details: Record<string, any> = {}
+    details: Record<string, unknown> = {}
   ): Promise<void> {
-    await this.logEvent({
+    const event: Omit<AuditEvent, 'id' | 'timestamp'> = {
       eventType: 'data_access',
       action,
       resource,
-      resourceId,
       outcome: 'success',
-      userId,
       details,
       riskLevel: 'low'
-    });
+    };
+    if (resourceId !== undefined) event.resourceId = resourceId;
+    if (userId !== undefined) event.userId = userId;
+    await this.logEvent(event);
   }
 
   /**
@@ -175,20 +178,21 @@ export class AuditLogger {
     resource: string,
     resourceId?: string,
     userId?: string,
-    details: Record<string, any> = {}
+    details: Record<string, unknown> = {}
   ): Promise<void> {
     const riskLevel = action.startsWith('bulk_') || action === 'delete' ? 'medium' : 'low';
     
-    await this.logEvent({
+    const event: Omit<AuditEvent, 'id' | 'timestamp'> = {
       eventType: 'data_modification',
       action,
       resource,
-      resourceId,
       outcome: 'success',
-      userId,
       details,
       riskLevel
-    });
+    };
+    if (resourceId !== undefined) event.resourceId = resourceId;
+    if (userId !== undefined) event.userId = userId;
+    await this.logEvent(event);
   }
 
   /**
@@ -197,7 +201,7 @@ export class AuditLogger {
   async logSecurityEvent(
     action: string,
     outcome: 'success' | 'failure' | 'denied',
-    details: Record<string, any> = {},
+    details: Record<string, unknown> = {},
     riskLevel: 'low' | 'medium' | 'high' | 'critical' = 'high'
   ): Promise<void> {
     await this.logEvent({
@@ -216,17 +220,18 @@ export class AuditLogger {
     action: string,
     resource: string,
     userId?: string,
-    details: Record<string, any> = {}
+    details: Record<string, unknown> = {}
   ): Promise<void> {
-    await this.logEvent({
+    const event: Omit<AuditEvent, 'id' | 'timestamp'> = {
       eventType: 'compliance_event',
       action,
       resource,
       outcome: 'success',
-      userId,
       details,
       riskLevel: 'medium'
-    });
+    };
+    if (userId !== undefined) event.userId = userId;
+    await this.logEvent(event);
   }
 
   /**
@@ -261,10 +266,10 @@ export class AuditLogger {
    * Get audit events for a user
    */
   async getUserAuditTrail(
-    userId: string,
-    startDate?: Date,
-    endDate?: Date,
-    eventTypes?: AuditEventType[]
+    _userId?: string,
+    _startDate?: Date,
+    _endDate?: Date,
+    _eventTypes?: AuditEventType[]
   ): Promise<AuditEvent[]> {
     // In a real implementation, this would query the audit log storage
     // For now, return empty array as this is a logging-only implementation
@@ -337,7 +342,8 @@ export class AuditLogger {
   private async logToFile(events: AuditEvent[]): Promise<void> {
     // In a real implementation, this would write to a secure log file
     // For now, we'll just simulate the operation
-    const logData = events.map(event => JSON.stringify(event)).join('\n');
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _logData = events.map(event => JSON.stringify(event)).join('\n');
     
     if (typeof window === 'undefined') {
       // Server-side logging would go here
@@ -402,7 +408,7 @@ export const auditLogger = new AuditLogger();
 export const logUserAction = (
   action: string,
   userId: string,
-  details: Record<string, any> = {}
+  details: Record<string, unknown> = {}
 ) => auditLogger.logEvent({
   eventType: 'user_action',
   action,
@@ -414,7 +420,7 @@ export const logUserAction = (
 
 export const logSecurityIncident = (
   action: string,
-  details: Record<string, any> = {},
+  details: Record<string, unknown> = {},
   riskLevel: 'high' | 'critical' = 'high'
 ) => auditLogger.logSecurityEvent(action, 'failure', details, riskLevel);
 

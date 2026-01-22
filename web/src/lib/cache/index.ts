@@ -51,11 +51,13 @@ export class UnifiedCacheManager {
     const { offlineFirst = false, ...otherOptions } = options;
 
     if (offlineFirst) {
-      return this.offlineManager.get(key, {
-        tenantId: options.tenantId,
-        networkFallback: options.fallbackLoader,
+      const offlineOptions: { cacheFirst: boolean; tenantId?: string; networkFallback?: () => Promise<T> } = {
         cacheFirst: true,
-      });
+      };
+      if (options.tenantId !== undefined) offlineOptions.tenantId = options.tenantId;
+      if (options.fallbackLoader !== undefined) offlineOptions.networkFallback = options.fallbackLoader;
+      
+      return this.offlineManager.get(key, offlineOptions);
     }
 
     return this.multiTierCache.get(key, otherOptions);

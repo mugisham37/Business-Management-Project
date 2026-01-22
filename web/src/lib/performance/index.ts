@@ -71,4 +71,4 @@ export { LazyModule, useLazyModule } from '@/components/common/LazyModule';
 export { LoadingSpinner } from '@/components/common/LoadingSpinner';
 export { ModuleErrorFallback } from '@/components/common/ModuleErrorFallback';
 export { PerformanceDashboard } from '@/components/performance/PerformanceDashboard';
-export { PerformanceMetrics } from '@/components/performance/PerformanceMetrics';
+export { PerformanceMetrics as PerformanceMetricsComponent } from '@/components/performance/PerformanceMetrics';

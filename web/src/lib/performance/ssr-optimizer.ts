@@ -211,7 +211,7 @@ class SSROptimizer {
   /**
    * Generate metadata for a page
    */
-  generateMetadata(path: string, context: any = {}): Metadata {
+  generateMetadata(path: string, _context?: Record<string, unknown>): Metadata {
     const config = PAGE_CONFIGS[path];
     if (!config) {
       return {
@@ -257,10 +257,17 @@ class SSROptimizer {
       return {};
     }
 
-    return {
-      revalidate: config.ssrConfig.revalidate,
-      tags: config.ssrConfig.tags,
-    };
+    const result: { revalidate?: number; tags?: string[] } = {};
+    
+    if (config.ssrConfig.revalidate !== undefined) {
+      result.revalidate = config.ssrConfig.revalidate;
+    }
+    
+    if (config.ssrConfig.tags !== undefined) {
+      result.tags = config.ssrConfig.tags;
+    }
+    
+    return result;
   }
 
   /**
@@ -268,7 +275,7 @@ class SSROptimizer {
    */
   private evaluateCondition(
     condition: SSRCondition,
-    context: any
+    context: Record<string, unknown>
   ): 'static' | 'isr' | 'ssr' | 'csr' | null {
     switch (condition.type) {
       case 'auth':
@@ -281,8 +288,9 @@ class SSROptimizer {
         const requiredPermissions = Array.isArray(condition.value) 
           ? condition.value 
           : [condition.value];
-        const hasPermission = requiredPermissions.some(perm =>
-          context.permissions?.includes(perm)
+        const permissions = _context?.permissions;
+        const hasPermission = Array.isArray(permissions) && requiredPermissions.some(perm =>
+          (permissions as string[]).includes(perm as string)
         );
         if (!hasPermission) {
           return 'csr'; // Access denied
@@ -291,14 +299,15 @@ class SSROptimizer {
 
       case 'device':
         // Mobile devices might prefer CSR for better interactivity
-        if (condition.value === 'mobile' && this.isMobileDevice(context.userAgent)) {
+        const userAgent = _context?.userAgent;
+        if (condition.value === 'mobile' && typeof userAgent === 'string' && this.isMobileDevice(userAgent)) {
           return condition.strategy;
         }
         break;
 
       case 'tenant':
         // Different strategies based on tenant tier
-        if (context.tenantTier === condition.value) {
+        if (_context?.tenantTier === condition.value) {
           return condition.strategy;
         }
         break;

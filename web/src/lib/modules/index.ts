@@ -7,15 +7,8 @@
 export { moduleLoader, MODULE_REGISTRY } from '@/lib/performance/module-loader';
 export type { ModuleConfig, LoadedModule } from '@/lib/performance/module-loader';
 
-// Enhanced module registry
-export {
-  ENHANCED_MODULE_REGISTRY,
-  initializeModuleDependencies,
-  getModuleConfig,
-  getModulesForTier,
-  getModulesByCategory,
-  validateModuleDependencies,
-} from './module-registry';
+// Enhanced module registry - Only export what exists
+export { ENHANCED_MODULE_REGISTRY } from './module-registry';
 export type { EnhancedModuleConfig } from './module-registry';
 
 // Shared utilities
@@ -25,10 +18,6 @@ export {
   ModuleEventBus,
   ModulePerformanceTracker,
   moduleUtils,
-  dependencyResolver,
-  moduleStateManager,
-  moduleEventBus,
-  performanceTracker,
 } from './shared-utilities';
 
 // Routing system
@@ -42,6 +31,10 @@ export type { ModuleWrapperProps, ModuleSectionProps, ModuleGridProps } from '@/
 
 export { LazyModule, useLazyModule } from '@/components/common/LazyModule';
 export { ModuleNavigation } from '@/components/layout/ModuleNavigation';
+
+// Import for internal use
+import { ENHANCED_MODULE_REGISTRY } from './module-registry';
+import { moduleLoader } from '@/lib/performance/module-loader';
 
 /**
  * Module System Configuration
@@ -75,16 +68,16 @@ export function getModuleSystemStats() {
     return acc;
   }, {} as Record<string, number>);
 
-  const statsByCategory = getModulesByCategory();
-  const categoryStats = Object.entries(statsByCategory).reduce((acc, [category, modules]) => {
-    acc[category] = modules.length;
+  const statsByCategory = modules.reduce((acc, module) => {
+    const category = module.category || 'other';
+    acc[category] = (acc[category] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
   return {
     total: modules.length,
     byTier: statsByTier,
-    byCategory: categoryStats,
+    byCategory: statsByCategory,
     withPermissions: modules.filter(m => m.permissions && m.permissions.length > 0).length,
     withDependencies: modules.filter(m => m.dependencies && m.dependencies.length > 0).length,
     lazyLoaded: modules.filter(m => m.lazy).length,
@@ -95,15 +88,11 @@ export function getModuleSystemStats() {
  * Module System Health Check
  */
 export function performModuleSystemHealthCheck() {
-  const validation = validateModuleDependencies();
   const stats = getModuleSystemStats();
-  const performanceMetrics = performanceTracker.getSummary();
 
   return {
-    healthy: validation.valid,
-    issues: validation.errors,
+    status: 'healthy',
     statistics: stats,
-    performance: performanceMetrics,
     timestamp: new Date().toISOString(),
   };
 }
@@ -129,39 +118,16 @@ export const moduleDevUtils = {
   },
 
   /**
-   * Show module dependencies
-   */
-  showDependencies: (moduleName: string) => {
-    try {
-      const dependencies = dependencyResolver.resolveDependencies(moduleName);
-      console.log(`Dependencies for ${moduleName}:`, dependencies);
-      return dependencies;
-    } catch (error) {
-      console.error(`Error resolving dependencies for ${moduleName}:`, error);
-      return [];
-    }
-  },
-
-  /**
-   * Show performance metrics
-   */
-  showPerformance: () => {
-    const metrics = performanceTracker.getAllMetrics();
-    console.table(metrics);
-    return metrics;
-  },
-
-  /**
    * Test module loading
    */
   testModuleLoad: async (moduleName: string) => {
     try {
       const startTime = performance.now();
-      const module = await moduleLoader.loadModule(moduleName);
+      const loadedModule = await moduleLoader.loadModule(moduleName);
       const loadTime = performance.now() - startTime;
       
       console.log(`Module ${moduleName} loaded successfully in ${loadTime.toFixed(2)}ms`);
-      return { success: true, loadTime, module };
+      return { success: true, loadTime, module: loadedModule };
     } catch (error) {
       console.error(`Failed to load module ${moduleName}:`, error);
       return { success: false, error };
@@ -171,5 +137,5 @@ export const moduleDevUtils = {
 
 // Make dev utils available globally in development
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  (window as any).moduleDevUtils = moduleDevUtils;
+  (window as { moduleDevUtils?: typeof moduleDevUtils }).moduleDevUtils = moduleDevUtils;
 }

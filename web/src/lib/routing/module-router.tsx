@@ -3,10 +3,11 @@
  * Requirements: 11.4, 11.5, 11.7
  */
 
-import { ComponentType, Suspense } from 'react';
+import { Suspense } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { moduleLoader, MODULE_REGISTRY, ModuleConfig } from '@/lib/performance/module-loader';
-import { useTenant } from '@/hooks/useTenant';
+import { moduleLoader, MODULE_REGISTRY } from '@/lib/performance/module-loader';
+import type { ModuleConfig } from '@/lib/performance/module-loader';
+import { useTenantCompat } from '@/lib/stores/integration-hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { LazyModule } from '@/components/common/LazyModule';
 
@@ -139,8 +140,8 @@ export interface ModuleRouterProps {
 
 export function ModuleRouter({ children }: ModuleRouterProps) {
   const pathname = usePathname();
-  const { currentTenant, businessTier } = useTenant();
-  const { user, permissions } = useAuth();
+  const { businessTier } = useTenantCompat();
+  const { permissions } = useAuth();
 
   // Find matching route
   const matchingRoute = MODULE_ROUTES.find(route => {
@@ -194,7 +195,7 @@ export function ModuleRouter({ children }: ModuleRouterProps) {
             Access Denied
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            You don't have permission to access this module.
+            You don&apos;t have permission to access this module.
           </p>
         </div>
       );
@@ -202,10 +203,7 @@ export function ModuleRouter({ children }: ModuleRouterProps) {
   }
 
   return (
-    <LazyModule 
-      moduleName={matchingRoute.moduleName}
-      componentName={matchingRoute.componentName}
-    >
+    <LazyModule moduleName={matchingRoute.moduleName}>
       <Suspense fallback={
         <div className="p-6 max-w-7xl mx-auto">
           <div className="animate-pulse">
@@ -230,7 +228,7 @@ export function ModuleRouter({ children }: ModuleRouterProps) {
  */
 export function useModuleNavigation() {
   const router = useRouter();
-  const { currentTenant, businessTier } = useTenant();
+  const { businessTier } = useTenantCompat();
   const { permissions } = useAuth();
 
   const navigateToModule = (moduleName: string, subPath?: string) => {

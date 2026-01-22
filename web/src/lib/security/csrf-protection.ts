@@ -109,29 +109,31 @@ export class CSRFProtector {
    * Create CSRF middleware for Next.js API routes
    */
   createMiddleware() {
-    return async (req: any, res: any, next: () => void) => {
-      const method = req.method?.toLowerCase();
+    return async (req: unknown, res: unknown, next: () => void) => {
+      const reqObj = req as Record<string, unknown>;
+      const resObj = res as Record<string, unknown> & { status?: (code: number) => { json?: (data: unknown) => unknown } };
+      const method = reqObj?.method?.toString().toLowerCase();
       
       // Skip CSRF validation for safe methods
-      if (['get', 'head', 'options'].includes(method)) {
+      if (['get', 'head', 'options'].includes(method ?? '')) {
         return next();
       }
 
       const sessionId = this.getSessionId(req);
       if (!sessionId) {
-        return res.status(403).json({ error: 'No session found' });
+        return resObj.status?.(403).json?.({ error: 'No session found' });
       }
 
       // Get token from header or body
-      const token = req.headers[this.config.headerName.toLowerCase()] || 
-                   req.body?.csrfToken;
+      const token = reqObj.headers?.[this.config.headerName.toLowerCase()] || 
+                   (reqObj.body as Record<string, unknown>)?.csrfToken;
 
       if (!token) {
-        return res.status(403).json({ error: 'CSRF token missing' });
+        return resObj.status?.(403).json?.({ error: 'CSRF token missing' });
       }
 
-      if (!this.validateToken(token, sessionId)) {
-        return res.status(403).json({ error: 'Invalid CSRF token' });
+      if (!this.validateToken(token as string, sessionId)) {
+        return resObj.status?.(403).json?.({ error: 'Invalid CSRF token' });
       }
 
       next();
@@ -182,11 +184,14 @@ export class CSRFProtector {
     return result === 0;
   }
 
-  private getSessionId(req: any): string | null {
+  private getSessionId(req: unknown): string | null {
     // Try to get session ID from various sources
-    return req.session?.id || 
-           req.cookies?.sessionId || 
-           req.headers['x-session-id'] ||
+    const reqObj = req as Record<string, unknown>;
+    const headerName = 'x-session-id';
+    const headers = reqObj.headers as Record<string, unknown> | undefined;
+    return (reqObj.session as Record<string, unknown>)?.id as string || 
+           (reqObj.cookies as Record<string, unknown>)?.sessionId as string || 
+           headers?.[headerName] as string ||
            null;
   }
 
@@ -233,17 +238,19 @@ export function useCSRFProtection() {
  * Utility to add CSRF token to GraphQL requests
  */
 export function addCSRFToGraphQLRequest(
-  request: any, 
+  request: unknown, 
   sessionId: string
-): any {
+): Record<string, unknown> {
   const token = csrfProtector.getTokenForForm(sessionId);
+  const reqObj = request as Record<string, unknown>;
+  const contextObj = reqObj.context as Record<string, unknown>;
   
   return {
-    ...request,
+    ...reqObj,
     context: {
-      ...request.context,
+      ...contextObj,
       headers: {
-        ...request.context?.headers,
+        ...(contextObj?.headers as Record<string, unknown>),
         'X-CSRF-Token': token
       }
     }

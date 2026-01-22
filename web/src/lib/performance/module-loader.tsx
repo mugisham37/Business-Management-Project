@@ -16,7 +16,7 @@ export interface ModuleConfig {
 }
 
 export interface LoadedModule {
-  component: LazyExoticComponent<ComponentType<any>>;
+  component: LazyExoticComponent<ComponentType<Record<string, unknown>>>;
   config: ModuleConfig;
   loaded: boolean;
   error?: Error;
@@ -306,7 +306,7 @@ class ModuleLoader {
   private async importModule(modulePath: string) {
     try {
       // Dynamic import with webpack magic comments for chunk naming
-      const chunkName = modulePath.split('/').pop() || 'unknown';
+      const _chunkName = modulePath.split('/').pop() || 'unknown';
       return await import(
         /* webpackChunkName: "[request]" */
         /* webpackPreload: true */
@@ -357,6 +357,3 @@ class ModuleLoader {
 
 // Export singleton instance
 export const moduleLoader = new ModuleLoader();
-
-// Export types
-export type { LoadedModule };

@@ -1,4 +1,3 @@
-import { NetworkStatus } from '@apollo/client';
 import { getMultiTierCache } from './multi-tier-cache';
 import { getCacheInvalidationEngine } from './intelligent-invalidation';
 
@@ -10,8 +9,8 @@ import { getCacheInvalidationEngine } from './intelligent-invalidation';
 export interface OfflineQueueItem {
   id: string;
   type: 'mutation' | 'query';
-  operation: any;
-  variables: any;
+  operation: unknown;
+  variables: unknown;
   timestamp: number;
   retryCount: number;
   maxRetries: number;
@@ -258,7 +257,9 @@ export class OfflineCacheManager {
     try {
       // Always try cache first in offline mode or when cacheFirst is true
       if (!this.networkMonitor.getStatus() || cacheFirst) {
-        const cachedData = await this.multiTierCache.get<T>(key, { tenantId });
+        const getOptions: { tenantId?: string } = {};
+        if (tenantId !== undefined) getOptions.tenantId = tenantId;
+        const cachedData = await this.multiTierCache.get<T>(key, getOptions);
         
         if (cachedData !== null) {
           return cachedData;
@@ -278,10 +279,11 @@ export class OfflineCacheManager {
           
           if (networkData !== null) {
             // Cache the network data
-            await this.multiTierCache.set(key, networkData, {
-              tenantId,
+            const setOptions: { priority: 'medium'; tenantId?: string } = {
               priority: 'medium',
-            });
+            };
+            if (tenantId !== undefined) setOptions.tenantId = tenantId;
+            await this.multiTierCache.set(key, networkData, setOptions);
           }
           
           return networkData;
@@ -289,7 +291,9 @@ export class OfflineCacheManager {
           console.error('Network fallback failed:', error);
           
           // Try cache as fallback
-          return await this.multiTierCache.get<T>(key, { tenantId });
+          const fallbackOptions: { tenantId?: string } = {};
+          if (tenantId !== undefined) fallbackOptions.tenantId = tenantId;
+          return await this.multiTierCache.get<T>(key, fallbackOptions);
         }
       }
 
@@ -303,19 +307,21 @@ export class OfflineCacheManager {
   /**
    * Queue mutation for offline sync
    */
-  queueMutation(mutation: any, variables: any, options: {
+  queueMutation(mutation: unknown, variables: unknown, options: {
     tenantId?: string;
     maxRetries?: number;
   } = {}): void {
     const { tenantId, maxRetries = 3 } = options;
 
-    this.operationQueue.add({
+    const queueItem: Omit<OfflineQueueItem, 'id' | 'timestamp' | 'retryCount'> = {
       type: 'mutation',
       operation: mutation,
       variables,
       maxRetries,
-      tenantId,
-    });
+    };
+    if (tenantId !== undefined) queueItem.tenantId = tenantId;
+    
+    this.operationQueue.add(queueItem);
 
     this.metrics.queuedOperations++;
     
@@ -453,14 +459,14 @@ export class OfflineCacheManager {
     });
   }
 
-  private async executeOperation(operation: OfflineQueueItem): Promise<void> {
+  private async executeOperation(operation: OfflineQueueItem): Promise<unknown> {
     if (operation.type === 'mutation') {
       // Execute the mutation using Apollo Client
       const { apolloClient } = await import('@/lib/apollo/client');
       
       const result = await apolloClient.mutate({
-        mutation: operation.operation,
-        variables: operation.variables,
+        mutation: operation.operation as Parameters<typeof apolloClient.mutate>[0]['mutation'],
+        variables: operation.variables as Record<string, unknown>,
         errorPolicy: 'none', // Throw on any error
       });
 
@@ -480,10 +486,11 @@ export class OfflineCacheManager {
     throw new Error(`Unsupported operation type: ${operation.type}`);
   }
 
-  private extractMutationType(mutation: any): string | null {
+  private extractMutationType(mutation: unknown): string | null {
     try {
       // Extract mutation name from GraphQL document
-      const definition = mutation.definitions?.[0];
+      const mutationDoc = mutation as { definitions?: Array<{ kind?: string; operation?: string; selectionSet?: { selections?: Array<{ kind?: string; name?: { value?: string } }> } }> };
+      const definition = mutationDoc.definitions?.[0];
       if (definition?.kind === 'OperationDefinition' && definition.operation === 'mutation') {
         const selection = definition.selectionSet?.selections?.[0];
         if (selection?.kind === 'Field') {

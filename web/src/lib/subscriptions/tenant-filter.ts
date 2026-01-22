@@ -11,12 +11,12 @@ export interface TenantFilterConfig {
   permissions: string[];
 }
 
-export interface TenantSubscriptionEvent<T = any> {
+export interface TenantSubscriptionEvent<T = unknown> {
   data: T;
   tenantId: string;
   eventType: string;
   timestamp: Date;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -25,7 +25,7 @@ export interface TenantSubscriptionEvent<T = any> {
  */
 export class TenantSubscriptionFilter {
   private tenantConfig: TenantFilterConfig | null = null;
-  private cacheUpdateHandlers = new Map<string, (data: any) => void>();
+  private cacheUpdateHandlers = new Map<string, (data: unknown) => void>();
 
   /**
    * Set the current tenant configuration
@@ -37,11 +37,11 @@ export class TenantSubscriptionFilter {
   /**
    * Create a tenant-filtered subscription that automatically updates cache
    */
-  createFilteredSubscription<T = any>(
+  createFilteredSubscription<T = unknown>(
     subscription: DocumentNode | TypedDocumentNode,
-    variables?: any,
+    variables?: Record<string, unknown>,
     options?: SubscriptionOptions & {
-      cacheUpdate?: (data: T, cache: any) => void;
+      cacheUpdate?: (data: T, cache: unknown) => void;
       eventFilter?: (event: TenantSubscriptionEvent<T>) => boolean;
     }
   ): Observable<T> {
@@ -91,12 +91,12 @@ export class TenantSubscriptionFilter {
         
         // Feature-based filtering
         if (event.metadata?.requiredFeature) {
-          return this.tenantConfig!.features.includes(event.metadata.requiredFeature);
+          return this.tenantConfig!.features.includes(event.metadata.requiredFeature as string);
         }
         
         // Permission-based filtering
         if (event.metadata?.requiredPermission) {
-          return this.tenantConfig!.permissions.includes(event.metadata.requiredPermission);
+          return this.tenantConfig!.permissions.includes(event.metadata.requiredPermission as string);
         }
         
         return true;
@@ -124,7 +124,7 @@ export class TenantSubscriptionFilter {
    */
   registerCacheUpdateHandler(
     subscriptionName: string,
-    handler: (data: any) => void
+    handler: (data: unknown) => void
   ): void {
     this.cacheUpdateHandlers.set(subscriptionName, handler);
   }
@@ -132,7 +132,7 @@ export class TenantSubscriptionFilter {
   /**
    * Get registered cache update handler
    */
-  getCacheUpdateHandler(subscriptionName: string): ((data: any) => void) | undefined {
+  getCacheUpdateHandler(subscriptionName: string): ((data: unknown) => void) | undefined {
     return this.cacheUpdateHandlers.get(subscriptionName);
   }
 
@@ -226,18 +226,18 @@ export class TenantSubscriptionFilter {
     }
   }
 
-  private handleCreateUpdate(cache: any, data: any, config: any): void {
+  private handleCreateUpdate(cache: unknown, data: unknown, config: Record<string, unknown>): void {
     // Add new entity to relevant list queries
-    if (config.cacheQueries) {
-      config.cacheQueries.forEach((queryName: string) => {
+    if (config.cacheQueries && Array.isArray(config.cacheQueries)) {
+      (config.cacheQueries as string[]).forEach((queryName: string) => {
         try {
-          const existingData = cache.readQuery({
+          const existingData = (cache as Record<string, unknown>).readQuery?.({
             query: this.getQueryByName(queryName),
             variables: { tenantId: this.tenantConfig!.tenantId }
           });
 
-          if (existingData && existingData[queryName]) {
-            cache.writeQuery({
+          if (existingData && (existingData as Record<string, unknown>)[queryName]) {
+            (cache as Record<string, unknown>).writeQuery?.({
               query: this.getQueryByName(queryName),
               variables: { tenantId: this.tenantConfig!.tenantId },
               data: {
@@ -254,33 +254,36 @@ export class TenantSubscriptionFilter {
     }
   }
 
-  private handleUpdateUpdate(cache: any, data: any, config: any): void {
+  private handleUpdateUpdate(cache: unknown, data: unknown, config: Record<string, unknown>): void {
     // Update existing entity in cache
-    const entityId = data.id;
+    const entityData = data as Record<string, unknown>;
+    const entityId = entityData.id;
     if (!entityId) return;
 
     // Update the entity directly
-    cache.writeFragment({
-      id: cache.identify(data),
-      fragment: this.getFragmentForEntity(config.entityType),
+    const cacheObj = cache as Record<string, unknown>;
+    cacheObj.writeFragment?.({
+      id: (cacheObj.identify as (val: unknown) => string)?.(data),
+      fragment: this.getFragmentForEntity(config.entityType as string),
       data
     });
 
     // Update in list queries
-    if (config.cacheQueries) {
-      config.cacheQueries.forEach((queryName: string) => {
+    if (config.cacheQueries && Array.isArray(config.cacheQueries)) {
+      (config.cacheQueries as string[]).forEach((queryName: string) => {
         try {
-          const existingData = cache.readQuery({
+          const existingData = cacheObj.readQuery?.({
             query: this.getQueryByName(queryName),
             variables: { tenantId: this.tenantConfig!.tenantId }
           });
 
-          if (existingData && existingData[queryName]) {
-            const updatedList = existingData[queryName].map((item: any) =>
-              item.id === entityId ? { ...item, ...data } : item
+          if (existingData && (existingData as Record<string, unknown>)[queryName]) {
+            const existingList = (existingData as Record<string, unknown>)[queryName] as Record<string, unknown>[];
+            const updatedList = existingList.map((item: unknown) =>
+              (item as Record<string, unknown>).id === entityId ? { ...item, ...data } : item
             );
 
-            cache.writeQuery({
+            cacheObj.writeQuery?.({
               query: this.getQueryByName(queryName),
               variables: { tenantId: this.tenantConfig!.tenantId },
               data: {
@@ -296,30 +299,33 @@ export class TenantSubscriptionFilter {
     }
   }
 
-  private handleDeleteUpdate(cache: any, data: any, config: any): void {
-    const entityId = data.id;
+  private handleDeleteUpdate(cache: unknown, data: unknown, config: Record<string, unknown>): void {
+    const entityData = data as Record<string, unknown>;
+    const entityId = entityData.id;
     if (!entityId) return;
 
     // Remove from cache
-    cache.evict({
-      id: cache.identify(data)
+    const cacheObj = cache as Record<string, unknown>;
+    cacheObj.evict?.({
+      id: (cacheObj.identify as (val: unknown) => string)?.(data)
     });
 
     // Remove from list queries
-    if (config.cacheQueries) {
-      config.cacheQueries.forEach((queryName: string) => {
+    if (config.cacheQueries && Array.isArray(config.cacheQueries)) {
+      (config.cacheQueries as string[]).forEach((queryName: string) => {
         try {
-          const existingData = cache.readQuery({
+          const existingData = cacheObj.readQuery?.({
             query: this.getQueryByName(queryName),
             variables: { tenantId: this.tenantConfig!.tenantId }
           });
 
-          if (existingData && existingData[queryName]) {
-            const filteredList = existingData[queryName].filter(
-              (item: any) => item.id !== entityId
+          if (existingData && (existingData as Record<string, unknown>)[queryName]) {
+            const existingList = (existingData as Record<string, unknown>)[queryName] as Record<string, unknown>[];
+            const filteredList = existingList.filter(
+              (item: unknown) => (item as Record<string, unknown>).id !== entityId
             );
 
-            cache.writeQuery({
+            cacheObj.writeQuery?.({
               query: this.getQueryByName(queryName),
               variables: { tenantId: this.tenantConfig!.tenantId },
               data: {

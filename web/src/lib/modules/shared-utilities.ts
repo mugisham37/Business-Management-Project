@@ -93,13 +93,13 @@ export class ModuleDependencyResolver {
  * Module state manager for cross-module communication
  */
 export class ModuleStateManager {
-  private moduleStates = new Map<string, any>();
-  private subscribers = new Map<string, Set<(state: any) => void>>();
+  private moduleStates = new Map<string, unknown>();
+  private subscribers = new Map<string, Set<(state: unknown) => void>>();
 
   /**
    * Set module state
    */
-  setState(moduleName: string, state: any) {
+  setState(moduleName: string, state: unknown) {
     this.moduleStates.set(moduleName, state);
     this.notifySubscribers(moduleName, state);
   }
@@ -114,7 +114,7 @@ export class ModuleStateManager {
   /**
    * Subscribe to module state changes
    */
-  subscribe(moduleName: string, callback: (state: any) => void) {
+  subscribe(moduleName: string, callback: (state: unknown) => void) {
     if (!this.subscribers.has(moduleName)) {
       this.subscribers.set(moduleName, new Set());
     }
@@ -129,7 +129,7 @@ export class ModuleStateManager {
   /**
    * Notify subscribers of state changes
    */
-  private notifySubscribers(moduleName: string, state: any) {
+  private notifySubscribers(moduleName: string, state: unknown) {
     const moduleSubscribers = this.subscribers.get(moduleName);
     if (moduleSubscribers) {
       moduleSubscribers.forEach(callback => callback(state));
@@ -149,12 +149,12 @@ export class ModuleStateManager {
  * Module event bus for inter-module communication
  */
 export class ModuleEventBus {
-  private listeners = new Map<string, Set<(data: any) => void>>();
+  private listeners = new Map<string, Set<(data: unknown) => void>>();
 
   /**
    * Emit event to all listeners
    */
-  emit(eventName: string, data?: any) {
+  emit(eventName: string, data?: unknown) {
     const eventListeners = this.listeners.get(eventName);
     if (eventListeners) {
       eventListeners.forEach(listener => {
@@ -170,7 +170,7 @@ export class ModuleEventBus {
   /**
    * Listen to events
    */
-  on(eventName: string, listener: (data: any) => void) {
+  on(eventName: string, listener: (data: unknown) => void) {
     if (!this.listeners.has(eventName)) {
       this.listeners.set(eventName, new Set());
     }
@@ -185,7 +185,7 @@ export class ModuleEventBus {
   /**
    * Listen to event once
    */
-  once(eventName: string, listener: (data: any) => void) {
+  once(eventName: string, listener: (data: unknown) => void) {
     const unsubscribe = this.on(eventName, (data) => {
       listener(data);
       unsubscribe();
@@ -253,7 +253,7 @@ export class ModulePerformanceTracker {
    * Get all performance metrics
    */
   getAllMetrics() {
-    const metrics: Record<string, any> = {};
+    const metrics: Record<string, unknown> = {};
     
     // Combine all module names
     const allModules = new Set([
@@ -277,15 +277,24 @@ export class ModulePerformanceTracker {
     const moduleNames = Object.keys(allMetrics);
 
     const loadTimes = moduleNames
-      .map(name => allMetrics[name].loadTime)
+      .map(name => {
+        const metric = allMetrics[name] as Record<string, number>;
+        return metric.loadTime;
+      })
       .filter(time => time !== undefined);
 
     const renderTimes = moduleNames
-      .map(name => allMetrics[name].renderTime)
+      .map(name => {
+        const metric = allMetrics[name] as Record<string, number>;
+        return metric.renderTime;
+      })
       .filter(time => time !== undefined);
 
     const totalErrors = moduleNames
-      .reduce((sum, name) => sum + allMetrics[name].errorCount, 0);
+      .reduce((sum, name) => {
+        const metric = allMetrics[name] as Record<string, number>;
+        return sum + (metric.errorCount || 0);
+      }, 0);
 
     return {
       totalModules: moduleNames.length,
@@ -297,10 +306,10 @@ export class ModulePerformanceTracker {
         : 0,
       totalErrors,
       slowestModule: moduleNames.reduce((slowest, name) => {
-        const loadTime = allMetrics[name].loadTime || 0;
-        const slowestTime = allMetrics[slowest]?.loadTime || 0;
+        const loadTime = (allMetrics[name] as Record<string, number>).loadTime || 0;
+        const slowestTime = (allMetrics[slowest] as Record<string, number>)?.loadTime || 0;
         return loadTime > slowestTime ? name : slowest;
-      }, moduleNames[0]),
+      }, moduleNames[0] ?? ''),
     };
   }
 }

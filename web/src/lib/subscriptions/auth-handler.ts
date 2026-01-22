@@ -67,7 +67,7 @@ export class SubscriptionAuthHandler {
   /**
    * Handle authentication failure
    */
-  handleAuthFailure(error: any): void {
+  handleAuthFailure(error: unknown): void {
     console.error('Subscription authentication failed:', error);
     
     this.setAuthState({
@@ -142,10 +142,11 @@ export class SubscriptionAuthHandler {
     if (typeof window !== 'undefined') {
       // Listen for storage events (cross-tab auth changes)
       const storageEvents$ = fromEvent(window, 'storage').pipe(
-        filter((event: any) => 
-          event.key === 'accessToken' || 
-          event.key === 'currentTenantId'
-        ),
+        filter((event: unknown) => {
+          const storageEvent = event as StorageEvent;
+          return storageEvent.key === 'accessToken' || 
+                 storageEvent.key === 'currentTenantId';
+        }),
         tap(() => this.syncAuthStateFromStorage())
       );
 
@@ -274,12 +275,13 @@ export const subscriptionAuthHandler = new SubscriptionAuthHandler();
 // Initialize auth monitoring when module loads
 if (typeof window !== 'undefined') {
   // Listen for auth events from the auth manager
-  window.addEventListener('auth:login', (event: any) => {
+  window.addEventListener('auth:login', (event: Event) => {
+    const customEvent = event as CustomEvent<{ token: string; expiresAt: Date; tenantId: string }>;
     subscriptionAuthHandler.setAuthState({
       isAuthenticated: true,
-      token: event.detail.token,
-      expiresAt: event.detail.expiresAt,
-      tenantId: event.detail.tenantId
+      token: customEvent.detail.token,
+      expiresAt: customEvent.detail.expiresAt,
+      tenantId: customEvent.detail.tenantId
     });
   });
 
@@ -292,8 +294,9 @@ if (typeof window !== 'undefined') {
     });
   });
 
-  window.addEventListener('tenant:switch', (event: any) => {
-    subscriptionAuthHandler.handleTenantSwitch(event.detail.tenantId);
+  window.addEventListener('tenant:switch', (event: Event) => {
+    const customEvent = event as CustomEvent<{ tenantId: string }>;
+    subscriptionAuthHandler.handleTenantSwitch(customEvent.detail.tenantId);
   });
 
   // Cleanup on page unload

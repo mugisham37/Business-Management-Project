@@ -48,7 +48,7 @@ export function OptimizedImage({
   sizes?: string;
   onLoad?: () => void;
   onError?: () => void;
-  [key: string]: any;
+  [key: string]: string | number | boolean | undefined | (() => void);
 }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -60,8 +60,9 @@ export function OptimizedImage({
     if (priority || isInView) return;
 
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
           setIsInView(true);
           observer.disconnect();
         }
@@ -137,6 +138,7 @@ export function OptimizedImage({
       )}
       
       {/* Actual image */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={imgRef}
         src={getOptimizedSrc(src)}
@@ -193,7 +195,7 @@ class AssetPreloader {
 
       // Set fetchpriority for modern browsers
       if ('fetchPriority' in img) {
-        (img as any).fetchPriority = priority;
+        (img as HTMLImageElement & { fetchPriority: string }).fetchPriority = priority;
       }
       
       img.src = src;
@@ -356,13 +358,18 @@ export function useAssetOptimization() {
   }, []);
 
   useEffect(() => {
-    // Collect initial metrics
-    collectMetrics();
+    // Collect initial metrics asynchronously
+    const timeoutId = setTimeout(() => {
+      collectMetrics();
+    }, 0);
     
     // Set up periodic collection
     const interval = setInterval(collectMetrics, 30000); // Every 30 seconds
     
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(interval);
+    };
   }, [collectMetrics]);
 
   return {

@@ -14,7 +14,7 @@ import { GraphQLError } from 'graphql';
 export interface EnhancedGraphQLError extends GraphQLError {
   code?: string;
   field?: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   userMessage?: string;
 }
 
@@ -25,7 +25,7 @@ export interface GraphQLErrorResponse {
   message: string;
   code: string;
   field?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   suggestions?: string[];
 }
 
@@ -35,7 +35,7 @@ export interface GraphQLErrorResponse {
 export interface OperationMetadata {
   operationName?: string;
   operationType: 'query' | 'mutation' | 'subscription';
-  variables?: Record<string, any>;
+  variables?: Record<string, unknown> | undefined;
   timestamp: Date;
 }
 
@@ -66,17 +66,22 @@ export function parseGraphQLError(error: ApolloError): GraphQLErrorResponse[] {
     for (const gqlError of error.graphQLErrors) {
       const enhancedError = gqlError as EnhancedGraphQLError;
       
-      responses.push({
+      const errorResponse: GraphQLErrorResponse = {
         message: enhancedError.userMessage || enhancedError.message,
         code: enhancedError.code || 'GRAPHQL_ERROR',
-        field: enhancedError.field || undefined,
         details: {
           path: enhancedError.path,
           locations: enhancedError.locations,
           extensions: enhancedError.extensions,
         },
         suggestions: generateErrorSuggestions(enhancedError),
-      });
+      };
+      
+      if (enhancedError.field !== undefined) {
+        errorResponse.field = enhancedError.field;
+      }
+      
+      responses.push(errorResponse);
     }
   }
 
@@ -147,7 +152,7 @@ function generateErrorSuggestions(error: EnhancedGraphQLError): string[] {
  */
 export function createOperationMetadata(
   operation: DocumentNode | TypedDocumentNode,
-  variables?: Record<string, any>
+  variables?: Record<string, unknown>
 ): OperationMetadata {
   const definition = operation.definitions[0];
   
@@ -159,19 +164,24 @@ export function createOperationMetadata(
     operationName = definition.name?.value;
   }
 
-  return {
-    operationName,
+  const result: OperationMetadata = {
     operationType,
     variables,
     timestamp: new Date(),
   };
+  
+  if (operationName !== undefined) {
+    result.operationName = operationName;
+  }
+
+  return result;
 }
 
 /**
  * Validate operation variables against expected types
  */
 export function validateOperationVariables(
-  variables: Record<string, any>,
+  variables: Record<string, unknown>,
   expectedTypes: Record<string, string>
 ): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
@@ -255,7 +265,7 @@ export function getOperationType(operation: DocumentNode | TypedDocumentNode): '
  */
 export function formatOperationForLogging(
   operation: DocumentNode | TypedDocumentNode,
-  variables?: Record<string, any>
+  variables?: Record<string, unknown>
 ): string {
   const name = getOperationName(operation) || 'UnnamedOperation';
   const type = getOperationType(operation) || 'unknown';
@@ -294,8 +304,10 @@ export function createUserFriendlyErrorMessage(errors: GraphQLErrorResponse[]): 
 /**
  * Type guard for checking if an error is a GraphQL error
  */
-export function isGraphQLError(error: any): error is ApolloError {
-  return error && (error.graphQLErrors || error.networkError);
+export function isGraphQLError(error: unknown): error is ApolloError {
+  return typeof error === 'object' && error !== null && (
+    'graphQLErrors' in error || 'networkError' in error
+  );
 }
 
 /**

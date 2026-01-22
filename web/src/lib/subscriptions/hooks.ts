@@ -7,10 +7,10 @@ import { useTenant } from '@/lib/tenant';
 /**
  * React hook for GraphQL subscriptions with automatic cleanup
  */
-export function useSubscription<T = any>(
+export function useSubscription<T = unknown>(
   subscription: DocumentNode | TypedDocumentNode,
   options?: {
-    variables?: any;
+    variables?: Record<string, unknown>;
     skip?: boolean;
     onData?: (data: T) => void;
     onError?: (error: Error) => void;
@@ -154,10 +154,10 @@ export function useTenantSubscription<T = any>(
 /**
  * Hook for managing multiple subscriptions
  */
-export function useMultipleSubscriptions<T = any>(
+export function useMultipleSubscriptions<T = unknown>(
   subscriptions: Array<{
     subscription: DocumentNode | TypedDocumentNode;
-    variables?: any;
+    variables?: Record<string, unknown>;
     key: string;
   }>,
   options?: {
@@ -216,10 +216,10 @@ export function useMultipleSubscriptions<T = any>(
 /**
  * Hook for subscription with automatic retry and error recovery
  */
-export function useResilientSubscription<T = any>(
+export function useResilientSubscription<T = unknown>(
   subscription: DocumentNode | TypedDocumentNode,
   options?: {
-    variables?: any;
+    variables?: Record<string, unknown>;
     skip?: boolean;
     maxRetries?: number;
     retryDelay?: number;

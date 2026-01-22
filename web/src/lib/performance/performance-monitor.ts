@@ -3,6 +3,18 @@
  * Tracks Core Web Vitals, bundle loading, and user experience metrics
  */
 
+// Type definitions for Performance API extensions
+interface PerformanceEventTiming extends PerformanceEntry {
+  processingStart: number;
+  processingDuration: number;
+  duration: number;
+}
+
+interface LayoutShift extends PerformanceEntry {
+  value: number;
+  hadRecentInput: boolean;
+}
+
 export interface PerformanceMetrics {
   // Core Web Vitals
   lcp?: number; // Largest Contentful Paint
@@ -142,7 +154,7 @@ class PerformanceMonitor {
     grade: 'A' | 'B' | 'C' | 'D' | 'F';
     details: Record<string, { value: number; score: number; status: 'good' | 'needs-improvement' | 'poor' }>;
   } {
-    const details: any = {};
+    const details: Record<string, { value: number; score: number; status: 'good' | 'needs-improvement' | 'poor' }> = {};
     let totalScore = 0;
     let metricCount = 0;
 
@@ -233,12 +245,14 @@ class PerformanceMonitor {
       try {
         const lcpObserver = new PerformanceObserver((list) => {
           const entries = list.getEntries();
-          const lastEntry = entries[entries.length - 1] as any;
-          this.metrics.lcp = lastEntry.startTime;
+          const lastEntry = entries[entries.length - 1] as PerformanceEntry;
+          if (lastEntry && 'startTime' in lastEntry) {
+            this.metrics.lcp = lastEntry.startTime;
+          }
         });
         lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
         this.observers.push(lcpObserver);
-      } catch (e) {
+      } catch {
         console.warn('LCP observer not supported');
       }
 
@@ -246,13 +260,16 @@ class PerformanceMonitor {
       try {
         const fidObserver = new PerformanceObserver((list) => {
           const entries = list.getEntries();
-          entries.forEach((entry: any) => {
-            this.metrics.fid = entry.processingStart - entry.startTime;
+          entries.forEach((entry) => {
+            if ('processingStart' in entry && 'startTime' in entry) {
+              const perfEntry = entry as PerformanceEventTiming;
+              this.metrics.fid = perfEntry.processingStart - perfEntry.startTime;
+            }
           });
         });
         fidObserver.observe({ entryTypes: ['first-input'] });
         this.observers.push(fidObserver);
-      } catch (e) {
+      } catch {
         console.warn('FID observer not supported');
       }
 
@@ -261,16 +278,19 @@ class PerformanceMonitor {
         let clsValue = 0;
         const clsObserver = new PerformanceObserver((list) => {
           const entries = list.getEntries();
-          entries.forEach((entry: any) => {
-            if (!entry.hadRecentInput) {
-              clsValue += entry.value;
-              this.metrics.cls = clsValue;
+          entries.forEach((entry) => {
+            if ('hadRecentInput' in entry && 'value' in entry) {
+              const layoutShift = entry as LayoutShift;
+              if (!layoutShift.hadRecentInput) {
+                clsValue += layoutShift.value;
+                this.metrics.cls = clsValue;
+              }
             }
           });
         });
         clsObserver.observe({ entryTypes: ['layout-shift'] });
         this.observers.push(clsObserver);
-      } catch (e) {
+      } catch {
         console.warn('CLS observer not supported');
       }
     }
@@ -285,7 +305,10 @@ class PerformanceMonitor {
     
     // Connection type
     if ('connection' in navigator) {
-      this.metrics.connectionType = (navigator as any).connection?.effectiveType;
+      const connection = (navigator as Navigator & { connection?: { effectiveType: string } }).connection;
+      if (connection) {
+        this.metrics.connectionType = connection.effectiveType;
+      }
     }
 
     // Bundle size (approximate)
@@ -306,10 +329,10 @@ class PerformanceMonitor {
   private setupNavigationObserver(): void {
     if ('performance' in window && 'getEntriesByType' in performance) {
       const navEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
-      if (navEntries.length > 0) {
-        const navEntry = navEntries[0];
+      const navEntry = navEntries[0];
+      if (navEntry) {
         this.metrics.ttfb = navEntry.responseStart - navEntry.requestStart;
-        this.metrics.fcp = navEntry.loadEventEnd - navEntry.navigationStart;
+        this.metrics.fcp = navEntry.loadEventEnd - navEntry.fetchStart;
       }
     }
   }
