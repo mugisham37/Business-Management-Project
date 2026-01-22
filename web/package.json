@@ -20,7 +20,7 @@
     "validate:graphql": "node scripts/validate-graphql.js",
     "validate:schema": "npm run codegen && npm run validate:graphql",
     "prepare": "husky install",
-    "build:analyze": "NEXT_PUBLIC_BUNDLE_ANALYZER=true npm run build",
+    "build:analyze": "ANALYZE=true npm run build",
     "validate": "npm run type-check && npm run lint:check && npm run format:check && npm run validate:graphql && npm run test",
     "clean": "rm -rf .next out dist",
     "postinstall": "npm run codegen || true"
@@ -65,6 +65,7 @@
     "prettier-plugin-tailwindcss": "^0.5.7",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "webpack-bundle-analyzer": "^4.10.1",
     "whatwg-fetch": "^3.6.20"
   }
 }
