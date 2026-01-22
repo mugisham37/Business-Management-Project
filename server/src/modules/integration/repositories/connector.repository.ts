@@ -5,7 +5,7 @@ import { DrizzleService } from '../../database/drizzle.service';
 import { connectors } from '../../database/schema/integration.schema';
 
 import { Connector } from '../entities/connector.entity';
-import { ConnectorListDto } from '../dto/connector.dto';
+import { ConnectorFilterInput } from '../inputs/connector.input';
 
 @Injectable()
 export class ConnectorRepository {
@@ -32,7 +32,7 @@ export class ConnectorRepository {
     return connector as Connector;
   }
 
-  async findAll(filters?: ConnectorListDto): Promise<Connector[]> {
+  async findAll(filters?: ConnectorFilterInput): Promise<Connector[]> {
     const db = this.drizzle.db;
     if (!db) {
       throw new Error('Database not initialized');

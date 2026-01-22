@@ -5,7 +5,7 @@ import { DrizzleService } from '../../database/drizzle.service';
 import { integrations } from '../../database/schema/integration.schema';
 
 import { Integration, IntegrationStatus, IntegrationType } from '../entities/integration.entity';
-import { IntegrationListDto } from '../dto/integration.dto';
+import { IntegrationFilterInput } from '../inputs/integration.input';
 
 @Injectable()
 export class IntegrationRepository {
@@ -63,7 +63,7 @@ export class IntegrationRepository {
   /**
    * Find all integrations for a tenant with optional filters
    */
-  async findAll(tenantId: string, filters?: IntegrationListDto): Promise<Integration[]> {
+  async findAll(tenantId: string, filters?: IntegrationFilterInput): Promise<Integration[]> {
     const db = this.drizzle.db;
     if (!db) {
       throw new Error('Database not initialized');
@@ -98,15 +98,6 @@ export class IntegrationRepository {
       .from(integrations)
       .where(and(...conditions))
       .orderBy(desc(integrations.createdAt));
-
-    // Apply pagination
-    if (filters?.limit) {
-      query = query.limit(filters.limit) as any;
-    }
-
-    if (filters?.offset) {
-      query = query.offset(filters.offset) as any;
-    }
 
     const results = await query;
     return results as Integration[];
@@ -221,7 +212,7 @@ export class IntegrationRepository {
   /**
    * Count integrations for a tenant
    */
-  async count(tenantId: string, filters?: Partial<IntegrationListDto>): Promise<number> {
+  async count(tenantId: string, filters?: Partial<IntegrationFilterInput>): Promise<number> {
     const db = this.drizzle.db;
     if (!db) {
       throw new Error('Database not initialized');
@@ -484,21 +475,43 @@ export class IntegrationRepository {
       })
       .where(eq(integrations.id, integrationId));
   }
-}
+
   /**
    * Find integrations by IDs (for dataloader)
    */
-  async findByIds(integrationIds: string[]): Promise<any[]> {
-    // Implementation would use Drizzle ORM to query integrations
-    // For now, return empty array
-    return [];
+  async findByIds(integrationIds: string[]): Promise<Integration[]> {
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const results = await db
+      .select()
+      .from(integrations)
+      .where(
+        sql`${integrations.id} = ANY(${integrationIds})`
+      );
+
+    return results as Integration[];
   }
 
   /**
    * Find integrations by connector keys (for dataloader)
+   * Connector key format: "type_providerName"
    */
-  async findByConnectorKeys(connectorKeys: string[]): Promise<any[]> {
-    // Implementation would use Drizzle ORM to query integrations
-    // For now, return empty array
-    return [];
+  async findByConnectorKeys(connectorKeys: string[]): Promise<Integration[]> {
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const results = await db
+      .select()
+      .from(integrations)
+      .where(
+        sql`CONCAT(${integrations.type}, '_', ${integrations.providerName}) = ANY(${connectorKeys})`
+      );
+
+    return results as Integration[];
   }
+}

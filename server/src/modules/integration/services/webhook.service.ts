@@ -530,7 +530,7 @@ export class WebhookService {
       this.logger.error('Failed to retry webhook deliveries:', err);
     }
   }
-}
+
   /**
    * Retry a failed webhook delivery
    */
@@ -541,20 +541,5 @@ export class WebhookService {
     // For now, just return success
     
     return true;
-  }
-
-  /**
-   * Get webhook delivery history
-   */
-  async getDeliveryHistory(
-    webhookId: string,
-    options: { limit?: number; offset?: number } = {},
-  ): Promise<any[]> {
-    this.logger.log(`Getting delivery history for webhook: ${webhookId}`);
-    
-    // Implementation would fetch delivery history from repository
-    // For now, return empty array
-    
-    return [];
   }
 }

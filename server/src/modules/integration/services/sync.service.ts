@@ -16,6 +16,7 @@ import {
   SyncStatus,
   SyncType,
   ConflictResolutionStrategy,
+  SyncConflict,
 } from '../entities/sync-log.entity';
 
 import {
@@ -42,29 +43,20 @@ export interface SyncResult {
   recordsUpdated: number;
   recordsDeleted: number;
   recordsSkipped: number;
-  conflicts: ConflictRecord[];
+  conflicts: SyncConflict[];
   errors: SyncError[];
   duration: number;
   startedAt: Date;
   completedAt?: Date;
 }
 
-export interface ConflictRecord {
-  entityType: string;
-  entityId: string;
-  localData: any;
-  remoteData: any;
-  conflictType: 'update_conflict' | 'delete_conflict' | 'create_conflict';
-  resolution?: 'local_wins' | 'remote_wins' | 'merge' | 'manual_required';
-  resolvedData?: any;
-}
-
 export interface SyncError {
-  entityType: string;
-  entityId?: string;
+  entityType?: string;
+  record?: any;
   error: string;
-  details?: any;
-  retryable: boolean;
+  code?: string;
+  details?: string;
+  retryable?: boolean;
 }
 
 @Injectable()
@@ -293,7 +285,7 @@ export class SyncService {
         errors: [{
           entityType: 'sync',
           error: err.message,
-          details: err.stack,
+          details: err.stack || 'No stack trace available',
           retryable: this.isRetryableError(err),
         }],
       });
@@ -400,7 +392,7 @@ export class SyncService {
           result.errors.push({
             entityType,
             error: err.message,
-            details: err.stack,
+            details: err.stack || 'No stack trace available',
             retryable: this.isRetryableError(err),
           });
         }
@@ -430,7 +422,7 @@ export class SyncService {
       result.errors.push({
         entityType: 'sync',
         error: err.message,
-        details: err.stack,
+        details: err.stack || 'No stack trace available',
         retryable: this.isRetryableError(err),
       });
 
@@ -453,7 +445,7 @@ export class SyncService {
     updated: number;
     deleted: number;
     skipped: number;
-    conflicts: ConflictRecord[];
+    conflicts: SyncConflict[];
     errors: SyncError[];
   }> {
     const results = {
@@ -462,7 +454,7 @@ export class SyncService {
       updated: 0,
       deleted: 0,
       skipped: 0,
-      conflicts: [] as ConflictRecord[],
+      conflicts: [] as SyncConflict[],
       errors: [] as SyncError[],
     };
 
@@ -485,12 +477,13 @@ export class SyncService {
           const hasConflict = this.detectConflict(localItem, externalItem);
           
           if (hasConflict) {
-            const conflict: ConflictRecord = {
+            const conflict: SyncConflict = {
+              syncId: '', // Will be set later
               entityType,
               entityId: externalItem.id,
-              localData: localItem,
-              remoteData: externalItem,
-              conflictType: 'update_conflict',
+              localValue: localItem,
+              remoteValue: externalItem,
+              status: 'pending',
             };
 
             // Resolve conflict based on strategy
@@ -521,7 +514,6 @@ export class SyncService {
         const err = error as Error;
         results.errors.push({
           entityType,
-          entityId: externalItem.id,
           error: err.message,
           retryable: this.isRetryableError(err),
         });
@@ -538,7 +530,6 @@ export class SyncService {
           const err = error as Error;
           results.errors.push({
             entityType,
-            entityId: localItem.id,
             error: err.message,
             retryable: this.isRetryableError(err),
           });
@@ -570,26 +561,26 @@ export class SyncService {
    * Resolve data conflicts based on strategy
    */
   private async resolveConflict(
-    conflict: ConflictRecord,
+    conflict: SyncConflict,
     strategy: ConflictResolutionStrategy
   ): Promise<{ resolution: string; resolvedData?: any }> {
     switch (strategy) {
       case ConflictResolutionStrategy.LOCAL_WINS:
         return {
           resolution: 'local_wins',
-          resolvedData: conflict.localData,
+          resolvedData: conflict.localValue,
         };
 
       case ConflictResolutionStrategy.REMOTE_WINS:
         return {
           resolution: 'remote_wins',
-          resolvedData: conflict.remoteData,
+          resolvedData: conflict.remoteValue,
         };
 
       case ConflictResolutionStrategy.MERGE:
         return {
           resolution: 'merge',
-          resolvedData: this.mergeData(conflict.localData, conflict.remoteData),
+          resolvedData: this.mergeData(conflict.localValue, conflict.remoteValue),
         };
 
       case ConflictResolutionStrategy.MANUAL:
@@ -818,7 +809,7 @@ export class SyncService {
       this.logger.error('Failed to monitor sync health:', err);
     }
   }
-}
+
   /**
    * Get sync conflicts for a specific sync
    */
@@ -874,31 +865,5 @@ export class SyncService {
     this.eventEmitter.emit('sync.cancelled', { syncId });
     
     return true;
-  }
-
-  /**
-   * Schedule a sync with cron expression
-   */
-  async scheduleSync(integrationId: string, scheduleInput: any): Promise<boolean> {
-    this.logger.log(`Scheduling sync for integration: ${integrationId} with cron: ${scheduleInput.cronExpression}`);
-    
-    // Implementation would create a scheduled job
-    // For now, just log the action
-    
-    return true;
-  }
-
-  /**
-   * Get sync history with filters and pagination
-   */
-  async getSyncHistory(
-    integrationId: string,
-    filters: any = {},
-    pagination: any = {},
-  ): Promise<any[]> {
-    return this.syncLogRepository.findByIntegration(integrationId, {
-      ...filters,
-      ...pagination,
-    });
   }
 }

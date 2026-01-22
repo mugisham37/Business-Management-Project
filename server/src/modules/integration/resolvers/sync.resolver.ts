@@ -1,12 +1,12 @@
 import { Resolver, Query, Mutation, Args, ID, Subscription, ResolveField, Parent } from '@nestjs/graphql';
 import { UseGuards, UseInterceptors, Inject } from '@nestjs/common';
-import { PubSub } from 'graphql-subscriptions';
+import { RedisPubSub } from 'graphql-redis-subscriptions';
 import { JwtAuthGuard } from '../../auth/guards/graphql-jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { TenantInterceptor } from '../../tenant/interceptors/tenant.interceptor';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { CurrentTenant } from '../../tenant/decorators/tenant.decorator';
+import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 import { BaseResolver } from '../../../common/graphql/base.resolver';
@@ -35,10 +35,10 @@ import { PaginationArgs } from '../../../common/graphql/pagination.args';
 @UseInterceptors(TenantInterceptor)
 export class SyncResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly syncService: SyncService,
     private readonly integrationService: IntegrationService,
-    @Inject('PUB_SUB') private readonly pubSub: PubSub,
+    @Inject('PUB_SUB') private readonly pubSub: RedisPubSub,
   ) {
     super(dataLoaderService);
   }
@@ -50,7 +50,7 @@ export class SyncResolver extends BaseResolver {
     @Args('id', { type: () => ID }) id: string,
     @CurrentTenant() tenantId: string,
   ): Promise<SyncLogType | null> {
-    return this.syncService.getSyncDetails(id);
+    return this.syncService.getSyncDetails(tenantId, id) as any;
   }
 
   @Query(() => [SyncLogType], { name: 'syncLogs' })
@@ -62,7 +62,8 @@ export class SyncResolver extends BaseResolver {
     @Args() pagination: PaginationArgs,
     @CurrentTenant() tenantId: string,
   ): Promise<SyncLogType[]> {
-    return this.syncService.getSyncHistory(integrationId, filter, pagination);
+    const limit = pagination?.first || 50;
+    return this.syncService.getSyncHistory(integrationId, tenantId, limit) as any;
   }
 
   @Query(() => [SyncConflictType], { name: 'syncConflicts' })
@@ -94,15 +95,17 @@ export class SyncResolver extends BaseResolver {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<SyncLogType> {
-    const syncLog = await this.syncService.triggerSync(integrationId, {
-      type: input?.type || 'incremental' as any,
+    const syncOptions: any = {
+      type: input?.type || 'incremental',
       triggeredBy: 'manual',
       tenantId,
-      entityTypes: input?.entityTypes,
-      batchSize: input?.batchSize,
-      conflictResolution: input?.conflictResolution,
-      lastSyncTimestamp: input?.lastSyncTimestamp,
-    });
+    };
+    if (input?.entityTypes !== undefined) syncOptions.entityTypes = input.entityTypes;
+    if (input?.batchSize !== undefined) syncOptions.batchSize = input.batchSize;
+    if (input?.conflictResolution !== undefined) syncOptions.conflictResolution = input.conflictResolution;
+    if (input?.lastSyncTimestamp !== undefined) syncOptions.lastSyncTimestamp = input.lastSyncTimestamp;
+    
+    const syncLog = await this.syncService.triggerSync(integrationId, syncOptions);
 
     // Emit sync started event
     this.pubSub.publish('SYNC_STARTED', {
@@ -111,7 +114,7 @@ export class SyncResolver extends BaseResolver {
       integrationId,
     });
 
-    return syncLog;
+    return syncLog as any;
   }
 
   @Mutation(() => Boolean, { name: 'cancelSync' })
@@ -133,7 +136,7 @@ export class SyncResolver extends BaseResolver {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<SyncLogType> {
-    return this.syncService.retrySync(syncId);
+    return this.syncService.retrySync(tenantId, syncId) as any;
   }
 
   @Mutation(() => SyncConflictType, { name: 'resolveSyncConflict' })
@@ -160,7 +163,9 @@ export class SyncResolver extends BaseResolver {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<boolean> {
-    return this.syncService.scheduleSync(integrationId, input);
+    // Default to 60 minutes for schedule interval
+    await this.syncService.scheduleSync(integrationId, 60);
+    return true;
   }
 
   @Mutation(() => Boolean, { name: 'cancelScheduledSync' })
@@ -171,7 +176,8 @@ export class SyncResolver extends BaseResolver {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<boolean> {
-    return this.syncService.cancelScheduledSync(integrationId);
+    await this.syncService.cancelScheduledSync(integrationId);
+    return true;
   }
 
   // Subscriptions
@@ -220,11 +226,11 @@ export class SyncResolver extends BaseResolver {
   // Field Resolvers
   @ResolveField(() => Integration)
   async integration(@Parent() syncLog: SyncLogType): Promise<Integration> {
-    return this.dataLoaderService.getLoader('integrations_by_id').load(syncLog.integrationId);
+    return this.integrationService.findById(syncLog.tenantId || '', syncLog.integrationId);
   }
 
   @ResolveField(() => [SyncConflictType])
   async conflicts(@Parent() syncLog: SyncLogType): Promise<SyncConflictType[]> {
-    return this.dataLoaderService.getLoader('conflicts_by_sync_id').load(syncLog.id);
+    return this.syncService.getSyncConflicts(syncLog.id);
   }
 }

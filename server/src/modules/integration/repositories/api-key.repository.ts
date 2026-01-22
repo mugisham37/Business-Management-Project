@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 import { DrizzleService } from '../../database/drizzle.service';
 import { apiKeys } from '../../database/schema/integration.schema';
@@ -69,12 +69,18 @@ export class ApiKeyRepository {
 
     return apiKey as ApiKey;
   }
-}
+
   /**
    * Find API keys by integration IDs (for dataloader)
    */
-  async findByIntegrationIds(integrationIds: string[]): Promise<any[]> {
-    // Implementation would use Drizzle ORM to query API keys
-    // For now, return empty array
-    return [];
+  async findByIntegrationIds(integrationIds: string[]): Promise<ApiKey[]> {
+    const results = await this.drizzle.db!
+      .select()
+      .from(apiKeys)
+      .where(
+        sql`${apiKeys.integrationId} = ANY(${integrationIds})`
+      );
+
+    return results as ApiKey[];
   }
+}

@@ -5,7 +5,7 @@ import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { TenantInterceptor } from '../../tenant/interceptors/tenant.interceptor';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { CurrentTenant } from '../../tenant/decorators/tenant.decorator';
+import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 import { BaseResolver } from '../../../common/graphql/base.resolver';
@@ -28,7 +28,7 @@ import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 @UseInterceptors(TenantInterceptor)
 export class DeveloperPortalResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly developerPortalService: DeveloperPortalService,
     private readonly apiKeyService: ApiKeyService,
   ) {
@@ -65,16 +65,18 @@ export class DeveloperPortalResolver extends BaseResolver {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<APIKeyWithSecret> {
+    const createInput: any = {
+      name: input.name,
+      scopes: input.scopes,
+    };
+    if (input.description !== undefined) createInput.description = input.description;
+    if (input.rateLimit !== undefined) createInput.rateLimit = input.rateLimit;
+    if (input.expiresAt !== undefined) createInput.expiresAt = input.expiresAt;
+    
     const result = await this.developerPortalService.createDeveloperApiKey(
       tenantId,
       user.id,
-      {
-        name: input.name,
-        description: input.description,
-        scopes: input.scopes,
-        rateLimit: input.rateLimit,
-        expiresAt: input.expiresAt,
-      },
+      createInput,
     );
 
     return {
@@ -90,9 +92,10 @@ export class DeveloperPortalResolver extends BaseResolver {
   @Permissions('integration:delete')
   async revokeAPIKey(
     @Args('keyId', { type: () => ID }) keyId: string,
+    @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<boolean> {
-    await this.apiKeyService.revoke(keyId);
+    await this.apiKeyService.revoke(tenantId, keyId, user.id);
     return true;
   }
 

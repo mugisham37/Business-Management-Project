@@ -5,7 +5,7 @@ import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { TenantInterceptor } from '../../tenant/interceptors/tenant.interceptor';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { CurrentTenant } from '../../tenant/decorators/tenant.decorator';
+import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 import { BaseResolver } from '../../../common/graphql/base.resolver';
@@ -31,7 +31,7 @@ import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 @UseInterceptors(TenantInterceptor)
 export class ConnectorResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly connectorService: ConnectorService,
     private readonly integrationService: IntegrationService,
   ) {
@@ -77,10 +77,11 @@ export class ConnectorResolver extends BaseResolver {
     @Args('type', { nullable: true }) type?: string,
     @Args('isActive', { nullable: true }) isActive?: boolean,
   ): Promise<ConnectorType[]> {
-    const connectors = await this.connectorService.listConnectors({
-      ...(type ? { type } : {}),
-      ...(isActive !== undefined ? { isActive } : {}),
-    });
+    const params: any = {};
+    if (type !== undefined) params.type = type;
+    if (isActive !== undefined) params.isActive = isActive;
+    
+    const connectors = await this.connectorService.listConnectors(params);
 
     return connectors.map(connector => ({
       id: connector.id,
@@ -154,10 +155,12 @@ export class ConnectorResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
   ): Promise<ConnectorType> {
     // Update integration configuration
-    const integration = await this.integrationService.update(tenantId, id, {
-      config: input.config,
-      authConfig: input.authConfig,
-    }, user.id);
+    const updateData: any = { config: input.config };
+    if (input.authConfig !== undefined) {
+      updateData.authConfig = input.authConfig;
+    }
+    
+    const integration = await this.integrationService.update(tenantId, id, updateData, user.id);
 
     // Get connector metadata
     const { IntegrationType: IntegrationTypeEnum } = await import('../entities/integration.entity');
@@ -241,7 +244,7 @@ export class ConnectorResolver extends BaseResolver {
     
     return {
       success: result.success,
-      error: result.error,
+      error: result.error || '',
       details: JSON.stringify(result.details),
       timestamp: new Date(),
     };

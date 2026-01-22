@@ -13,6 +13,7 @@ import {
 } from '../inputs/api-key.input';
 
 import { ApiKey } from '../entities/api-key.entity';
+import { ApiKeyValidationResult, ApiKeyUsageStats } from '../types/api-key.types';
 
 @Injectable()
 export class ApiKeyService {
@@ -33,7 +34,7 @@ export class ApiKeyService {
   async create(
     tenantId: string,
     integrationId: string,
-    dto: CreateApiKeyDto,
+    dto: CreateApiKeyInput,
     userId: string,
   ): Promise<{ apiKey: ApiKey; plainKey: string }> {
     this.logger.log(`Creating API key: ${dto.name} for integration: ${integrationId}`);
@@ -88,7 +89,7 @@ export class ApiKeyService {
   async update(
     tenantId: string,
     apiKeyId: string,
-    dto: UpdateApiKeyDto,
+    dto: UpdateApiKeyInput,
     userId: string,
   ): Promise<ApiKey> {
     this.logger.log(`Updating API key: ${apiKeyId}`);

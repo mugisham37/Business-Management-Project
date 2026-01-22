@@ -14,9 +14,9 @@ import {
   CreateIntegrationInput,
   UpdateIntegrationInput,
   IntegrationFilterInput,
-  TriggerSyncInput,
   IntegrationConfigInput,
 } from '../inputs/integration.input';
+import { TriggerSyncInput } from '../inputs/sync.input';
 import { CreateWebhookInput } from '../inputs/webhook.input';
 
 import {
@@ -208,66 +208,6 @@ export class IntegrationService {
   }
 
   /**
-   * Test integration connection
-   */
-  async testConnection(tenantId: string, integrationId: string): Promise<boolean> {
-    this.logger.log(`Testing connection for integration: ${integrationId}`);
-
-    const integration = await this.findById(tenantId, integrationId);
-    
-    if (!integration.providerName) {
-      throw new BadRequestException('Integration provider name is not set');
-    }
-    
-    const connector = await this.connectorService.getConnector(
-      integration.type,
-      integration.providerName,
-    );
-
-    if (!connector) {
-      throw new BadRequestException(`Connector not available: ${integration.providerName}`);
-    }
-
-    try {
-      // Get authentication credentials
-      let credentials = {};
-      if (integration.authType === AuthType.OAUTH2) {
-        credentials = await this.oauth2Service.getValidToken(integrationId);
-      } else if (integration.authType === AuthType.API_KEY) {
-        credentials = await this.apiKeyService.getCredentials(integrationId);
-      }
-
-      // Test connection using connector
-      const testResult = await connector.testConnection({
-        config: integration.config,
-        credentials,
-        authType: integration.authType,
-      });
-
-      // Update health status
-      await this.healthService.updateHealthStatus(integrationId, {
-        isHealthy: testResult.success,
-        lastChecked: new Date(),
-        details: testResult.success ? 'Connection successful' : testResult.error || 'Connection failed',
-      });
-
-      return testResult.success;
-    } catch (error) {
-      const err = error as Error;
-      this.logger.error(`Connection test failed for integration ${integrationId}:`, err);
-      
-      await this.healthService.updateHealthStatus(integrationId, {
-        isHealthy: false,
-        lastChecked: new Date(),
-        details: err.message,
-        error: err.stack,
-      });
-
-      return false;
-    }
-  }
-
-  /**
    * Enable/disable integration
    */
   async updateStatus(
@@ -322,29 +262,6 @@ export class IntegrationService {
   /**
    * Trigger manual sync
    */
-  async triggerSync(
-    tenantId: string,
-    integrationId: string,
-    syncType: 'full' | 'incremental' = 'incremental',
-  ): Promise<string> {
-    this.logger.log(`Triggering ${syncType} sync for integration: ${integrationId}`);
-
-    const integration = await this.findById(tenantId, integrationId);
-
-    if (integration.status !== IntegrationStatus.ACTIVE) {
-      throw new BadRequestException('Integration must be active to trigger sync');
-    }
-
-    const syncId = await this.syncService.triggerSync(integrationId, {
-      type: syncType === 'full' ? SyncType.FULL : SyncType.INCREMENTAL,
-      triggeredBy: 'manual',
-      tenantId,
-    });
-
-    this.logger.log(`Sync triggered successfully: ${syncId} for integration: ${integrationId}`);
-    return syncId;
-  }
-
   /**
    * Get integration statistics
    */
@@ -465,7 +382,7 @@ export class IntegrationService {
 
     return validTransitions[currentStatus]?.includes(newStatus) || false;
   }
-}
+
   /**
    * Test integration connection
    */
@@ -485,7 +402,11 @@ export class IntegrationService {
       }
       
       // Test connection using connector
-      const result = await this.connectorService.testConnection(integration.type as any, integration.providerName, integration.config);
+      const result = await this.connectorService.testConnection(
+        integration.type as any,
+        integration.providerName,
+        integration.config as any
+      );
       
       // Update health status
       await this.healthService.updateHealthStatus(integrationId, result.success ? 'healthy' : 'unhealthy');
@@ -493,68 +414,9 @@ export class IntegrationService {
       return result;
     } catch (error) {
       this.logger.error(`Connection test failed for integration ${integrationId}:`, error);
-      return { success: false, error: error.message };
+      const err = error as Error;
+      return { success: false, error: err.message || 'Connection test failed' };
     }
-  }
-
-  /**
-   * Update integration status
-   */
-  async updateStatus(
-    tenantId: string,
-    integrationId: string,
-    status: string,
-    userId: string,
-  ): Promise<any> {
-    this.logger.log(`Updating integration status: ${integrationId} to ${status}`);
-    
-    const integration = await this.findById(tenantId, integrationId);
-    const oldStatus = integration.status;
-    
-    const updatedIntegration = await this.integrationRepository.update(integrationId, {
-      status: status as any,
-      updatedBy: userId,
-    });
-    
-    // Emit status changed event
-    this.eventEmitter.emit('integration.status_changed', {
-      tenantId,
-      integrationId,
-      oldStatus,
-      newStatus: status,
-      userId,
-    });
-    
-    return updatedIntegration;
-  }
-
-  /**
-   * Get integration statistics
-   */
-  async getStatistics(integrationId: string): Promise<any> {
-    this.logger.log(`Getting statistics for integration: ${integrationId}`);
-    
-    const integration = await this.integrationRepository.findById(integrationId);
-    if (!integration) {
-      throw new NotFoundException(`Integration not found: ${integrationId}`);
-    }
-    
-    // Calculate statistics
-    const totalRequests = integration.requestCount || 0;
-    const successfulRequests = Math.floor(totalRequests * 0.95); // Mock 95% success rate
-    const failedRequests = totalRequests - successfulRequests;
-    const successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0;
-    const uptime = 99.5; // Mock uptime
-    
-    return {
-      integrationId,
-      totalRequests,
-      successfulRequests,
-      failedRequests,
-      successRate,
-      uptime,
-      timestamp: new Date(),
-    };
   }
 
   /**

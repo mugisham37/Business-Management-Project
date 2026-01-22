@@ -136,21 +136,35 @@ export class WebhookRepository {
 
     return results as WebhookDelivery[];
   }
-}
+
   /**
    * Find webhooks by integration IDs (for dataloader)
    */
-  async findByIntegrationIds(integrationIds: string[]): Promise<any[]> {
-    // Implementation would use Drizzle ORM to query webhooks
-    // For now, return empty array
-    return [];
+  async findByIntegrationIds(integrationIds: string[]): Promise<Webhook[]> {
+    const results = await this.drizzle.db!
+      .select()
+      .from(webhooks)
+      .where(
+        sql`${webhooks.integrationId} = ANY(${integrationIds})`
+      );
+
+    return results as Webhook[];
   }
 
   /**
    * Find webhooks by event types (for dataloader)
    */
-  async findByEventTypes(eventTypes: string[]): Promise<any[]> {
-    // Implementation would use Drizzle ORM to query webhooks
-    // For now, return empty array
-    return [];
+  async findByEventTypes(eventTypes: string[]): Promise<Webhook[]> {
+    const results = await this.drizzle.db!
+      .select()
+      .from(webhooks)
+      .where(
+        and(
+          eq(webhooks.isActive, true),
+          sql`${webhooks.events} && ${eventTypes}`
+        )
+      );
+
+    return results as Webhook[];
   }
+}

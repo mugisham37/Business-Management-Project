@@ -113,7 +113,7 @@ export class ConnectorService {
   /**
    * List available connectors
    */
-  async listConnectors(filters?: ConnectorListDto): Promise<Connector[]> {
+  async listConnectors(filters?: ConnectorFilterInput): Promise<Connector[]> {
     const cacheKey = `connectors:list:${JSON.stringify(filters || {})}`;
     
     let connectors = await this.cacheService.get<Connector[]>(cacheKey);
@@ -309,7 +309,7 @@ export class ConnectorService {
   async updateConnector(
     type: IntegrationType,
     name: string,
-    dto: UpdateConnectorDto,
+    dto: UpdateConnectorInput,
   ): Promise<Connector> {
     const connector = await this.connectorRepository.findByName(name);
     

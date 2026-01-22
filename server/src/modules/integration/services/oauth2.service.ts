@@ -15,6 +15,12 @@ import {
   OAuth2RefreshInput,
 } from '../inputs/oauth2.input';
 
+import {
+  OAuth2Config,
+  OAuth2AuthorizeDto,
+  OAuth2Token,
+} from '../types/oauth2.types';
+
 interface OAuth2Provider {
   name: string;
   authUrl: string;
@@ -222,7 +228,7 @@ export class OAuth2Service {
     }
 
     // Exchange authorization code for access token
-    const tokenData = await this.exchangeCodeForToken(provider, config, dto.code, dto.shop);
+    const tokenData = await this.exchangeCodeForToken(provider, config, input.code, input.shop);
 
     // Store encrypted tokens
     const oauth2Token = await this.oauth2Repository.storeToken(integrationId, {
@@ -238,7 +244,7 @@ export class OAuth2Service {
       providerId: tokenData.user_id || tokenData.stripe_user_id,
       providerData: {
         realmId: tokenData.realmId, // QuickBooks company ID
-        shop: dto.shop, // Shopify shop domain
+        shop: input.shop, // Shopify shop domain
         stripeUserId: tokenData.stripe_user_id, // Stripe account ID
         ...tokenData,
       },

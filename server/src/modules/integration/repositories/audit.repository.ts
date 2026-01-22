@@ -9,22 +9,26 @@ export class AuditRepository {
   async create(data: Partial<AuditLogType>): Promise<AuditLogType> {
     // Implementation would use Drizzle ORM to insert audit log
     // For now, return mock data
-    return {
+    const result: AuditLogType = {
       id: `audit_${Date.now()}`,
       tenantId: data.tenantId!,
       integrationId: data.integrationId!,
       action: data.action!,
       entityType: data.entityType!,
-      entityId: data.entityId,
-      oldValues: data.oldValues,
-      newValues: data.newValues,
       userId: data.userId!,
-      userEmail: data.userEmail,
-      ipAddress: data.ipAddress,
-      userAgent: data.userAgent,
-      reason: data.reason,
       timestamp: data.timestamp || new Date(),
     };
+
+    // Only add optional properties if they have values
+    if (data.entityId !== undefined) result.entityId = data.entityId;
+    if (data.oldValues !== undefined) result.oldValues = data.oldValues;
+    if (data.newValues !== undefined) result.newValues = data.newValues;
+    if (data.userEmail !== undefined) result.userEmail = data.userEmail;
+    if (data.ipAddress !== undefined) result.ipAddress = data.ipAddress;
+    if (data.userAgent !== undefined) result.userAgent = data.userAgent;
+    if (data.reason !== undefined) result.reason = data.reason;
+
+    return result;
   }
 
   async findByIntegration(

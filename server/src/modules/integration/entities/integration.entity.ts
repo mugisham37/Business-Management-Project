@@ -1,3 +1,5 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
 export enum IntegrationType {
   ACCOUNTING = 'accounting',
   ECOMMERCE = 'ecommerce',

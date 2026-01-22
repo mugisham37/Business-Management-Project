@@ -57,6 +57,18 @@ export class SyncLog {
 
   @IsOptional()
   @IsNumber()
+  recordsCreated?: number;
+
+  @IsOptional()
+  @IsNumber()
+  recordsUpdated?: number;
+
+  @IsOptional()
+  @IsNumber()
+  recordsDeleted?: number;
+
+  @IsOptional()
+  @IsNumber()
   recordsSucceeded?: number;
 
   @IsOptional()
@@ -70,14 +82,25 @@ export class SyncLog {
   @IsOptional()
   @IsArray()
   errors?: Array<{
+    entityType?: string;
     record?: any;
     error: string;
     code?: string;
+    details?: string;
+    retryable?: boolean;
   }>;
 
   @IsOptional()
   @IsArray()
   warnings?: string[];
+
+  @IsOptional()
+  @IsArray()
+  conflicts?: SyncConflict[];
+
+  @IsOptional()
+  @IsObject()
+  options?: Record<string, any>;
 
   @IsOptional()
   @IsObject()
@@ -95,4 +118,29 @@ export class SyncLog {
 
   @IsDate()
   updatedAt!: Date;
+}
+
+export interface SyncStatistics {
+  totalSyncs: number;
+  successfulSyncs: number;
+  failedSyncs: number;
+  averageDuration: number;
+  lastSyncAt?: Date;
+  totalRecordsProcessed: number;
+  successRate: number;
+  totalConflicts?: number;
+  syncFrequency?: number;
+}
+
+export interface SyncConflict {
+  id?: string;
+  syncId: string;
+  entityType: string;
+  entityId: string;
+  localValue: any;
+  remoteValue: any;
+  resolvedValue?: any;
+  strategy?: ConflictResolutionStrategy;
+  status: 'pending' | 'resolved' | 'ignored';
+  createdAt?: Date;
 }

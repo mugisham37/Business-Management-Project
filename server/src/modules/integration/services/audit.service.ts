@@ -37,11 +37,20 @@ export class AuditService {
 
   async createAuditLog(data: AuditLogData): Promise<AuditLogType> {
     const auditLog = await this.auditRepository.create({
-      ...data,
-      oldValues: data.oldValues ? JSON.stringify(data.oldValues) : undefined,
-      newValues: data.newValues ? JSON.stringify(data.newValues) : undefined,
+      tenantId: data.tenantId,
+      integrationId: data.integrationId,
+      action: data.action,
+      entityType: data.entityType,
+      entityId: data.entityId,
+      oldValues: data.oldValues ? JSON.stringify(data.oldValues) : null,
+      newValues: data.newValues ? JSON.stringify(data.newValues) : null,
+      userId: data.userId,
+      userEmail: data.userEmail,
+      ipAddress: data.ipAddress,
+      userAgent: data.userAgent,
+      reason: data.reason,
       timestamp: new Date(),
-    });
+    } as any);
 
     this.logger.log(`Audit log created: ${data.action} on ${data.entityType} by ${data.userId}`);
     return auditLog;

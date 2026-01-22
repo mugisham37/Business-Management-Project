@@ -21,7 +21,7 @@ registerEnumType(WebhookAuthType, { name: 'WebhookAuthType' });
 @ObjectType()
 export class WebhookType extends BaseEntity {
   @Field(() => ID)
-  id!: string;
+  declare id: string;
 
   @Field()
   integrationId!: string;
@@ -72,10 +72,10 @@ export class WebhookType extends BaseEntity {
   lastError?: string;
 
   @Field()
-  createdAt!: Date;
+  declare createdAt: Date;
 
   @Field()
-  updatedAt!: Date;
+  declare updatedAt: Date;
 }
 
 @ObjectType()

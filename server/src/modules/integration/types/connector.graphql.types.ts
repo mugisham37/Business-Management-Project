@@ -1,4 +1,4 @@
-import { ObjectType, Field, ID, registerEnumType } from '@nestjs/graphql';
+import { ObjectType, Field, ID, Int, registerEnumType } from '@nestjs/graphql';
 import { BaseEntity } from '../../../common/graphql/base.types';
 
 export enum ConnectorCapability {
@@ -15,7 +15,7 @@ registerEnumType(ConnectorCapability, { name: 'ConnectorCapability' });
 @ObjectType()
 export class ConnectorType extends BaseEntity {
   @Field(() => ID)
-  id!: string;
+  declare id: string;
 
   @Field()
   name!: string;
@@ -29,8 +29,8 @@ export class ConnectorType extends BaseEntity {
   @Field()
   type!: string;
 
-  @Field()
-  version!: string;
+  @Field(() => Int)
+  declare version: number;
 
   @Field(() => [ConnectorCapability])
   capabilities!: ConnectorCapability[];
@@ -48,10 +48,10 @@ export class ConnectorType extends BaseEntity {
   isOfficial!: boolean;
 
   @Field()
-  createdAt!: Date;
+  declare createdAt: Date;
 
   @Field()
-  updatedAt!: Date;
+  declare updatedAt: Date;
 }
 
 @ObjectType()

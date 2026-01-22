@@ -1,6 +1,6 @@
 import { InputType, Field, Int } from '@nestjs/graphql';
 import { IsString, IsOptional, IsEnum, IsArray, IsInt, IsDate, Min } from 'class-validator';
-import { SyncType, ConflictResolutionStrategy } from '../types/sync.graphql.types';
+import { SyncType, SyncStatus, ConflictResolutionStrategy } from '../types/sync.graphql.types';
 
 @InputType()
 export class TriggerSyncInput {
@@ -56,8 +56,8 @@ export class ResolveSyncConflictInput {
 export class SyncFilterInput {
   @Field(() => SyncStatus, { nullable: true })
   @IsOptional()
-  @IsEnum(SyncType)
-  status?: SyncType;
+  @IsEnum(SyncStatus)
+  status?: SyncStatus;
 
   @Field(() => SyncType, { nullable: true })
   @IsOptional()

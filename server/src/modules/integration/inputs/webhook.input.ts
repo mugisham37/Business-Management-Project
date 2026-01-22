@@ -1,5 +1,6 @@
 import { InputType, Field, Int } from '@nestjs/graphql';
-import { IsString, IsOptional, IsArray, IsInt, IsUrl, IsObject, IsBoolean, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsInt, IsUrl, IsObject, IsBoolean, Min, Max, IsEnum } from 'class-validator';
+import { AuthType } from '../types/integration.graphql.types';
 
 @InputType()
 export class CreateWebhookInput {
@@ -25,10 +26,10 @@ export class CreateWebhookInput {
   @IsString({ each: true })
   events!: string[];
 
-  @Field({ nullable: true })
+  @Field(() => AuthType, { nullable: true })
   @IsOptional()
-  @IsString()
-  authType?: string;
+  @IsEnum(AuthType)
+  authType?: AuthType;
 
   @Field(() => Object, { nullable: true })
   @IsOptional()

@@ -1,4 +1,5 @@
 import { ObjectType, Field, ID, registerEnumType } from '@nestjs/graphql';
+import { ApiProperty } from '@nestjs/swagger';
 import { BaseEntity } from '../../../common/graphql/base.types';
 
 @ObjectType()

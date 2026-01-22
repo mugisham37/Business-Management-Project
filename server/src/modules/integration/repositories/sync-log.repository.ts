@@ -3,7 +3,7 @@ import { DrizzleService } from '../../database/drizzle.service';
 import { IntelligentCacheService } from '../../cache/intelligent-cache.service';
 import { SyncLog, SyncStatus, SyncStatistics } from '../entities/sync-log.entity';
 import { syncLogs } from '../../database/schema/integration.schema';
-import { eq, and, desc, gte, lte, count, avg, sum, max } from 'drizzle-orm';
+import { eq, and, desc, gte, lte, count, avg, sum, max, sql } from 'drizzle-orm';
 
 @Injectable()
 export class SyncLogRepository {
@@ -94,7 +94,7 @@ export class SyncLogRepository {
     };
 
     // Map entity fields to database columns
-    if (data.status !== undefined) updateData.status = data.status;
+    if (data.status !== undefined) updateData.status = data.status as any;
     if (data.completedAt !== undefined) updateData.completedAt = data.completedAt;
     if (data.duration !== undefined) updateData.duration = data.duration;
     if (data.recordsProcessed !== undefined) updateData.recordsProcessed = data.recordsProcessed;
@@ -303,12 +303,11 @@ export class SyncLogRepository {
       totalSyncs: totalSyncsResult?.count || 0,
       successfulSyncs: successfulSyncsResult?.count || 0,
       failedSyncs: failedSyncsResult?.count || 0,
-      lastSyncAt: lastSyncResult?.lastSyncAt || null,
+      lastSyncAt: lastSyncResult?.lastSyncAt || undefined,
       averageDuration: Number(avgDurationResult?.avgDuration) || 0,
       totalRecordsProcessed: Number(totalRecordsResult?.totalRecords) || 0,
-      totalConflicts: 0, // Would need to calculate from conflicts array
-      syncFrequency: 0, // Would need to calculate based on time intervals
-    };
+      successRate: 0, // Would need to calculate based on stats
+    } as SyncStatistics;
 
     await this.cacheService.set(cacheKey, stats, { ttl: 600 }); // 10 minutes
 
@@ -395,48 +394,131 @@ export class SyncLogRepository {
       this.cacheService.invalidatePattern(`sync-stats:${integrationId}`),
     ]);
   }
-}
+
   /**
    * Find sync logs by integration IDs (for dataloader)
    */
-  async findByIntegrationIds(integrationIds: string[]): Promise<any[]> {
-    // Implementation would use Drizzle ORM to query sync logs
-    // For now, return empty array
-    return [];
+  async findByIntegrationIds(integrationIds: string[]): Promise<SyncLog[]> {
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const results = await db
+      .select()
+      .from(syncLogs)
+      .where(
+        sql`${syncLogs.integrationId} = ANY(${integrationIds})`
+      )
+      .orderBy(desc(syncLogs.createdAt));
+
+    return results.map(r => this.mapToEntity(r)) as SyncLog[];
   }
 
   /**
    * Find conflicts by sync IDs (for dataloader)
    */
   async findConflictsBySyncIds(syncIds: string[]): Promise<any[]> {
-    // Implementation would use Drizzle ORM to query conflicts
-    // For now, return empty array
-    return [];
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const results = await db
+      .select()
+      .from(syncLogs)
+      .where(
+        and(
+          sql`${syncLogs.id} = ANY(${syncIds})`,
+          sql`${syncLogs.summary} IS NOT NULL`
+        )
+      );
+
+    const conflicts: any[] = [];
+    for (const result of results) {
+      const summary = result.summary as any;
+      if (summary?.conflicts) {
+        conflicts.push(...summary.conflicts);
+      }
+    }
+
+    return conflicts;
   }
 
   /**
    * Find conflicts by sync ID
    */
   async findConflictsBySyncId(syncId: string): Promise<any[]> {
-    // Implementation would use Drizzle ORM to query conflicts
-    // For now, return empty array
-    return [];
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const [result] = await db
+      .select()
+      .from(syncLogs)
+      .where(
+        and(
+          eq(syncLogs.id, syncId),
+          sql`${syncLogs.summary} IS NOT NULL`
+        )
+      )
+      .limit(1);
+
+    if (!result) {
+      return [];
+    }
+
+    const summary = result.summary as any;
+    return summary?.conflicts || [];
   }
 
   /**
    * Find sync logs by integration with filters
    */
-  async findByIntegration(integrationId: string, filters: any): Promise<any[]> {
-    // Implementation would use Drizzle ORM to query sync logs
-    // For now, return empty array
-    return [];
+  async findByIntegrationWithFilters(
+    integrationId: string,
+    tenantId: string,
+    filters?: any
+  ): Promise<SyncLog[]> {
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    const conditions = [
+      eq(syncLogs.integrationId, integrationId),
+      eq(syncLogs.tenantId, tenantId),
+    ];
+
+    if (filters?.status) {
+      conditions.push(eq(syncLogs.status, filters.status));
+    }
+
+    const results = await db
+      .select()
+      .from(syncLogs)
+      .where(and(...conditions))
+      .orderBy(desc(syncLogs.createdAt));
+
+    return results.map(r => this.mapToEntity(r)) as SyncLog[];
   }
 
   /**
    * Update sync status
    */
   async updateStatus(syncId: string, status: string): Promise<void> {
-    // Implementation would use Drizzle ORM to update sync status
-    // For now, just log
-    console.log(`Updating sync ${syncId} status to ${status}`);
+    const db = this.drizzle.db;
+    if (!db) {
+      throw new Error('Database not initialized');
+    }
+
+    await db
+      .update(syncLogs)
+      .set({
+        status: status as any,
+        updatedAt: new Date(),
+      })
+      .where(eq(syncLogs.id, syncId));
   }
+}

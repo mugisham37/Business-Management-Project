@@ -31,9 +31,9 @@ export class IntegrationDataLoaders {
         const webhooksByIntegration = new Map<string, WebhookType[]>();
         integrationIds.forEach(id => webhooksByIntegration.set(id, []));
         
-        webhooks.forEach(webhook => {
+        webhooks.forEach((webhook) => {
           const existing = webhooksByIntegration.get(webhook.integrationId) || [];
-          existing.push(webhook);
+          existing.push(webhook as unknown as WebhookType);
           webhooksByIntegration.set(webhook.integrationId, existing);
         });
         
@@ -54,7 +54,7 @@ export class IntegrationDataLoaders {
         const apiKeysByIntegration = new Map<string, APIKeyType[]>();
         integrationIds.forEach(id => apiKeysByIntegration.set(id, []));
         
-        apiKeys.forEach(apiKey => {
+        apiKeys.forEach((apiKey: any) => {
           if (apiKey.integrationId) {
             const existing = apiKeysByIntegration.get(apiKey.integrationId) || [];
             existing.push({
@@ -90,9 +90,9 @@ export class IntegrationDataLoaders {
         const syncLogsByIntegration = new Map<string, SyncLogType[]>();
         integrationIds.forEach(id => syncLogsByIntegration.set(id, []));
         
-        syncLogs.forEach(syncLog => {
+        syncLogs.forEach((syncLog) => {
           const existing = syncLogsByIntegration.get(syncLog.integrationId) || [];
-          existing.push(syncLog);
+          existing.push(syncLog as unknown as SyncLogType);
           syncLogsByIntegration.set(syncLog.integrationId, existing);
         });
         
@@ -111,8 +111,8 @@ export class IntegrationDataLoaders {
         const integrations = await this.integrationRepository.findByIds([...integrationIds]);
         
         const integrationsById = new Map<string, Integration>();
-        integrations.forEach(integration => {
-          integrationsById.set(integration.id, integration);
+        integrations.forEach((integration) => {
+          integrationsById.set(integration.id, integration as unknown as Integration);
         });
         
         return integrationIds.map(id => integrationsById.get(id)!);
@@ -132,7 +132,7 @@ export class IntegrationDataLoaders {
         const conflictsBySyncId = new Map<string, SyncConflictType[]>();
         syncIds.forEach(id => conflictsBySyncId.set(id, []));
         
-        conflicts.forEach(conflict => {
+        conflicts.forEach((conflict: SyncConflictType) => {
           const existing = conflictsBySyncId.get(conflict.syncId) || [];
           existing.push(conflict);
           conflictsBySyncId.set(conflict.syncId, existing);
@@ -156,10 +156,10 @@ export class IntegrationDataLoaders {
         const integrationsByConnector = new Map<string, Integration[]>();
         connectorKeys.forEach(key => integrationsByConnector.set(key, []));
         
-        integrations.forEach(integration => {
+        integrations.forEach((integration) => {
           const connectorKey = `${integration.type}_${integration.providerName}`;
           const existing = integrationsByConnector.get(connectorKey) || [];
-          existing.push(integration);
+          existing.push(integration as unknown as Integration);
           integrationsByConnector.set(connectorKey, existing);
         });
         
@@ -180,10 +180,10 @@ export class IntegrationDataLoaders {
         const webhooksByEvent = new Map<string, WebhookType[]>();
         eventTypes.forEach(event => webhooksByEvent.set(event, []));
         
-        webhooks.forEach(webhook => {
-          webhook.events.forEach(event => {
+        webhooks.forEach((webhook) => {
+          webhook.events.forEach((event: string) => {
             const existing = webhooksByEvent.get(event) || [];
-            existing.push(webhook);
+            existing.push(webhook as unknown as WebhookType);
             webhooksByEvent.set(event, existing);
           });
         });

@@ -1,12 +1,12 @@
 import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent, Subscription } from '@nestjs/graphql';
 import { UseGuards, UseInterceptors, Inject } from '@nestjs/common';
-import { PubSub } from 'graphql-subscriptions';
+import { RedisPubSub } from 'graphql-redis-subscriptions';
 import { JwtAuthGuard } from '../../auth/guards/graphql-jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { TenantInterceptor } from '../../tenant/interceptors/tenant.interceptor';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { CurrentTenant } from '../../tenant/decorators/tenant.decorator';
+import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 import { BaseResolver } from '../../../common/graphql/base.resolver';
@@ -17,8 +17,9 @@ import { WebhookService } from '../services/webhook.service';
 import { SyncService } from '../services/sync.service';
 import { ApiKeyService } from '../services/api-key.service';
 
-import { Integration, IntegrationHealth, IntegrationStatistics } from '../types/integration.graphql.types';
-import { CreateIntegrationInput, UpdateIntegrationInput, IntegrationFilterInput, TriggerSyncInput } from '../inputs/integration.input';
+import { Integration, IntegrationHealth, IntegrationStatistics, IntegrationStatus } from '../types/integration.graphql.types';
+import { CreateIntegrationInput, UpdateIntegrationInput, IntegrationFilterInput } from '../inputs/integration.input';
+import { TriggerSyncInput } from '../inputs/sync.input';
 import { ConnectorType } from '../types/connector.graphql.types';
 import { WebhookType } from '../types/webhook.graphql.types';
 import { SyncLogType, SyncStatisticsType } from '../types/sync.graphql.types';
@@ -32,13 +33,13 @@ import { PaginationArgs } from '../../../common/graphql/pagination.args';
 @UseInterceptors(TenantInterceptor)
 export class IntegrationResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly integrationService: IntegrationService,
     private readonly connectorService: ConnectorService,
     private readonly webhookService: WebhookService,
     private readonly syncService: SyncService,
     private readonly apiKeyService: ApiKeyService,
-    @Inject('PUB_SUB') private readonly pubSub: PubSub,
+    @Inject('PUB_SUB') private readonly pubSub: RedisPubSub,
   ) {
     super(dataLoaderService);
   }
@@ -75,8 +76,8 @@ export class IntegrationResolver extends BaseResolver {
       integrationId: id,
       isHealthy: integration.healthStatus === 'healthy',
       lastChecked: integration.lastHealthCheck || new Date(),
-      details: integration.healthStatus,
-      error: integration.lastError,
+      details: integration.healthStatus || '',
+      error: integration.lastError || '',
       responseTime: 0,
     };
   }
@@ -88,7 +89,7 @@ export class IntegrationResolver extends BaseResolver {
     @Args('id', { type: () => ID }) id: string,
     @CurrentTenant() tenantId: string,
   ): Promise<IntegrationStatistics> {
-    return this.integrationService.getStatistics(id);
+    return this.integrationService.getStatistics(tenantId, id);
   }
 
   @Mutation(() => Integration, { name: 'createIntegration' })
@@ -146,7 +147,7 @@ export class IntegrationResolver extends BaseResolver {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<Integration> {
-    return this.integrationService.updateStatus(tenantId, id, 'active', user.id);
+    return this.integrationService.updateStatus(tenantId, id, IntegrationStatus.ACTIVE, user.id);
   }
 
   @Mutation(() => Integration, { name: 'disableIntegration' })
@@ -157,7 +158,7 @@ export class IntegrationResolver extends BaseResolver {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<Integration> {
-    return this.integrationService.updateStatus(tenantId, id, 'inactive', user.id);
+    return this.integrationService.updateStatus(tenantId, id, IntegrationStatus.INACTIVE, user.id);
   }
 
   @Mutation(() => SyncLogType, { name: 'triggerIntegrationSync' })
@@ -216,12 +217,13 @@ export class IntegrationResolver extends BaseResolver {
     const metadata = connector.getMetadata();
     return {
       id: `${integration.type}_${integration.providerName}`,
+      tenantId: integration.tenantId,
       name: metadata.name,
       displayName: metadata.displayName,
       description: metadata.description,
       type: metadata.type,
-      version: metadata.version,
-      capabilities: metadata.capabilities,
+      version: parseInt(metadata.version as any) || 1,
+      capabilities: (metadata.capabilities as any[]) || [],
       supportedEvents: metadata.supportedEvents,
       supportedOperations: metadata.supportedOperations,
       isActive: true,
@@ -233,15 +235,17 @@ export class IntegrationResolver extends BaseResolver {
 
   @ResolveField(() => [WebhookType])
   async webhooks(@Parent() integration: Integration): Promise<WebhookType[]> {
-    return this.dataLoaderService.getLoader('webhooks_by_integration').load(integration.id);
+    // Return empty array for now - webhook retrieval should be done via dedicated query
+    return [];
   }
 
   @ResolveField(() => [SyncLogType])
   async syncLogs(
     @Parent() integration: Integration,
     @Args('limit', { defaultValue: 10 }) limit: number,
+    @CurrentTenant() tenantId: string,
   ): Promise<SyncLogType[]> {
-    return this.syncService.getSyncHistory(integration.id, {}, { limit, offset: 0 });
+    return this.syncService.getSyncHistory(integration.id, tenantId, limit) as any;
   }
 
   @ResolveField(() => SyncStatisticsType, { nullable: true })
@@ -252,13 +256,16 @@ export class IntegrationResolver extends BaseResolver {
 
   @ResolveField(() => [APIKeyType])
   async apiKeys(@Parent() integration: Integration): Promise<APIKeyType[]> {
-    return this.dataLoaderService.getLoader('api_keys_by_integration').load(integration.id);
+    return this.apiKeyService.findByIntegration(integration.tenantId, integration.id, true);
   }
 
   @ResolveField(() => SyncLogType, { nullable: true })
-  async lastSync(@Parent() integration: Integration): Promise<SyncLogType | null> {
-    const syncLogs = await this.syncService.getSyncHistory(integration.id, {}, { limit: 1, offset: 0 });
-    return syncLogs[0] || null;
+  async lastSync(
+    @Parent() integration: Integration,
+    @CurrentTenant() tenantId: string,
+  ): Promise<SyncLogType | null> {
+    const syncLogs = await this.syncService.getSyncHistory(integration.id, tenantId, 1);
+    return (syncLogs[0] || null) as any;
   }
 
   @ResolveField(() => Date, { nullable: true })

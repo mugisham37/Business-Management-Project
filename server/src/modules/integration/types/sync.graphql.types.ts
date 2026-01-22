@@ -30,13 +30,13 @@ registerEnumType(ConflictResolutionStrategy, { name: 'ConflictResolutionStrategy
 @ObjectType()
 export class SyncLogType extends BaseEntity {
   @Field(() => ID)
-  id!: string;
+  declare id: string;
 
   @Field()
   integrationId!: string;
 
   @Field()
-  tenantId!: string;
+  declare tenantId: string;
 
   @Field(() => SyncType)
   type!: SyncType;
@@ -78,10 +78,10 @@ export class SyncLogType extends BaseEntity {
   nextSyncToken?: string;
 
   @Field()
-  createdAt!: Date;
+  declare createdAt: Date;
 
   @Field()
-  updatedAt!: Date;
+  declare updatedAt: Date;
 }
 
 @ObjectType()

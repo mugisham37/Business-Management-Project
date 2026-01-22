@@ -5,7 +5,7 @@ import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { TenantInterceptor } from '../../tenant/interceptors/tenant.interceptor';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { CurrentTenant } from '../../tenant/decorators/tenant.decorator';
+import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 import { BaseResolver } from '../../../common/graphql/base.resolver';
@@ -29,7 +29,7 @@ import { AuthenticatedUser } from '../../auth/interfaces/auth.interface';
 @UseInterceptors(TenantInterceptor)
 export class OAuth2Resolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly oauth2Service: OAuth2Service,
   ) {
     super(dataLoaderService);
@@ -74,10 +74,12 @@ export class OAuth2Resolver extends BaseResolver {
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenantId: string,
   ): Promise<OAuth2AuthorizationUrlType> {
-    const result = await this.oauth2Service.getAuthorizationUrl(integrationId, {
-      tenantId: input.tenantId,
-      shop: input.shop,
-    });
+    const authorizeInput: any = {
+      tenantId: input.tenantId || tenantId,
+    };
+    if (input.shop !== undefined) authorizeInput.shop = input.shop;
+    
+    const result = await this.oauth2Service.getAuthorizationUrl(integrationId, authorizeInput);
 
     return {
       authUrl: result.authUrl,
@@ -88,34 +90,37 @@ export class OAuth2Resolver extends BaseResolver {
 
   @Mutation(() => OAuth2CallbackResultType, { name: 'handleOAuth2Callback' })
   async handleOAuth2Callback(
+    @Args('integrationId') integrationId: string,
     @Args('input') input: OAuth2CallbackInput,
   ): Promise<OAuth2CallbackResultType> {
     try {
-      const token = await this.oauth2Service.handleCallback({
+      const callbackInput: any = {
         code: input.code,
         state: input.state,
-        error: input.error,
-        shop: input.shop,
-      });
+      };
+      if (input.error !== undefined) callbackInput.error = input.error;
+      if (input.shop !== undefined) callbackInput.shop = input.shop;
+      
+      const token = await this.oauth2Service.handleCallback(callbackInput);
 
       return {
         success: true,
-        integrationId: token.integrationId,
         token: {
-          integrationId: token.integrationId,
-          tokenType: token.tokenType,
-          expiresAt: token.expiresAt,
-          scopes: token.scopes,
-          providerId: token.providerId,
+          integrationId: integrationId,
+          tokenType: token.tokenType || 'Bearer',
+          expiresAt: token.expiresAt || new Date(),
+          scopes: (token.scope ? token.scope.split(' ') : []),
+          providerId: '',
           isValid: true,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
       };
     } catch (error) {
+      const err = error as any;
       return {
         success: false,
-        error: error.message,
+        error: err.message || 'Unknown error',
       };
     }
   }
@@ -131,14 +136,14 @@ export class OAuth2Resolver extends BaseResolver {
     const token = await this.oauth2Service.refreshToken(input.integrationId);
 
     return {
-      integrationId: token.integrationId,
-      tokenType: token.tokenType,
-      expiresAt: token.expiresAt,
-      scopes: token.scopes,
-      providerId: token.providerId,
+      integrationId: input.integrationId,
+      tokenType: token.tokenType || 'Bearer',
+      expiresAt: token.expiresAt || new Date(),
+      scopes: (token.scope ? token.scope.split(' ') : []),
+      providerId: '',
       isValid: true,
-      createdAt: token.createdAt,
-      updatedAt: token.updatedAt,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
   }
 

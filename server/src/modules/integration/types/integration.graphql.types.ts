@@ -36,10 +36,10 @@ registerEnumType(AuthType, { name: 'AuthType' });
 @ObjectType()
 export class Integration extends BaseEntity {
   @Field(() => ID)
-  id!: string;
+  declare id: string;
 
   @Field()
-  tenantId!: string;
+  declare tenantId: string;
 
   @Field()
   name!: string;
@@ -102,22 +102,13 @@ export class Integration extends BaseEntity {
   nextSyncAt?: Date;
 
   @Field()
-  createdAt!: Date;
+  declare createdAt: Date;
 
   @Field()
-  updatedAt!: Date;
-
-  @Field({ nullable: true })
-  deletedAt?: Date;
-
-  @Field()
-  createdBy!: string;
-
-  @Field()
-  updatedBy!: string;
+  declare updatedAt: Date;
 
   @Field(() => Int)
-  version!: number;
+  declare version: number;
 }
 
 @ObjectType()

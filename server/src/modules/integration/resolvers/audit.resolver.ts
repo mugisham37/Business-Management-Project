@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../../auth/guards/graphql-jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { TenantInterceptor } from '../../tenant/interceptors/tenant.interceptor';
-import { CurrentTenant } from '../../tenant/decorators/tenant.decorator';
+import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
 import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 import { BaseResolver } from '../../../common/graphql/base.resolver';
@@ -16,14 +16,14 @@ import {
   AuditSummaryType,
   AuditAction,
 } from '../types/audit.graphql.types';
-import { PaginationArgs } from '../../../common/graphql/pagination.args';
+import { PaginationArgs, OffsetPaginationArgs } from '../../../common/graphql/pagination.args';
 
 @Resolver(() => AuditLogType)
 @UseGuards(JwtAuthGuard, TenantGuard)
 @UseInterceptors(TenantInterceptor)
 export class AuditResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly auditService: AuditService,
   ) {
     super(dataLoaderService);
@@ -37,15 +37,17 @@ export class AuditResolver extends BaseResolver {
     @Args('action', { type: () => AuditAction, nullable: true }) action?: AuditAction,
     @Args('startDate', { nullable: true }) startDate?: Date,
     @Args('endDate', { nullable: true }) endDate?: Date,
-    @Args() pagination?: PaginationArgs,
+    @Args() pagination?: OffsetPaginationArgs,
     @CurrentTenant() tenantId?: string,
   ): Promise<AuditLogType[]> {
-    return this.auditService.getIntegrationAuditLogs(integrationId, {
-      action,
-      startDate,
-      endDate,
-      ...pagination,
-    });
+    const params: any = {};
+    if (action !== undefined) params.action = action;
+    if (startDate !== undefined) params.startDate = startDate;
+    if (endDate !== undefined) params.endDate = endDate;
+    if (pagination?.limit !== undefined) params.limit = pagination.limit;
+    if (pagination?.offset !== undefined) params.offset = pagination.offset;
+    
+    return this.auditService.getIntegrationAuditLogs(integrationId, params);
   }
 
   @Query(() => AuditSummaryType, { name: 'integrationAuditSummary' })
@@ -67,14 +69,16 @@ export class AuditResolver extends BaseResolver {
     @Args('integrationId', { nullable: true }) integrationId?: string,
     @Args('startDate', { nullable: true }) startDate?: Date,
     @Args('endDate', { nullable: true }) endDate?: Date,
-    @Args() pagination?: PaginationArgs,
+    @Args() pagination?: OffsetPaginationArgs,
     @CurrentTenant() tenantId?: string,
   ): Promise<AuditLogType[]> {
-    return this.auditService.getUserAuditLogs(userId, {
-      integrationId,
-      startDate,
-      endDate,
-      ...pagination,
-    });
+    const params: any = {};
+    if (integrationId !== undefined) params.integrationId = integrationId;
+    if (startDate !== undefined) params.startDate = startDate;
+    if (endDate !== undefined) params.endDate = endDate;
+    if (pagination?.limit !== undefined) params.limit = pagination.limit;
+    if (pagination?.offset !== undefined) params.offset = pagination.offset;
+    
+    return this.auditService.getUserAuditLogs(userId, params);
   }
 }
