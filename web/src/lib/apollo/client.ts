@@ -6,6 +6,7 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 import { config } from '@/lib/config/env';
+import { errorLogger, networkErrorHandler } from '@/lib/error-handling';
 
 // Cache configuration with type policies
 const cache = new InMemoryCache({
@@ -105,16 +106,43 @@ const authLink = setContext(async (_, { headers }) => {
   };
 });
 
-// Error handling link
+// Error handling link with integrated error logging
 const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
+  const operationName = operation.operationName || 'Unknown';
+  const operationId = `apollo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
   if (graphQLErrors) {
     graphQLErrors.forEach(({ message, locations, path, extensions }) => {
       console.error(
         `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`
       );
       
+      // Log GraphQL errors with context
+      errorLogger.logError(
+        new Error(`GraphQL Error: ${message}`),
+        {
+          component: 'apollo-client',
+          operationId,
+        },
+        {
+          operationName,
+          locations,
+          path,
+          extensions,
+          variables: operation.variables,
+        },
+        ['graphql-error', extensions?.code?.toLowerCase() || 'unknown']
+      );
+      
       // Handle authentication errors
       if (extensions?.code === 'UNAUTHENTICATED') {
+        errorLogger.logWarning(
+          'Authentication required - redirecting to login',
+          { component: 'apollo-client', operationId },
+          { operationName },
+          ['auth-error', 'unauthenticated']
+        );
+
         // Use auth manager to handle logout
         if (typeof window !== 'undefined') {
           import('@/lib/auth').then(({ authManager }) => {
@@ -130,7 +158,12 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
       
       // Handle authorization errors
       if (extensions?.code === 'FORBIDDEN') {
-        console.warn('Access denied for operation:', operation.operationName);
+        errorLogger.logWarning(
+          'Access denied for GraphQL operation',
+          { component: 'apollo-client', operationId },
+          { operationName },
+          ['auth-error', 'forbidden']
+        );
       }
     });
   }
@@ -138,9 +171,29 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
   if (networkError) {
     console.error(`[Network error]: ${networkError}`);
     
+    // Log network errors with context
+    errorLogger.logError(
+      networkError as Error,
+      {
+        component: 'apollo-client',
+        operationId,
+      },
+      {
+        operationName,
+        variables: operation.variables,
+        networkErrorType: networkError.name,
+      },
+      ['network-error', 'apollo']
+    );
+    
     // Handle network errors
     if (networkError.message.includes('Failed to fetch')) {
-      console.warn('Network connection lost, switching to offline mode');
+      errorLogger.logWarning(
+        'Network connection lost - switching to offline mode',
+        { component: 'apollo-client', operationId },
+        { operationName },
+        ['network-error', 'offline']
+      );
     }
   }
 });

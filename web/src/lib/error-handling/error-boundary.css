@@ -1,0 +1,335 @@
+/**
+ * Error Boundary Styles
+ * 
+ * Comprehensive styling for error boundary components across different levels
+ */
+
+/* Base Error Fallback Styles */
+.error-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  color: #991b1b;
+}
+
+.error-fallback__content {
+  max-width: 32rem;
+  width: 100%;
+}
+
+.error-fallback__icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+  color: #dc2626;
+}
+
+.error-fallback__title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+  color: #991b1b;
+}
+
+.error-fallback__message {
+  font-size: 0.875rem;
+  margin: 0 0 1.5rem 0;
+  color: #7f1d1d;
+  line-height: 1.5;
+}
+
+.error-fallback__details {
+  text-align: left;
+  margin: 1.5rem 0;
+  border: 1px solid #fca5a5;
+  border-radius: 0.375rem;
+  background-color: #fff5f5;
+}
+
+.error-fallback__details summary {
+  padding: 0.75rem;
+  cursor: pointer;
+  font-weight: 500;
+  background-color: #fee2e2;
+  border-radius: 0.375rem 0.375rem 0 0;
+  user-select: none;
+}
+
+.error-fallback__details summary:hover {
+  background-color: #fecaca;
+}
+
+.error-fallback__technical {
+  padding: 1rem;
+}
+
+.error-fallback__section {
+  margin-bottom: 1rem;
+}
+
+.error-fallback__section:last-child {
+  margin-bottom: 0;
+}
+
+.error-fallback__section h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  color: #991b1b;
+}
+
+.error-fallback__section pre,
+.error-fallback__section code {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.75rem;
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  padding: 0.5rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.error-fallback__section code {
+  display: inline-block;
+  padding: 0.125rem 0.25rem;
+}
+
+.error-fallback__actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.error-fallback__button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  min-width: 6rem;
+}
+
+.error-fallback__button--primary {
+  background-color: #dc2626;
+  color: white;
+}
+
+.error-fallback__button--primary:hover {
+  background-color: #b91c1c;
+}
+
+.error-fallback__button--primary:focus {
+  outline: none;
+  ring: 2px;
+  ring-color: #dc2626;
+  ring-offset: 2px;
+}
+
+.error-fallback__button--secondary {
+  background-color: #6b7280;
+  color: white;
+}
+
+.error-fallback__button--secondary:hover {
+  background-color: #4b5563;
+}
+
+.error-fallback__button--secondary:focus {
+  outline: none;
+  ring: 2px;
+  ring-color: #6b7280;
+  ring-offset: 2px;
+}
+
+.error-fallback__support {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #fca5a5;
+  font-size: 0.75rem;
+  color: #7f1d1d;
+}
+
+.error-fallback__support p {
+  margin: 0.25rem 0;
+}
+
+.error-fallback__support code {
+  background-color: #fee2e2;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* Level-specific styles */
+.error-fallback--app {
+  min-height: 50vh;
+  background-color: #fef2f2;
+  border: none;
+  border-radius: 0;
+}
+
+.error-fallback--page {
+  min-height: 20rem;
+  margin: 2rem 0;
+}
+
+.error-fallback--module {
+  min-height: 10rem;
+  margin: 1rem 0;
+}
+
+.error-fallback--component {
+  min-height: 5rem;
+  padding: 1rem;
+  font-size: 0.875rem;
+}
+
+.error-fallback--component .error-fallback__title {
+  font-size: 1rem;
+}
+
+.error-fallback--component .error-fallback__message {
+  font-size: 0.75rem;
+}
+
+.error-fallback--component .error-fallback__button {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  min-width: 4rem;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .error-fallback {
+    background-color: #7f1d1d;
+    border-color: #991b1b;
+    color: #fecaca;
+  }
+
+  .error-fallback__title {
+    color: #fecaca;
+  }
+
+  .error-fallback__message {
+    color: #fca5a5;
+  }
+
+  .error-fallback__details {
+    background-color: #991b1b;
+    border-color: #b91c1c;
+  }
+
+  .error-fallback__details summary {
+    background-color: #b91c1c;
+    color: #fecaca;
+  }
+
+  .error-fallback__details summary:hover {
+    background-color: #dc2626;
+  }
+
+  .error-fallback__section h4 {
+    color: #fecaca;
+  }
+
+  .error-fallback__section pre,
+  .error-fallback__section code {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+
+  .error-fallback__support {
+    border-color: #b91c1c;
+    color: #fca5a5;
+  }
+
+  .error-fallback__support code {
+    background-color: #b91c1c;
+    color: #fecaca;
+  }
+
+  .error-fallback--app {
+    background-color: #7f1d1d;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .error-fallback {
+    padding: 1rem;
+  }
+
+  .error-fallback__title {
+    font-size: 1.125rem;
+  }
+
+  .error-fallback__actions {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .error-fallback__button {
+    width: 100%;
+    max-width: 12rem;
+  }
+
+  .error-fallback__section pre,
+  .error-fallback__section code {
+    font-size: 0.625rem;
+  }
+}
+
+/* Animation for error appearance */
+@keyframes errorFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.error-fallback {
+  animation: errorFadeIn 0.3s ease-out;
+}
+
+/* Focus management for accessibility */
+.error-fallback__button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.error-fallback__details[open] summary {
+  border-radius: 0.375rem 0.375rem 0 0;
+}
+
+/* Print styles */
+@media print {
+  .error-fallback {
+    background-color: white !important;
+    color: black !important;
+    border: 2px solid black !important;
+  }
+
+  .error-fallback__button {
+    display: none;
+  }
+
+  .error-fallback__details {
+    background-color: #f9f9f9 !important;
+    border: 1px solid #ccc !important;
+  }
+}
