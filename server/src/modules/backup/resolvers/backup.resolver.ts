@@ -1,12 +1,13 @@
 import { Resolver, Query, Mutation, Args, ID, Subscription, ResolveField, Parent } from '@nestjs/graphql';
-import { UseGuards } from '@nestjs/common';
+import { UseGuards, Inject } from '@nestjs/common';
+import { RedisPubSub } from 'graphql-redis-subscriptions';
 
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { TenantGuard } from '../../tenant/guards/tenant.guard';
 import { FeatureGuard } from '../../tenant/guards/feature.guard';
 import { RequirePermission } from '../../auth/decorators/require-permission.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { CurrentTenant } from '../../tenant/decorators/current-tenant.decorator';
+import { CurrentTenant } from '../../tenant/decorators/tenant.decorators';
 
 import { BackupService, CreateBackupOptions } from '../services/backup.service';
 import { BackupSchedulerService } from '../services/backup-scheduler.service';
@@ -60,7 +61,6 @@ import {
 } from '../types/backup.types';
 
 import { BackupFilter } from '../services/backup.service';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Resolver(() => BackupEntity)
 @UseGuards(JwtAuthGuard, TenantGuard, FeatureGuard)
@@ -73,7 +73,7 @@ export class BackupResolver {
     private readonly storageService: BackupStorageService,
     private readonly encryptionService: BackupEncryptionService,
     private readonly backupRepository: BackupRepository,
-    private readonly eventEmitter: EventEmitter2,
+    @Inject('PUB_SUB') private readonly pubSub: RedisPubSub,
   ) {}
 
   /**
@@ -213,9 +213,9 @@ export class BackupResolver {
   ): Promise<BackupVerificationResult> {
     try {
       const result = await this.backupService.verifyBackupWithDetails(input.backupId, tenantId, {
-        deepVerification: input.deepVerification,
-        verifyEncryption: input.verifyEncryption,
-        verifyStructure: input.verifyStructure,
+        deepVerification: input.deepVerification ?? false,
+        verifyEncryption: input.verifyEncryption ?? true,
+        verifyStructure: input.verifyStructure ?? true,
       });
       
       return result;
@@ -360,15 +360,17 @@ export class BackupResolver {
     @CurrentTenant() tenantId: string,
   ): Promise<RestoreOperationResponse> {
     try {
-      const options = {
+      const options: any = {
         backupId: input.backupId,
         targetTenantId: input.targetTenantId ?? tenantId,
-        pointInTime: input.pointInTime,
         includeData: input.includeData,
         excludeData: input.excludeData,
-        dryRun: input.dryRun,
+        dryRun: input.dryRun ?? false,
         userId: user.id,
       };
+      if (input.pointInTime !== undefined) {
+        options.pointInTime = input.pointInTime;
+      }
 
       const restoreJobId = await this.backupService.restoreFromBackup(options);
       
@@ -399,76 +401,6 @@ export class BackupResolver {
       throw new Error('Tenant ID is required');
     }
     return this.recoveryService.getAvailableRecoveryPoints(tenantId, startDate, endDate);
-  }
-
-  /**
-   * Create point-in-time recovery plan
-   */
-  @Mutation(() => RecoveryPlan)
-  @RequirePermission('backup:restore')
-  async createRecoveryPlan(
-    @Args('input') input: PointInTimeRecoveryInput,
-    @CurrentUser() user: any,
-    @CurrentTenant() tenantId: string,
-  ): Promise<RecoveryPlan> {
-    const options = {
-      tenantId,
-      targetDateTime: new Date(input.targetDateTime),
-      includeData: input.includeData,
-      excludeData: input.excludeData,
-      dryRun: input.dryRun,
-      userId: user.id,
-    };
-
-    return this.recoveryService.createRecoveryPlan(options);
-  }
-
-  /**
-   * Execute point-in-time recovery
-   */
-  @Mutation(() => RestoreOperationResponse)
-  @RequirePermission('backup:restore')
-  async executeRecovery(
-    @Args('input') input: PointInTimeRecoveryInput,
-    @CurrentUser() user: any,
-    @CurrentTenant() tenantId: string,
-  ): Promise<RestoreOperationResponse> {
-    try {
-      const options = {
-        tenantId,
-        targetDateTime: new Date(input.targetDateTime),
-        includeData: input.includeData,
-        excludeData: input.excludeData,
-        dryRun: input.dryRun,
-        userId: user.id,
-      };
-
-      const result = await this.recoveryService.executeRecovery(options);
-      
-      return {
-        success: result.success,
-        message: input.dryRun ? 'Recovery plan validated successfully' : 'Point-in-time recovery initiated',
-        restoreJobId: result.jobId,
-        estimatedDurationMinutes: result.estimatedDurationMinutes,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to execute recovery',
-      };
-    }
-  }
-
-  /**
-   * Estimate recovery time
-   */
-  @Query(() => RecoveryEstimate)
-  @RequirePermission('backup:read')
-  async estimateRecoveryTime(
-    @Args('input') input: RecoveryEstimateInput,
-    @CurrentTenant() tenantId: string,
-  ): Promise<RecoveryEstimate> {
-    return this.recoveryService.estimateRecoveryTime(tenantId, new Date(input.targetDateTime));
   }
 
   /**
@@ -606,9 +538,9 @@ export class BackupResolver {
     for (const backupId of input.backupIds) {
       try {
         const result = await this.backupService.verifyBackupWithDetails(backupId, tenantId, {
-          deepVerification: input.deepVerification,
-          verifyEncryption: input.verifyEncryption,
-          verifyStructure: input.verifyStructure,
+          deepVerification: input.deepVerification ?? false,
+          verifyEncryption: input.verifyEncryption ?? true,
+          verifyStructure: input.verifyStructure ?? true,
         });
 
         results.push(result);
@@ -654,9 +586,12 @@ export class BackupResolver {
   @RequirePermission('backup:admin')
   async rotateEncryptionKeys(
     @Args('input', { nullable: true }) input?: EncryptionKeyRotationInput,
-    @CurrentTenant() tenantId: string,
+    @CurrentTenant() tenantId?: string,
   ): Promise<BackupOperationResponse> {
     try {
+      if (!tenantId) {
+        throw new Error('Tenant ID is required');
+      }
       const newKey = await this.encryptionService.rotateBackupKeys(tenantId);
       
       return {
@@ -697,11 +632,14 @@ export class BackupResolver {
   @RequirePermission('backup:admin')
   async cleanupBackups(
     @Args('input', { nullable: true }) input?: BackupCleanupInput,
-    @CurrentTenant() tenantId: string,
+    @CurrentTenant() tenantId?: string,
   ): Promise<BackupCleanupResult> {
     const startTime = Date.now();
     
     try {
+      if (!tenantId) {
+        throw new Error('Tenant ID is required');
+      }
       if (input?.dryRun) {
         // Simulate cleanup without actually deleting
         const expiredBackups = await this.backupRepository.findExpired();
@@ -822,7 +760,7 @@ export class BackupResolver {
   backupStatusUpdates(
     @CurrentTenant() tenantId: string,
   ) {
-    return this.eventEmitter.asyncIterator([
+    return this.pubSub.asyncIterator([
       'backup.created',
       'backup.started', 
       'backup.completed',
@@ -844,7 +782,7 @@ export class BackupResolver {
   restoreStatusUpdates(
     @CurrentTenant() tenantId: string,
   ) {
-    return this.eventEmitter.asyncIterator([
+    return this.pubSub.asyncIterator([
       'restore.started',
       'restore.processing',
       'restore.completed',
@@ -867,7 +805,7 @@ export class BackupResolver {
   scheduledBackupUpdates(
     @CurrentTenant() tenantId: string,
   ) {
-    return this.eventEmitter.asyncIterator([
+    return this.pubSub.asyncIterator([
       'backup.scheduled.executed',
       'backup.scheduled.failed',
     ]);
@@ -1009,7 +947,7 @@ export class BackupResolver {
         endDate: backup.createdAt,
       }, 1, 0);
       
-      if (backups.length > 0) {
+      if (backups && backups.length > 0 && backups[0]) {
         dependencies.push(backups[0].id);
       }
     }
@@ -1059,11 +997,12 @@ export class BackupResolver {
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<RecoveryPlan> {
-    const options = {
+    const options: PointInTimeRecoveryOptions = {
       tenantId,
       targetDateTime: input.targetDateTime,
       includeData: input.includeData ?? [],
       excludeData: input.excludeData ?? [],
+      dryRun: input.dryRun ?? false,
       userId: user.id,
     };
 
@@ -1081,18 +1020,16 @@ export class BackupResolver {
     @CurrentTenant() tenantId: string,
   ): Promise<RestoreOperationResponse> {
     try {
-      const options: Partial<PointInTimeRecoveryOptions> = {
+      const options: PointInTimeRecoveryOptions = {
         tenantId,
         targetDateTime: input.targetDateTime,
         includeData: input.includeData ?? [],
         excludeData: input.excludeData ?? [],
+        dryRun: input.dryRun ?? false,
         userId: user.id,
       };
-      if (input.dryRun !== undefined) {
-        options.dryRun = input.dryRun;
-      }
 
-      const result = await this.recoveryService.executeRecovery(options as PointInTimeRecoveryOptions);
+      const result = await this.recoveryService.executeRecovery(options);
       
       return {
         success: true,
@@ -1121,23 +1058,3 @@ export class BackupResolver {
     return this.recoveryService.estimateRecoveryTime(tenantId, targetDateTime);
   }
 }
-  // ===== STORAGE MANAGEMENT OPERATIONS =====
-
-  /**
-   * Get backup storage usage analytics
-   */
-  @Query(() => BackupStorageUsageResponse)
-  @RequirePermission('backup:read')
-  async backupStorageUsage(
-    @Args('input', { nullable: true }) input?: BackupStorageUsageInput,
-    @CurrentTenant() tenantId?: string,
-  ): Promise<BackupStorageUsageResponse> {
-    if (!tenantId) {
-      throw new Error('Tenant ID is required');
-    }
-
-    const storageUsage = await this.backupRepository.getStorageUsageByLocation(tenantId);
-    const usage = Object.entries(storageUsage).map(([location, totalSizeBytes]) => ({
-      location: location as BackupStorageLocation,
-      totalSizeBytes,
-      backupCount: 0, // Would b

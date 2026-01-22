@@ -324,33 +324,3 @@ export class BackupAnalytics {
   @Field()
   encryptionCoverage!: number;
 }
-
-@ObjectType()
-export class BackupIntegrityCheck {
-  @Field(() => ID)
-  backupId!: string;
-
-  @Field()
-  expectedChecksum!: string;
-
-  @Field()
-  actualChecksum!: string;
-
-  @Field()
-  expectedSize!: number;
-
-  @Field()
-  actualSize!: number;
-
-  @Field()
-  encryptionKeyValid!: boolean;
-
-  @Field()
-  structureValid!: boolean;
-
-  @Field(() => [String])
-  errors!: string[];
-
-  @Field()
-  verifiedAt!: Date;
-}

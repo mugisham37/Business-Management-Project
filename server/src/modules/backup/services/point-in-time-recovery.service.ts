@@ -237,7 +237,7 @@ export class PointInTimeRecoveryService {
       return {
         targetDateTime,
         estimatedDurationMinutes: Math.ceil(plan.estimatedDuration / 60000),
-        estimatedDataSize: plan.requiredBackups.reduce((sum, b) => sum + b.sizeBytes, 0),
+        estimatedDataSize: plan.requiredBackups.reduce((sum: number, b: any) => sum + b.sizeBytes, 0),
         availableBackups: plan.requiredBackups.length,
         confidence: plan.warnings.length === 0 ? 0.95 : 0.75,
         warnings: plan.warnings.join('; ') || undefined,
