@@ -134,22 +134,24 @@ export class RecoveryTimeOptimizationService {
         executions.forEach(exec => {
           if (exec.detectedAt >= thirtyDaysAgo) {
             const dateKey = exec.detectedAt.toISOString().split('T')[0];
-            const existing = dailyData.get(dateKey) || { rtoSum: 0, count: 0, successCount: 0 };
-            
-            existing.rtoSum += exec.actualRtoMinutes;
-            existing.count += 1;
-            if (exec.status === 'completed') {
-              existing.successCount += 1;
+            if (dateKey) {
+              const existing = dailyData.get(dateKey) || { rtoSum: 0, count: 0, successCount: 0 };
+              
+              existing.rtoSum += exec.actualRtoMinutes;
+              existing.count += 1;
+              if (exec.status === 'completed') {
+                existing.successCount += 1;
+              }
+              
+              dailyData.set(dateKey, existing);
             }
-            
-            dailyData.set(dateKey, existing);
           }
         });
 
         // Convert to trend data
         dailyData.forEach((data, dateKey) => {
           trends.push({
-            timestamp: new Date(dateKey),
+            timestamp: new Date(dateKey + 'T00:00:00Z'),
             averageRtoMinutes: data.rtoSum / data.count,
             executionCount: data.count,
             successRate: data.successCount / data.count,
@@ -293,7 +295,7 @@ export class RecoveryTimeOptimizationService {
   }
 
   private estimateCost(category: string, effort: string): number {
-    const baseCosts = {
+    const baseCosts: Record<string, number> = {
       'Infrastructure': 10000,
       'Replication': 5000,
       'Automation': 2000,
@@ -301,26 +303,26 @@ export class RecoveryTimeOptimizationService {
       'Monitoring': 3000,
     };
 
-    const effortMultipliers = {
+    const effortMultipliers: Record<string, number> = {
       'low': 0.5,
       'medium': 1.0,
       'high': 2.0,
     };
 
-    const baseCost = baseCosts[category] || 1000;
-    const multiplier = effortMultipliers[effort] || 1.0;
+    const baseCost = baseCosts[category] ?? 1000;
+    const multiplier = effortMultipliers[effort] ?? 1.0;
 
     return baseCost * multiplier;
   }
 
   private getImplementationWeeks(priority: string): number {
-    const priorityWeeks = {
+    const priorityWeeks: Record<string, number> = {
       'high': 2,
       'medium': 4,
       'low': 8,
     };
 
-    return priorityWeeks[priority] || 4;
+    return priorityWeeks[priority] ?? 4;
   }
 
   private optimizeStepExecution(steps: any[]): any[] {

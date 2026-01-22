@@ -111,7 +111,7 @@ export class SimpleRedisService {
       }
 
       const keys: string[] = [];
-      let cursor = 0;
+      let cursor = '0';
 
       do {
         const result = await this.client.scan(cursor, {
@@ -121,7 +121,7 @@ export class SimpleRedisService {
 
         cursor = result.cursor;
         keys.push(...result.keys);
-      } while (cursor !== 0);
+      } while (cursor !== '0');
 
       return keys;
     } catch (error) {

@@ -187,7 +187,10 @@ export class DRMetricsInterceptor implements NestInterceptor {
         };
       }
 
-      operationBreakdown[metric.operationName].count++;
+      const op = operationBreakdown[metric.operationName];
+      if (op) {
+        op.count++;
+      }
     });
 
     // Calculate success rates and average durations
@@ -196,10 +199,13 @@ export class DRMetricsInterceptor implements NestInterceptor {
       const successfulOps = operationMetrics.filter(m => m.success).length;
       const totalDuration = operationMetrics.reduce((sum, m) => sum + (m.duration || 0), 0);
 
-      operationBreakdown[operationName].successRate = 
-        Math.round((successfulOps / operationMetrics.length) * 10000) / 100;
-      operationBreakdown[operationName].averageDuration = 
-        Math.round((totalDuration / operationMetrics.length) * 100) / 100;
+      const op = operationBreakdown[operationName];
+      if (op) {
+        op.successRate = 
+          Math.round((successfulOps / operationMetrics.length) * 10000) / 100;
+        op.averageDuration = 
+          Math.round((totalDuration / operationMetrics.length) * 100) / 100;
+      }
     });
 
     return {

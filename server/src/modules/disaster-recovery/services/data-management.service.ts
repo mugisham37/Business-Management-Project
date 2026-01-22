@@ -745,6 +745,40 @@ export class DataManagementService {
   }
 
   /**
+   * Generate destruction certificate for compliance
+   */
+  private async generateDestructionCertificate(destruction: SecureDataDestruction): Promise<string> {
+    this.logger.log(`Generating destruction certificate for ${destruction.id}`);
+
+    try {
+      const certificateContent = {
+        certificateId: `CERT-${destruction.id}`,
+        destructionId: destruction.id,
+        tenantId: destruction.tenantId,
+        dataType: destruction.dataType,
+        recordCount: destruction.recordCount,
+        destructionMethod: destruction.destructionMethod,
+        complianceFramework: destruction.complianceFramework,
+        generatedAt: new Date(),
+        destructedAt: destruction.executedAt || new Date(),
+        verificationStatus: destruction.verifiedAt ? 'verified' : 'pending',
+        signedBy: 'system-admin',
+      };
+
+      // Simulate certificate generation
+      const certificatePath = `/certs/destruction/${destruction.id}.json`;
+      
+      this.logger.log(`Destruction certificate generated at ${certificatePath}`);
+      
+      return certificatePath;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to generate destruction certificate: ${errorMessage}`);
+      throw new Error(`Certificate generation failed: ${errorMessage}`);
+    }
+  }
+
+  /**
    * Generate DR report
    */
   async generateDRReport(options: {
@@ -923,10 +957,10 @@ export class DataManagementService {
     };
   }
 
-  private analyzeComponentHealth(executions: any[]): any {
+  private analyzeComponentHealth(executions: any[]): Record<string, any> {
     const components = ['database', 'application', 'network', 'storage'];
     
-    return components.reduce((acc, component) => {
+    return components.reduce((acc: Record<string, any>, component: string) => {
       const componentExecutions = executions.filter(e => 
         e.executedSteps?.some((step: any) => 
           step.name?.toLowerCase().includes(component)
@@ -1041,10 +1075,10 @@ export class DataManagementService {
     if (recentFailures.length > 0) {
       recommendations.push('Address recent DR execution failures');
     }
-
     if (recommendations.length === 0) {
       recommendations.push('DR performance is within acceptable parameters');
     }
 
     return recommendations;
   }
+}

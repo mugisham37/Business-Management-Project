@@ -1,5 +1,5 @@
 import { Resolver, Query, Mutation, Args, Context, Subscription } from '@nestjs/graphql';
-import { UseGuards, Logger } from '@nestjs/common';
+import { UseGuards, Logger, Inject } from '@nestjs/common';
 import { PubSub } from 'graphql-subscriptions';
 
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -14,10 +14,10 @@ import { DRReportResponse } from '../types/disaster-recovery.types';
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class DataManagementResolver {
   private readonly logger = new Logger(DataManagementResolver.name);
-  private readonly pubSub = new PubSub();
 
   constructor(
     private readonly dataManagementService: DataManagementService,
+    @Inject('PUB_SUB') private readonly pubSub: PubSub,
   ) {}
 
   @Mutation(() => String)
@@ -33,14 +33,17 @@ export class DataManagementResolver {
     try {
       const parsedTargetRecords = targetRecords ? JSON.parse(targetRecords) : undefined;
       
-      const result = await this.dataManagementService.performGranularRecovery({
+      const recoveryOptions: any = {
         tenantId: context.req.tenantId,
         recoveryType: recoveryType as any,
-        targetDate,
-        targetTables,
-        targetRecords: parsedTargetRecords,
         validateIntegrity,
-      });
+      };
+      
+      if (targetDate !== undefined) recoveryOptions.targetDate = targetDate;
+      if (targetTables !== undefined) recoveryOptions.targetTables = targetTables;
+      if (parsedTargetRecords !== undefined) recoveryOptions.targetRecords = parsedTargetRecords;
+      
+      const result = await this.dataManagementService.performGranularRecovery(recoveryOptions);
 
       // Emit recovery event
       this.pubSub.publish('dataRecoveryCompleted', {
@@ -200,15 +203,20 @@ export class DataManagementResolver {
     @Context() context?: any,
   ): Promise<string> {
     try {
-      const destruction = await this.dataManagementService.scheduleSecureDestruction({
+      const destructionOptions: any = {
         tenantId: context.req.tenantId,
         dataType,
         recordIds,
         destructionMethod: destructionMethod as any,
         complianceFramework,
         scheduledAt,
-        verificationRequired,
-      });
+      };
+      
+      if (verificationRequired !== undefined) {
+        destructionOptions.verificationRequired = verificationRequired;
+      }
+      
+      const destruction = await this.dataManagementService.scheduleSecureDestruction(destructionOptions);
 
       return JSON.stringify(destruction);
     } catch (error) {
@@ -255,7 +263,7 @@ export class DataManagementResolver {
   })
   @RequirePermission('disaster_recovery:read')
   dataRecoveryCompleted(@Context() context: any) {
-    return this.pubSub.asyncIterator('dataRecoveryCompleted');
+    return (this.pubSub as any).asyncIterator('dataRecoveryCompleted');
   }
 
   @Subscription(() => String, {
@@ -265,7 +273,7 @@ export class DataManagementResolver {
   })
   @RequirePermission('disaster_recovery:read')
   dataArchivalCompleted(@Context() context: any) {
-    return this.pubSub.asyncIterator('dataArchivalCompleted');
+    return (this.pubSub as any).asyncIterator('dataArchivalCompleted');
   }
 
   @Subscription(() => String, {
@@ -275,7 +283,7 @@ export class DataManagementResolver {
   })
   @RequirePermission('disaster_recovery:read')
   dataRetentionEnforced(@Context() context: any) {
-    return this.pubSub.asyncIterator('dataRetentionEnforced');
+    return (this.pubSub as any).asyncIterator('dataRetentionEnforced');
   }
 
   @Subscription(() => String, {
@@ -285,6 +293,6 @@ export class DataManagementResolver {
   })
   @RequirePermission('disaster_recovery:read')
   secureDestructionCompleted(@Context() context: any) {
-    return this.pubSub.asyncIterator('secureDestructionCompleted');
+    return (this.pubSub as any).asyncIterator('secureDestructionCompleted');
   }
 }

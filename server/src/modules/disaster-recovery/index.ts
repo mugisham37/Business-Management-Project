@@ -15,8 +15,7 @@ export * from './resolvers/disaster-recovery.resolver';
 export * from './resolvers/business-continuity.resolver';
 export * from './resolvers/data-management.resolver';
 
-// Entities and Types
-export * from './entities/disaster-recovery.entity';
+// Types - GraphQL types for API responses
 export * from './types/disaster-recovery.types';
 
 // Inputs

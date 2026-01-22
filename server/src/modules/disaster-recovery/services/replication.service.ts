@@ -14,13 +14,17 @@ export interface CreateReplicationOptions {
   configuration?: Record<string, any>;
 }
 
-export interface ReplicationMetrics {
+interface ReplicationMetrics {
   configId: string;
+  sourceRegion: string;
+  targetRegion: string;
   lagSeconds: number;
   throughputMBps: number;
   errorRate: number;
   lastReplicationAt: Date;
   status: ReplicationStatus;
+  bytesReplicated: number;
+  isHealthy: boolean;
 }
 
 @Injectable()
@@ -489,11 +493,15 @@ export class ReplicationService {
     
     return {
       configId: config.id,
+      sourceRegion: config.sourceRegion,
+      targetRegion: config.targetRegion,
       lagSeconds,
       throughputMBps: 10.5,
       errorRate: 0.001,
       lastReplicationAt: new Date(now.getTime() - lagSeconds * 1000),
       status: config.status,
+      bytesReplicated: Math.floor(Math.random() * 1000000000), // Random bytes
+      isHealthy: lagSeconds < 300 && config.status !== 'failed',
     };
   }
 

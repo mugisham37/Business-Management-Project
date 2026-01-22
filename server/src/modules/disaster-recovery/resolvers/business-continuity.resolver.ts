@@ -1,5 +1,5 @@
 import { Resolver, Query, Mutation, Args, Context, Subscription } from '@nestjs/graphql';
-import { UseGuards, Logger } from '@nestjs/common';
+import { UseGuards, Logger, Inject } from '@nestjs/common';
 import { PubSub } from 'graphql-subscriptions';
 
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -12,10 +12,10 @@ import { BusinessContinuityService } from '../services/business-continuity.servi
 @UseGuards(JwtAuthGuard, TenantGuard)
 export class BusinessContinuityResolver {
   private readonly logger = new Logger(BusinessContinuityResolver.name);
-  private readonly pubSub = new PubSub();
 
   constructor(
     private readonly businessContinuityService: BusinessContinuityService,
+    @Inject('PUB_SUB') private readonly pubSub: PubSub,
   ) {}
 
   @Query(() => String)
@@ -150,7 +150,7 @@ export class BusinessContinuityResolver {
   })
   @RequirePermission('disaster_recovery:read')
   serviceDegraded(@Context() context: any) {
-    return this.pubSub.asyncIterator('serviceDegraded');
+    return (this.pubSub as any).asyncIterator('serviceDegraded');
   }
 
   @Subscription(() => String, {
@@ -160,7 +160,7 @@ export class BusinessContinuityResolver {
   })
   @RequirePermission('disaster_recovery:read')
   serviceRestored(@Context() context: any) {
-    return this.pubSub.asyncIterator('serviceRestored');
+    return (this.pubSub as any).asyncIterator('serviceRestored');
   }
 
   @Subscription(() => String, {
@@ -170,7 +170,7 @@ export class BusinessContinuityResolver {
   })
   @RequirePermission('disaster_recovery:read')
   businessContinuityTestCompleted(@Context() context: any) {
-    return this.pubSub.asyncIterator('businessContinuityTestCompleted');
+    return (this.pubSub as any).asyncIterator('businessContinuityTestCompleted');
   }
 
   @Subscription(() => String, {
@@ -180,6 +180,6 @@ export class BusinessContinuityResolver {
   })
   @RequirePermission('disaster_recovery:read')
   serviceHealthAlert(@Context() context: any) {
-    return this.pubSub.asyncIterator('serviceHealthAlert');
+    return (this.pubSub as any).asyncIterator('serviceHealthAlert');
   }
 }
