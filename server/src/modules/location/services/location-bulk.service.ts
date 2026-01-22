@@ -123,6 +123,18 @@ export class LocationBulkService {
       for (let i = 0; i < request.locations.length; i++) {
         const locationData = request.locations[i];
         
+        // Skip if location data is undefined
+        if (!locationData) {
+          operation.results.push({
+            success: false,
+            error: 'Invalid location data',
+            id: `item-${i}`,
+          });
+          operation.failedItems++;
+          operation.processedItems++;
+          continue;
+        }
+        
         try {
           // Skip invalid items if continueOnError is true
           const itemValidationErrors = await this.validateSingleLocation(tenantId, locationData);
@@ -150,10 +162,10 @@ export class LocationBulkService {
           operation.results.push({
             success: false,
             error: errorMessage,
-            id: locationData.code,
+            id: locationData.code || `item-${i}`,
           });
           operation.failedItems++;
-          operation.errors.push(`Location ${locationData.code}: ${errorMessage}`);
+          operation.errors.push(`Location ${locationData.code || i}: ${errorMessage}`);
 
           if (!request.continueOnError) {
             operation.status = 'FAILED';
@@ -572,7 +584,7 @@ export class LocationBulkService {
     }
 
     // Check for duplicate codes
-    const codes = locations.map(loc => loc.code);
+    const codes = locations.map(loc => loc?.code).filter(Boolean) as string[];
     const duplicateCodes = codes.filter((code, index) => codes.indexOf(code) !== index);
     if (duplicateCodes.length > 0) {
       errors.push(`Duplicate location codes: ${duplicateCodes.join(', ')}`);
@@ -580,9 +592,15 @@ export class LocationBulkService {
 
     // Validate each location
     for (let i = 0; i < locations.length; i++) {
-      const locationErrors = await this.validateSingleLocation(tenantId, locations[i]);
+      const location = locations[i];
+      if (!location) {
+        errors.push(`Location ${i + 1}: Invalid location object`);
+        continue;
+      }
+      
+      const locationErrors = await this.validateSingleLocation(tenantId, location);
       locationErrors.forEach(error => {
-        errors.push(`Location ${i + 1} (${locations[i].code}): ${error}`);
+        errors.push(`Location ${i + 1} (${location.code}): ${error}`);
       });
     }
 

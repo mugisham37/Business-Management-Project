@@ -14,7 +14,7 @@ import { GraphQLJSONObject } from 'graphql-type-json';
 @UseGuards(JwtAuthGuard)
 export class LocationInventoryPolicyResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly policyService: LocationInventoryPolicyService,
   ) {
     super(dataLoaderService);

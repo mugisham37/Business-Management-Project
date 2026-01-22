@@ -447,4 +447,23 @@ export class FranchiseService {
 
     return assignment;
   }
+
+  async assignLocationToTerritory(tenantId: string, territoryId: string, locationId: string, userId: string): Promise<void> {
+    // Validate territory exists
+    await this.getTerritoryById(tenantId, territoryId);
+    
+    // Validate location exists
+    await this.locationService.findById(tenantId, locationId);
+    
+    // Update location with territory assignment
+    await this.franchiseRepository.assignLocationToTerritory(tenantId, territoryId, locationId, userId);
+
+    // Emit event
+    this.eventEmitter.emit('location.assigned_to_territory', {
+      tenantId,
+      territoryId,
+      locationId,
+      userId,
+    });
+  }
 }

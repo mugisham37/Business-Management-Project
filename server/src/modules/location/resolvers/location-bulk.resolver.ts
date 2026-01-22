@@ -15,7 +15,7 @@ import { GraphQLJSONObject } from 'graphql-type-json';
 @UseGuards(JwtAuthGuard)
 export class LocationBulkResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly bulkService: LocationBulkService,
   ) {
     super(dataLoaderService);
@@ -68,18 +68,18 @@ export class LocationBulkResolver extends BaseResolver {
   async bulkChangeLocationStatus(
     @Args('locationIds', { type: () => [ID] }) locationIds: string[],
     @Args('newStatus') newStatus: LocationStatus,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() currentUser: any,
     @Args('reason', { nullable: true }) reason?: string,
     @Args('validateOnly', { defaultValue: false }) validateOnly?: boolean,
     @Args('continueOnError', { defaultValue: false }) continueOnError?: boolean,
-    @CurrentTenant() tenantId: string,
-    @CurrentUser() currentUser: any,
   ): Promise<BulkOperationSummary> {
     const request: BulkStatusChangeRequest = {
       locationIds,
       newStatus,
-      reason,
-      validateOnly,
-      continueOnError,
+      ...(reason !== undefined && { reason }),
+      ...(validateOnly !== undefined && { validateOnly }),
+      ...(continueOnError !== undefined && { continueOnError }),
     };
 
     return this.bulkService.bulkChangeStatus(tenantId, request, currentUser.id);
@@ -90,17 +90,17 @@ export class LocationBulkResolver extends BaseResolver {
   @Permissions('location:delete')
   async bulkDeleteLocations(
     @Args('locationIds', { type: () => [ID] }) locationIds: string[],
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() currentUser: any,
     @Args('reason', { nullable: true }) reason?: string,
     @Args('validateOnly', { defaultValue: false }) validateOnly?: boolean,
     @Args('continueOnError', { defaultValue: false }) continueOnError?: boolean,
-    @CurrentTenant() tenantId: string,
-    @CurrentUser() currentUser: any,
   ): Promise<BulkOperationSummary> {
     const request: BulkDeleteRequest = {
       locationIds,
-      reason,
-      validateOnly,
-      continueOnError,
+      ...(reason !== undefined && { reason }),
+      ...(validateOnly !== undefined && { validateOnly }),
+      ...(continueOnError !== undefined && { continueOnError }),
     };
 
     return this.bulkService.bulkDeleteLocations(tenantId, request, currentUser.id);

@@ -427,38 +427,37 @@ export class LocationRepository {
   }
 
   private mapToEntity(location: any): Location {
-    const entity: Location = {
-      id: location.id,
-      tenantId: location.tenantId,
-      name: location.name,
-      code: location.code,
-      description: location.description,
-      type: location.type,
-      status: location.status,
-      address: location.address,
-      phone: location.phone,
-      email: location.email,
-      website: location.website,
-      parentLocationId: location.parentLocationId,
-      timezone: location.timezone,
-      currency: location.currency,
-      operatingHours: location.operatingHours,
-      managerId: location.managerId,
-      settings: location.settings,
-      metrics: location.metrics,
-      taxSettings: location.taxSettings,
-      inventorySettings: location.inventorySettings,
-      posSettings: location.posSettings,
-      featureFlags: location.featureFlags,
-      capacity: location.capacity,
-      createdAt: location.createdAt,
-      updatedAt: location.updatedAt,
-      createdBy: location.createdBy,
-      updatedBy: location.updatedBy,
-      deletedAt: location.deletedAt,
-      version: location.version,
-      isActive: location.isActive,
-    };
+    const entity = new Location();
+    entity.id = location.id;
+    entity.tenantId = location.tenantId;
+    entity.name = location.name;
+    entity.code = location.code;
+    entity.description = location.description;
+    entity.type = location.type;
+    entity.status = location.status;
+    entity.address = location.address;
+    entity.phone = location.phone;
+    entity.email = location.email;
+    entity.website = location.website;
+    entity.parentLocationId = location.parentLocationId;
+    entity.timezone = location.timezone;
+    entity.currency = location.currency;
+    entity.operatingHours = location.operatingHours;
+    entity.managerId = location.managerId;
+    entity.settings = location.settings;
+    entity.metrics = location.metrics;
+    entity.taxSettings = location.taxSettings;
+    entity.inventorySettings = location.inventorySettings;
+    entity.posSettings = location.posSettings;
+    entity.featureFlags = location.featureFlags;
+    entity.capacity = location.capacity;
+    entity.createdAt = location.createdAt;
+    entity.updatedAt = location.updatedAt;
+    entity.createdBy = location.createdBy;
+    entity.updatedBy = location.updatedBy;
+    entity.deletedAt = location.deletedAt;
+    entity.version = location.version;
+    entity.isActive = location.isActive;
 
     // Only add optional numeric properties if they exist and are valid
     if (location.latitude !== null && location.latitude !== undefined) {

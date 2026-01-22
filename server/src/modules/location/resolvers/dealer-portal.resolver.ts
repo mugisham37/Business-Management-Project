@@ -30,7 +30,7 @@ class DealerDashboardType {
 @UseGuards(JwtAuthGuard)
 export class DealerPortalResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly franchiseService: FranchiseService,
   ) {
     super(dataLoaderService);

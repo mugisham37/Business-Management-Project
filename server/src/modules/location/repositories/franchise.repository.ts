@@ -315,6 +315,45 @@ export class FranchiseRepository {
     return results.map(this.mapFranchiseLocationFromDb);
   }
 
+  /**
+   * Assign a location to a territory
+   */
+  async assignLocationToTerritory(
+    tenantId: string,
+    territoryId: string,
+    locationId: string,
+    userId: string,
+  ): Promise<void> {
+    // Find the franchise location
+    const franchiseLocationResults = await this.drizzle.getDb()
+      .select()
+      .from(franchiseLocations)
+      .where(and(
+        eq(franchiseLocations.tenantId, tenantId),
+        eq(franchiseLocations.locationId, locationId),
+        isNull(franchiseLocations.deletedAt)
+      ));
+
+    if (franchiseLocationResults.length === 0) {
+      throw new Error(`Franchise location not found for location ${locationId}`);
+    }
+
+    const franchiseLocation = franchiseLocationResults[0]!;
+    
+    // Update the territory assignment
+    await this.drizzle.getDb()
+      .update(franchiseLocations)
+      .set({
+        ...franchiseLocation,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(franchiseLocations.tenantId, tenantId),
+        eq(franchiseLocations.id, franchiseLocation.id),
+      ));
+  }
+
   // Franchise Permission operations
   async findFranchisePermissionsByUser(tenantId: string, userId: string): Promise<FranchisePermission[]> {
     const results = await this.drizzle.getDb()

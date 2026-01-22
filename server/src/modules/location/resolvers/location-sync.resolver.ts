@@ -15,7 +15,7 @@ import { GraphQLJSONObject } from 'graphql-type-json';
 @UseGuards(JwtAuthGuard)
 export class LocationSyncResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly syncService: LocationSyncService,
     @Inject('PUB_SUB') private readonly pubSub: PubSub,
   ) {
@@ -80,6 +80,6 @@ export class LocationSyncResolver extends BaseResolver {
     },
   })
   syncStatusChanged(@CurrentTenant() tenantId: string) {
-    return this.pubSub.asyncIterator('syncStatusChanged');
+    return (this.pubSub as any).asyncIterator('syncStatusChanged');
   }
 }

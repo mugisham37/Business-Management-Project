@@ -20,6 +20,18 @@ export class Location {
   @ApiProperty({ enum: LocationType, description: 'Location type' })
   type!: LocationType;
 
+  /**
+   * Alias for GraphQL compatibility
+   */
+  locationType?: LocationType;
+
+  /**
+   * Getter for locationType - ensures backward compatibility
+   */
+  getLocationType(): LocationType {
+    return this.locationType ?? this.type;
+  }
+
   @ApiProperty({ enum: LocationStatus, description: 'Location status' })
   status!: LocationStatus;
 

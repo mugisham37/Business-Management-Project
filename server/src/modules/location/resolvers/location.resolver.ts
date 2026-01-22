@@ -18,7 +18,7 @@ import { Location } from '../entities/location.entity';
 @UseGuards(JwtAuthGuard)
 export class LocationResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly locationService: LocationService,
     @Inject('PUB_SUB') private readonly pubSub: PubSub,
   ) {
@@ -32,7 +32,14 @@ export class LocationResolver extends BaseResolver {
     @Args('id', { type: () => ID }) id: string,
     @CurrentTenant() tenantId: string,
   ): Promise<Location> {
-    return this.locationService.findById(tenantId, id);
+    const location = await this.locationService.findById(tenantId, id);
+    
+    // Ensure locationType is set for GraphQL compatibility
+    if (location && !location.locationType) {
+      location.locationType = location.type;
+    }
+    
+    return location;
   }
 
   @Query(() => LocationConnection, { name: 'locations' })
@@ -56,13 +63,21 @@ export class LocationResolver extends BaseResolver {
     const hasMore = locations.length > limit;
     const items = hasMore ? locations.slice(0, limit) : locations;
 
+    // Ensure locationType is set for GraphQL compatibility
+    const normalizedItems = items.map(item => {
+      if (!item.locationType) {
+        item.locationType = item.type;
+      }
+      return item as any;
+    });
+
     return {
-      edges: this.createEdges(items, (item) => item.id),
+      edges: this.createEdges(normalizedItems, (item) => item.id) as LocationEdge[],
       pageInfo: this.createPageInfo(
         hasMore && isForward,
         false,
-        items[0]?.id,
-        items[items.length - 1]?.id,
+        normalizedItems[0]?.id,
+        normalizedItems[normalizedItems.length - 1]?.id,
       ),
       totalCount: total,
     };
@@ -75,7 +90,22 @@ export class LocationResolver extends BaseResolver {
     @Args('rootLocationId', { type: () => ID, nullable: true }) rootLocationId: string | undefined,
     @CurrentTenant() tenantId: string,
   ): Promise<Location[]> {
-    return this.locationService.getLocationTree(tenantId, rootLocationId);
+    const tree = await this.locationService.getLocationTree(tenantId, rootLocationId);
+    
+    // Ensure locationType is set for all locations and their children
+    const normalizeTree = (locations: Location[]): Location[] => {
+      return locations.map(location => {
+        if (!location.locationType) {
+          location.locationType = location.type;
+        }
+        if (location.childLocations && location.childLocations.length > 0) {
+          location.childLocations = normalizeTree(location.childLocations);
+        }
+        return location;
+      });
+    };
+
+    return normalizeTree(tree);
   }
 
   @Mutation(() => LocationGQLType, { name: 'createLocation' })
@@ -87,6 +117,11 @@ export class LocationResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
   ): Promise<Location> {
     const location = await this.locationService.create(tenantId, input as any, user.id);
+
+    // Ensure locationType is set for GraphQL compatibility
+    if (!location.locationType) {
+      location.locationType = location.type;
+    }
 
     // Publish subscription event
     await this.pubSub.publish('locationStatusChanged', {
@@ -107,6 +142,11 @@ export class LocationResolver extends BaseResolver {
     @CurrentTenant() tenantId: string,
   ): Promise<Location> {
     const location = await this.locationService.update(tenantId, id, input as any, user.id);
+
+    // Ensure locationType is set for GraphQL compatibility
+    if (!location.locationType) {
+      location.locationType = location.type;
+    }
 
     // Publish subscription event
     await this.pubSub.publish('locationStatusChanged', {
@@ -209,6 +249,6 @@ export class LocationResolver extends BaseResolver {
     },
   })
   locationStatusChanged(@CurrentTenant() tenantId: string) {
-    return this.pubSub.asyncIterator('locationStatusChanged');
+    return (this.pubSub as any).asyncIterator('locationStatusChanged');
   }
 }

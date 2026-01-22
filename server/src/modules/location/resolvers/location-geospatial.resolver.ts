@@ -14,7 +14,7 @@ import { GraphQLJSONObject } from 'graphql-type-json';
 @UseGuards(JwtAuthGuard)
 export class LocationGeospatialResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly geospatialService: LocationGeospatialService,
   ) {
     super(dataLoaderService);
@@ -27,18 +27,18 @@ export class LocationGeospatialResolver extends BaseResolver {
     @Args('latitude', { type: () => Float }) latitude: number,
     @Args('longitude', { type: () => Float }) longitude: number,
     @Args('radiusKm', { type: () => Float }) radiusKm: number,
+    @CurrentTenant() tenantId: string,
     @Args('maxResults', { type: () => Int, nullable: true }) maxResults?: number,
     @Args('locationTypes', { type: () => [String], nullable: true }) locationTypes?: string[],
     @Args('statuses', { type: () => [String], nullable: true }) statuses?: LocationStatus[],
-    @CurrentTenant() tenantId: string,
   ): Promise<LocationDistance[]> {
     const query: GeospatialQuery = {
       latitude,
       longitude,
       radiusKm,
-      maxResults,
-      locationTypes,
-      statuses,
+      ...(maxResults !== undefined && { maxResults }),
+      ...(locationTypes !== undefined && { locationTypes }),
+      ...(statuses !== undefined && { statuses }),
     };
 
     return this.geospatialService.findNearbyLocations(tenantId, query);
@@ -50,9 +50,9 @@ export class LocationGeospatialResolver extends BaseResolver {
   async findClosestLocation(
     @Args('latitude', { type: () => Float }) latitude: number,
     @Args('longitude', { type: () => Float }) longitude: number,
+    @CurrentTenant() tenantId: string,
     @Args('locationTypes', { type: () => [String], nullable: true }) locationTypes?: string[],
     @Args('statuses', { type: () => [String], nullable: true }) statuses?: LocationStatus[],
-    @CurrentTenant() tenantId: string,
   ): Promise<LocationDistance | null> {
     return this.geospatialService.findClosestLocation(tenantId, latitude, longitude, locationTypes, statuses);
   }
@@ -65,9 +65,9 @@ export class LocationGeospatialResolver extends BaseResolver {
     @Args('northEastLng', { type: () => Float }) northEastLng: number,
     @Args('southWestLat', { type: () => Float }) southWestLat: number,
     @Args('southWestLng', { type: () => Float }) southWestLng: number,
+    @CurrentTenant() tenantId: string,
     @Args('locationTypes', { type: () => [String], nullable: true }) locationTypes?: string[],
     @Args('statuses', { type: () => [String], nullable: true }) statuses?: LocationStatus[],
-    @CurrentTenant() tenantId: string,
   ): Promise<any[]> {
     const bounds: GeospatialBounds = {
       northEast: { latitude: northEastLat, longitude: northEastLng },
@@ -117,9 +117,9 @@ export class LocationGeospatialResolver extends BaseResolver {
     @Args('southWestLat', { type: () => Float }) southWestLat: number,
     @Args('southWestLng', { type: () => Float }) southWestLng: number,
     @Args('minDistanceFromExisting', { type: () => Float }) minDistanceFromExisting: number,
+    @CurrentTenant() tenantId: string,
     @Args('populationDensityData', { type: () => [GraphQLJSONObject], nullable: true }) 
     populationDensityData?: Array<{ latitude: number; longitude: number; density: number }>,
-    @CurrentTenant() tenantId: string,
   ): Promise<Array<{
     latitude: number;
     longitude: number;

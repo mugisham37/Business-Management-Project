@@ -668,7 +668,7 @@ export class LocationInventoryPolicyService {
       updatedAt: record.updatedAt,
     });
   }
-}
+
   /**
    * Get location inventory policy (called by resolver)
    */
@@ -876,3 +876,4 @@ export class LocationInventoryPolicyService {
       throw error;
     }
   }
+}

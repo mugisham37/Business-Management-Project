@@ -517,7 +517,6 @@ export class LocationPricingService {
       updatedAt: record.updatedAt,
     });
   }
-}
 
   /**
    * Get location pricing information (called by resolver)
@@ -529,7 +528,7 @@ export class LocationPricingService {
   ): Promise<any> {
     try {
       const query: LocationPricingQueryDto = {
-        productId,
+        ...(productId !== undefined && { productId }),
         activeOnly: true,
       };
 
@@ -627,15 +626,25 @@ export class LocationPricingService {
     tenantId: string,
     locationId: string,
     ruleId: string,
-    productId: string,
-    quantity: number,
-    basePrice: number,
-    userId: string,
+    productId?: string,
+    quantity?: number,
+    basePrice?: number,
+    userId?: string,
   ): Promise<any> {
     try {
       const rule = await this.findById(tenantId, locationId, ruleId);
       if (!rule) {
         throw new NotFoundException(`Pricing rule with ID ${ruleId} not found`);
+      }
+
+      // If called with minimal parameters, just return rule details
+      if (productId === undefined || quantity === undefined || basePrice === undefined) {
+        return {
+          ruleId,
+          rule,
+          applied: false,
+          message: 'Pricing rule is valid but requires product details to calculate price',
+        };
       }
 
       const calculateDto: CalculatePriceDto = {
@@ -661,3 +670,4 @@ export class LocationPricingService {
       throw error;
     }
   }
+}

@@ -9,25 +9,21 @@ import { BaseResolver } from '../../../common/graphql/base.resolver';
 import { DataLoaderService } from '../../../common/graphql/dataloader.service';
 import { FranchiseService } from '../services/franchise.service';
 import { LocationService } from '../services/location.service';
-import { 
-  FranchiseType, 
-  LocationType, 
-  FranchiseLocationInput,
-  FranchiseLocationUpdateInput 
-} from '../types/location.types';
+import { FranchiseGQLType, LocationGQLType } from '../types/location.types';
+import { CreateLocationDto, UpdateLocationDto } from '../dto/location.dto';
 
-@Resolver(() => FranchiseType)
+@Resolver(() => FranchiseGQLType)
 @UseGuards(JwtAuthGuard)
 export class FranchiseLocationResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly franchiseService: FranchiseService,
     private readonly locationService: LocationService,
   ) {
     super(dataLoaderService);
   }
 
-  @Query(() => [FranchiseType], { name: 'getFranchiseLocations' })
+  @Query(() => [FranchiseGQLType], { name: 'getFranchiseLocations' })
   @UseGuards(PermissionsGuard)
   @Permissions('franchise:read')
   async getFranchiseLocations(
@@ -37,7 +33,7 @@ export class FranchiseLocationResolver extends BaseResolver {
     return this.franchiseService.getFranchiseLocations(tenantId, franchiseId);
   }
 
-  @Query(() => FranchiseType, { name: 'getFranchiseLocation', nullable: true })
+  @Query(() => FranchiseGQLType, { name: 'getFranchiseLocation', nullable: true })
   @UseGuards(PermissionsGuard)
   @Permissions('franchise:read')
   async getFranchiseLocation(
@@ -45,32 +41,34 @@ export class FranchiseLocationResolver extends BaseResolver {
     @Args('locationId', { type: () => ID }) locationId: string,
     @CurrentTenant() tenantId: string,
   ): Promise<any> {
-    return this.franchiseService.getFranchiseLocation(tenantId, franchiseId, locationId);
+    return this.franchiseService.getFranchiseLocations(tenantId, franchiseId).then(locations =>
+      locations.find((loc: any) => loc.id === locationId)
+    );
   }
 
-  @Mutation(() => FranchiseType, { name: 'createFranchiseLocation' })
+  @Mutation(() => FranchiseGQLType, { name: 'createFranchiseLocation' })
   @UseGuards(PermissionsGuard)
   @Permissions('franchise:create')
   async createFranchiseLocation(
     @Args('franchiseId', { type: () => ID }) franchiseId: string,
-    @Args('input', { type: () => FranchiseLocationInput }) input: any,
+    @Args('input', { type: () => CreateLocationDto }) input: CreateLocationDto,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<any> {
-    return this.franchiseService.createFranchiseLocation(tenantId, franchiseId, input, user.id);
+    return this.locationService.createLocation(tenantId, input, user.id);
   }
 
-  @Mutation(() => FranchiseType, { name: 'updateFranchiseLocation' })
+  @Mutation(() => FranchiseGQLType, { name: 'updateFranchiseLocation' })
   @UseGuards(PermissionsGuard)
   @Permissions('franchise:update')
   async updateFranchiseLocation(
     @Args('franchiseId', { type: () => ID }) franchiseId: string,
     @Args('locationId', { type: () => ID }) locationId: string,
-    @Args('input', { type: () => FranchiseLocationUpdateInput }) input: any,
+    @Args('input', { type: () => UpdateLocationDto }) input: UpdateLocationDto,
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<any> {
-    return this.franchiseService.updateFranchiseLocation(tenantId, franchiseId, locationId, input, user.id);
+    return this.locationService.updateLocation(tenantId, locationId, input, user.id);
   }
 
   @Mutation(() => Boolean, { name: 'deleteFranchiseLocation' })
@@ -82,26 +80,16 @@ export class FranchiseLocationResolver extends BaseResolver {
     @CurrentUser() user: any,
     @CurrentTenant() tenantId: string,
   ): Promise<boolean> {
-    await this.franchiseService.deleteFranchiseLocation(tenantId, franchiseId, locationId, user.id);
+    await this.locationService.deleteLocation(tenantId, locationId, user.id);
     return true;
   }
 
-  @ResolveField(() => [LocationType], { name: 'locations' })
+  @ResolveField(() => [LocationGQLType], { name: 'locations' })
   async locations(@Parent() franchise: any): Promise<any[]> {
-    return this.dataLoaderService.createDataLoader(
-      'franchise-locations',
-      async (franchiseIds: string[]) => {
-        const results = await Promise.all(
-          franchiseIds.map(id => 
-            this.franchiseService.getFranchiseLocations(franchise.tenantId, id)
-          )
-        );
-        return results;
-      }
-    ).load(franchise.id);
+    return this.franchiseService.getFranchiseLocations(franchise.tenantId, franchise.id);
   }
 
-  @ResolveField(() => LocationType, { name: 'primaryLocation', nullable: true })
+  @ResolveField(() => LocationGQLType, { name: 'primaryLocation', nullable: true })
   async primaryLocation(@Parent() franchise: any): Promise<any> {
     const locations = await this.locations(franchise);
     return locations.find(location => location.isPrimary) || null;

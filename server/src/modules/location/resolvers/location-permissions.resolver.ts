@@ -15,7 +15,7 @@ import { GraphQLJSONObject } from 'graphql-type-json';
 @UseGuards(JwtAuthGuard)
 export class LocationPermissionsResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly permissionsService: LocationPermissionsService,
   ) {
     super(dataLoaderService);
@@ -51,10 +51,10 @@ export class LocationPermissionsResolver extends BaseResolver {
   async updateLocationPermissions(
     @Args('userId', { type: () => ID }) userId: string,
     @Args('locationId', { type: () => ID }) locationId: string,
-    @Args('role', { nullable: true }) role?: string,
-    @Args('permissions', { type: () => [String], nullable: true }) permissions?: string[],
     @CurrentTenant() tenantId: string,
     @CurrentUser() currentUser: any,
+    @Args('role', { nullable: true }) role?: string,
+    @Args('permissions', { type: () => [String], nullable: true }) permissions?: string[],
   ): Promise<LocationPermission> {
     const updates: any = {};
     if (role) updates.role = role;
@@ -75,8 +75,8 @@ export class LocationPermissionsResolver extends BaseResolver {
   async checkLocationAccess(
     @Args('userId', { type: () => ID }) userId: string,
     @Args('locationId', { type: () => ID }) locationId: string,
-    @Args('requiredPermission', { nullable: true }) requiredPermission?: string,
     @CurrentTenant() tenantId: string,
+    @Args('requiredPermission', { nullable: true }) requiredPermission?: string,
   ): Promise<LocationAccessCheck> {
     return this.permissionsService.checkLocationAccess(tenantId, userId, locationId, requiredPermission);
   }

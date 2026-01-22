@@ -649,7 +649,6 @@ export class LocationPromotionService {
 
     return new LocationPromotion(entityData);
   }
-}
 
   /**
    * Get location promotions (called by resolver)
@@ -836,3 +835,4 @@ export class LocationPromotionService {
       throw error;
     }
   }
+}

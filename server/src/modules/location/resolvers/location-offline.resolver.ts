@@ -15,7 +15,7 @@ import { GraphQLJSONObject } from 'graphql-type-json';
 @UseGuards(JwtAuthGuard)
 export class LocationOfflineResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly offlineService: LocationOfflineService,
     @Inject('PUB_SUB') private readonly pubSub: PubSub,
   ) {
@@ -141,7 +141,7 @@ export class LocationOfflineResolver extends BaseResolver {
     },
   })
   connectionStatusChanged(@CurrentTenant() tenantId: string) {
-    return this.pubSub.asyncIterator('connectionStatusChanged');
+    return (this.pubSub as any).asyncIterator('connectionStatusChanged');
   }
 
   @Subscription(() => GraphQLJSONObject, {
@@ -150,6 +150,6 @@ export class LocationOfflineResolver extends BaseResolver {
     },
   })
   offlineSyncCompleted(@CurrentTenant() tenantId: string) {
-    return this.pubSub.asyncIterator('offlineSyncCompleted');
+    return (this.pubSub as any).asyncIterator('offlineSyncCompleted');
   }
 }

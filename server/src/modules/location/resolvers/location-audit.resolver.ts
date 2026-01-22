@@ -13,7 +13,7 @@ import { GraphQLJSONObject } from 'graphql-type-json';
 @UseGuards(JwtAuthGuard)
 export class LocationAuditResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly auditService: LocationAuditService,
   ) {
     super(dataLoaderService);
@@ -23,14 +23,14 @@ export class LocationAuditResolver extends BaseResolver {
   @UseGuards(PermissionsGuard)
   @Permissions('location:audit')
   async getLocationAuditHistory(
+    @CurrentTenant() tenantId: string,
     @Args('locationId', { type: () => ID }) locationId: string,
     @Args('userId', { type: () => ID, nullable: true }) userId?: string,
     @Args('actions', { type: () => [String], nullable: true }) actions?: string[],
     @Args('startDate', { nullable: true }) startDate?: Date,
     @Args('endDate', { nullable: true }) endDate?: Date,
-    @Args('page', { type: () => Int, defaultValue: 1 }) page?: number,
-    @Args('limit', { type: () => Int, defaultValue: 50 }) limit?: number,
-    @CurrentTenant() tenantId: string,
+    @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
+    @Args('limit', { type: () => Int, defaultValue: 50 }) limit: number = 50,
   ): Promise<{
     entries: any[];
     total: number;
@@ -38,11 +38,12 @@ export class LocationAuditResolver extends BaseResolver {
     limit: number;
     hasMore: boolean;
   }> {
-    const query: Omit<AuditQuery, 'locationId'> = {
-      userId,
-      actions,
-      startDate,
-      endDate,
+    const query: AuditQuery & { locationId: string } = {
+      locationId,
+      userId: userId || '',
+      actions: actions || [],
+      startDate: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      endDate: endDate || new Date(),
       page,
       limit,
     };
@@ -54,9 +55,9 @@ export class LocationAuditResolver extends BaseResolver {
   @UseGuards(PermissionsGuard)
   @Permissions('location:audit')
   async getLocationAuditSummary(
-    @Args('locationId', { type: () => ID }) locationId: string,
-    @Args('days', { type: () => Int, defaultValue: 30 }) days: number,
     @CurrentTenant() tenantId: string,
+    @Args('locationId', { type: () => ID }) locationId: string,
+    @Args('days', { type: () => Int, defaultValue: 30 }) days: number = 30,
   ): Promise<AuditSummary> {
     return this.auditService.getLocationAuditSummary(tenantId, locationId, days);
   }
@@ -65,14 +66,14 @@ export class LocationAuditResolver extends BaseResolver {
   @UseGuards(PermissionsGuard)
   @Permissions('location:audit')
   async getTenantAuditHistory(
+    @CurrentTenant() tenantId: string,
     @Args('locationId', { type: () => ID, nullable: true }) locationId?: string,
     @Args('userId', { type: () => ID, nullable: true }) userId?: string,
     @Args('actions', { type: () => [String], nullable: true }) actions?: string[],
     @Args('startDate', { nullable: true }) startDate?: Date,
     @Args('endDate', { nullable: true }) endDate?: Date,
-    @Args('page', { type: () => Int, defaultValue: 1 }) page?: number,
-    @Args('limit', { type: () => Int, defaultValue: 50 }) limit?: number,
-    @CurrentTenant() tenantId: string,
+    @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
+    @Args('limit', { type: () => Int, defaultValue: 50 }) limit: number = 50,
   ): Promise<{
     entries: any[];
     total: number;
@@ -81,11 +82,11 @@ export class LocationAuditResolver extends BaseResolver {
     hasMore: boolean;
   }> {
     const query: AuditQuery = {
-      locationId,
-      userId,
-      actions,
-      startDate,
-      endDate,
+      locationId: locationId || '',
+      userId: userId || '',
+      actions: actions || [],
+      startDate: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      endDate: endDate || new Date(),
       page,
       limit,
     };
@@ -97,9 +98,9 @@ export class LocationAuditResolver extends BaseResolver {
   @UseGuards(PermissionsGuard)
   @Permissions('location:audit')
   async getComplianceReport(
+    @CurrentTenant() tenantId: string,
     @Args('startDate') startDate: Date,
     @Args('endDate') endDate: Date,
-    @CurrentTenant() tenantId: string,
   ): Promise<{
     period: { startDate: Date; endDate: Date };
     totalChanges: number;

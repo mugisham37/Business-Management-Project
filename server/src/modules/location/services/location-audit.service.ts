@@ -182,10 +182,10 @@ export class LocationAuditService {
       });
 
       // Count by user
-      const userCounts: Record<string, { count: number; userName?: string }> = {};
+      const userCounts: Record<string, { count: number; userName?: string | undefined }> = {};
       entries.forEach(entry => {
         if (!userCounts[entry.userId]) {
-          userCounts[entry.userId] = { count: 0, userName: entry.userName };
+          userCounts[entry.userId] = { count: 0, userName: entry.userName ?? undefined };
         }
         userCounts[entry.userId]!.count++;
       });
@@ -209,7 +209,7 @@ export class LocationAuditService {
       const dailyCounts: Record<string, number> = {};
 
       entries.forEach(entry => {
-        const dateKey = entry.timestamp.toISOString().split('T')[0];
+        const dateKey = entry.timestamp.toISOString().split('T')[0]!;
         dailyCounts[dateKey] = (dailyCounts[dateKey] || 0) + 1;
       });
 
@@ -217,7 +217,7 @@ export class LocationAuditService {
       for (let i = 0; i < days; i++) {
         const date = new Date();
         date.setDate(date.getDate() - i);
-        const dateKey = date.toISOString().split('T')[0];
+        const dateKey = date.toISOString().split('T')[0]!;
         changeFrequency.push({
           date: dateKey,
           count: dailyCounts[dateKey] || 0,
@@ -369,10 +369,10 @@ export class LocationAuditService {
       });
 
       // Changes by user
-      const userCounts: Record<string, { count: number; userName?: string }> = {};
+      const userCounts: Record<string, { count: number; userName?: string | undefined }> = {};
       entries.forEach(entry => {
         if (!userCounts[entry.userId]) {
-          userCounts[entry.userId] = { count: 0, userName: entry.userName };
+          userCounts[entry.userId] = { count: 0, userName: entry.userName ?? undefined };
         }
         userCounts[entry.userId]!.count++;
       });

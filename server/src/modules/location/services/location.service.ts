@@ -321,9 +321,11 @@ export class LocationService {
     const locationMap = new Map<string, Location>();
     const rootLocations: Location[] = [];
 
-    // Create a map of all locations
+    // Create a map of all locations with childLocations initialized
     locations.forEach(location => {
-      locationMap.set(location.id, { ...location, childLocations: [] });
+      const locationWithChildren = { ...location };
+      (locationWithChildren as any).childLocations = [];
+      locationMap.set(location.id, locationWithChildren as any);
     });
 
     // Build the tree structure
@@ -333,7 +335,9 @@ export class LocationService {
       if (location.parentLocationId) {
         const parent = locationMap.get(location.parentLocationId);
         if (parent) {
-          parent.childLocations = parent.childLocations || [];
+          if (!parent.childLocations) {
+            parent.childLocations = [];
+          }
           parent.childLocations.push(locationWithChildren);
         }
       } else {
@@ -342,5 +346,39 @@ export class LocationService {
     });
 
     return rootLocations;
+  }
+
+  /**
+   * Alias method for create - used by resolvers
+   */
+  async createLocation(tenantId: string, data: CreateLocationDto, userId: string): Promise<Location> {
+    return this.create(tenantId, data, userId);
+  }
+
+  /**
+   * Alias method for update - used by resolvers
+   */
+  async updateLocation(tenantId: string, id: string, data: UpdateLocationDto, userId: string): Promise<Location> {
+    return this.update(tenantId, id, data, userId);
+  }
+
+  /**
+   * Alias method for delete - used by resolvers
+   */
+  async deleteLocation(tenantId: string, id: string, userId: string): Promise<void> {
+    return this.delete(tenantId, id, userId);
+  }
+
+  /**
+   * Find all locations for a tenant
+   */
+  async findByTenant(tenantId: string): Promise<Location[]> {
+    try {
+      const { locations } = await this.locationRepository.findAll(tenantId, {});
+      return locations;
+    } catch (error: any) {
+      this.logger.error(`Failed to find locations for tenant: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 }

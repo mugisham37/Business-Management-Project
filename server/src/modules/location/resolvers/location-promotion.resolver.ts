@@ -15,7 +15,7 @@ import { GraphQLJSONObject } from 'graphql-type-json';
 @UseGuards(JwtAuthGuard)
 export class LocationPromotionResolver extends BaseResolver {
   constructor(
-    protected readonly dataLoaderService: DataLoaderService,
+    protected override readonly dataLoaderService: DataLoaderService,
     private readonly promotionService: LocationPromotionService,
     @Inject('PUB_SUB') private readonly pubSub: PubSub,
   ) {
@@ -79,6 +79,6 @@ export class LocationPromotionResolver extends BaseResolver {
     },
   })
   promotionActivated(@CurrentTenant() tenantId: string) {
-    return this.pubSub.asyncIterator('promotionActivated');
+    return (this.pubSub as any).asyncIterator('promotionActivated');
   }
 }

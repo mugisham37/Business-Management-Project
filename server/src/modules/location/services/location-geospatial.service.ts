@@ -121,7 +121,7 @@ export class LocationGeospatialService {
         ...(statuses && { statuses }),
       });
 
-      return nearbyLocations.length > 0 ? nearbyLocations[0] : null;
+      return nearbyLocations.length > 0 ? nearbyLocations[0]! : null;
     } catch (error: any) {
       this.logger.error(`Failed to find closest location: ${error.message}`, error.stack);
       throw error;
@@ -209,10 +209,10 @@ export class LocationGeospatialService {
       for (let i = 0; i < validLocations.length; i++) {
         for (let j = i + 1; j < validLocations.length; j++) {
           const distance = this.calculateDistance(
-            validLocations[i].latitude!,
-            validLocations[i].longitude!,
-            validLocations[j].latitude!,
-            validLocations[j].longitude!
+            validLocations[i]!.latitude!,
+            validLocations[i]!.longitude!,
+            validLocations[j]!.latitude!,
+            validLocations[j]!.longitude!
           );
           
           if (distance < radiusKm * 2) {
