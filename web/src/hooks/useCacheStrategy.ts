@@ -1,6 +1,7 @@
 import { useApolloClient, FetchPolicy, WatchQueryFetchPolicy } from '@apollo/client';
 import { useCallback, useEffect } from 'react';
 import { cacheInvalidation } from '@/lib/apollo/cache-utils';
+import { getUnifiedCacheManager } from '@/lib/cache';
 
 export type CacheStrategy = 
   | 'cache-first'
@@ -18,9 +19,11 @@ interface CacheStrategyOptions {
 
 /**
  * Hook for managing cache strategies and policies
+ * Enhanced with multi-tier caching and intelligent invalidation
  */
 export function useCacheStrategy(options: CacheStrategyOptions = {}) {
   const client = useApolloClient();
+  const unifiedCache = getUnifiedCacheManager();
   const {
     defaultStrategy = 'cache-first',
     enableOfflineMode = false,
@@ -46,60 +49,87 @@ export function useCacheStrategy(options: CacheStrategyOptions = {}) {
     return defaultStrategy as WatchQueryFetchPolicy;
   }, [defaultStrategy, enableOfflineMode, cacheTimeout]);
 
-  // Cache warming for critical data
+  // Cache warming for critical data with multi-tier support
   const warmCache = useCallback(async (queries: Array<{
     query: any;
     variables?: any;
+    priority?: 'high' | 'medium' | 'low';
+    tenantId?: string;
   }>) => {
-    const promises = queries.map(({ query, variables }) =>
-      client.query({
-        query,
-        variables,
-        fetchPolicy: 'network-only',
-        errorPolicy: 'ignore',
-      })
-    );
+    const warmingConfigs = queries.map(({ query, variables, priority = 'medium', tenantId }) => ({
+      key: `query_${query.definitions[0]?.name?.value || 'unknown'}_${JSON.stringify(variables || {})}`,
+      loader: async () => {
+        const result = await client.query({
+          query,
+          variables,
+          fetchPolicy: 'network-only',
+          errorPolicy: 'ignore',
+        });
+        return result.data;
+      },
+      priority,
+      tenantId,
+    }));
 
     try {
-      await Promise.allSettled(promises);
-      console.log('Cache warming completed');
+      await unifiedCache.warmCache(warmingConfigs);
+      console.log('Multi-tier cache warming completed');
     } catch (error) {
-      console.warn('Cache warming failed:', error);
+      console.warn('Multi-tier cache warming failed:', error);
     }
-  }, [client]);
+  }, [client, unifiedCache]);
 
   // Intelligent cache invalidation based on mutation impact
-  const invalidateRelatedData = useCallback((
+  const invalidateRelatedData = useCallback(async (
     mutationType: string,
-    affectedEntityTypes: string[]
+    affectedEntityTypes: string[],
+    tenantId?: string
   ) => {
-    // Invalidate related queries based on mutation type
-    const invalidationMap: Record<string, string[]> = {
-      'createUser': ['users', 'userStats'],
-      'updateUser': ['users', 'currentUser'],
-      'deleteUser': ['users', 'userStats'],
-      'createTenant': ['tenants', 'tenantStats'],
-      'updateTenant': ['tenants', 'currentTenant'],
-      'deleteTenant': ['tenants', 'tenantStats'],
-    };
+    try {
+      // Use intelligent invalidation engine
+      await unifiedCache.invalidateFromMutation(mutationType, {}, tenantId);
+      
+      // Fallback to manual invalidation for additional types
+      const fieldsToInvalidate = affectedEntityTypes.map(type => type.toLowerCase());
+      if (fieldsToInvalidate.length > 0) {
+        cacheInvalidation.invalidateFields(fieldsToInvalidate);
+      }
+    } catch (error) {
+      console.error('Intelligent cache invalidation failed:', error);
+      
+      // Fallback to basic invalidation
+      const invalidationMap: Record<string, string[]> = {
+        'createUser': ['users', 'userStats'],
+        'updateUser': ['users', 'currentUser'],
+        'deleteUser': ['users', 'userStats'],
+        'createTenant': ['tenants', 'tenantStats'],
+        'updateTenant': ['tenants', 'currentTenant'],
+        'deleteTenant': ['tenants', 'tenantStats'],
+      };
 
-    const fieldsToInvalidate = invalidationMap[mutationType] || affectedEntityTypes;
-    
-    if (fieldsToInvalidate.length > 0) {
-      cacheInvalidation.invalidateFields(fieldsToInvalidate);
+      const fieldsToInvalidate = invalidationMap[mutationType] || affectedEntityTypes;
+      
+      if (fieldsToInvalidate.length > 0) {
+        cacheInvalidation.invalidateFields(fieldsToInvalidate);
+      }
     }
-  }, []);
+  }, [unifiedCache]);
 
-  // Cache size monitoring and cleanup
+  // Cache size monitoring and cleanup with multi-tier awareness
   const monitorCacheSize = useCallback(() => {
+    // Get Apollo Cache size
     const cacheData = client.cache.extract();
-    const cacheSize = JSON.stringify(cacheData).length;
+    const apolloCacheSize = JSON.stringify(cacheData).length;
     const maxCacheSize = 10 * 1024 * 1024; // 10MB
 
-    if (cacheSize > maxCacheSize) {
-      console.warn(`Cache size (${(cacheSize / 1024 / 1024).toFixed(2)}MB) exceeds limit`);
+    // Get multi-tier cache metrics
+    const multiTierMetrics = unifiedCache.getMetrics();
+    const totalMemoryUsage = multiTierMetrics.multiTier.memoryUsage + apolloCacheSize;
+
+    if (totalMemoryUsage > maxCacheSize) {
+      console.warn(`Total cache size (${(totalMemoryUsage / 1024 / 1024).toFixed(2)}MB) exceeds limit`);
       
-      // Perform selective cache cleanup
+      // Perform selective Apollo Cache cleanup
       const oldestEntries = Object.keys(cacheData)
         .filter(key => key.startsWith('ROOT_QUERY'))
         .slice(0, Math.floor(Object.keys(cacheData).length * 0.3));
@@ -111,8 +141,13 @@ export function useCacheStrategy(options: CacheStrategyOptions = {}) {
       client.cache.gc();
     }
 
-    return cacheSize;
-  }, [client]);
+    return {
+      apolloCache: apolloCacheSize,
+      multiTierCache: multiTierMetrics.multiTier.memoryUsage,
+      total: totalMemoryUsage,
+      metrics: multiTierMetrics,
+    };
+  }, [client, unifiedCache]);
 
   // Periodic cache cleanup
   useEffect(() => {
@@ -140,12 +175,13 @@ export function useCacheStrategy(options: CacheStrategyOptions = {}) {
     return defaultStrategy as FetchPolicy;
   }, [defaultStrategy, enableOfflineMode]);
 
-  // Cache preloading for anticipated user actions
+  // Cache preloading for anticipated user actions with multi-tier support
   const preloadData = useCallback(async (
     preloadQueries: Array<{
       query: any;
       variables?: any;
       priority?: 'high' | 'medium' | 'low';
+      tenantId?: string;
     }>
   ) => {
     // Sort by priority
@@ -177,18 +213,32 @@ export function useCacheStrategy(options: CacheStrategyOptions = {}) {
     invalidateRelatedData,
     monitorCacheSize,
     
-    // Cache utilities
-    clearCache: () => client.cache.reset(),
+    // Cache utilities with multi-tier support
+    clearCache: () => {
+      client.cache.reset();
+      // Note: Multi-tier cache clearing would need tenant context
+    },
+    clearTenantCache: async (tenantId: string) => {
+      await unifiedCache.clearTenant(tenantId);
+      cacheInvalidation.clearTenantCache();
+    },
     evictEntity: (id: string) => {
       client.cache.evict({ id });
       client.cache.gc();
     },
     
+    // Multi-tier cache access
+    getUnifiedCache: () => unifiedCache,
+    
     // Cache inspection (development)
     inspectCache: () => {
       if (process.env.NODE_ENV === 'development') {
-        console.log('Cache contents:', client.cache.extract());
-        console.log('Cache size:', monitorCacheSize(), 'bytes');
+        const apolloCache = client.cache.extract();
+        const cacheMetrics = monitorCacheSize();
+        
+        console.log('Apollo Cache contents:', apolloCache);
+        console.log('Cache metrics:', cacheMetrics);
+        console.log('Multi-tier cache metrics:', cacheMetrics.metrics);
       }
     },
   };
