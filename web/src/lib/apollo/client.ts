@@ -56,10 +56,17 @@ const httpLink = createHttpLink({
 const wsLink = typeof window !== 'undefined' ? new GraphQLWsLink(
   createClient({
     url: config.graphql.wsUri,
-    connectionParams: () => {
-      const token = typeof window !== 'undefined' 
-        ? localStorage.getItem('accessToken') 
-        : null;
+    connectionParams: async () => {
+      let token = null;
+      
+      try {
+        const { authManager } = await import('@/lib/auth');
+        token = await authManager.getAccessToken();
+      } catch (error) {
+        console.warn('Failed to get auth token for WebSocket:', error);
+        // Fallback to localStorage
+        token = localStorage.getItem('accessToken');
+      }
       
       return {
         authorization: token ? `Bearer ${token}` : '',
@@ -71,18 +78,29 @@ const wsLink = typeof window !== 'undefined' ? new GraphQLWsLink(
 ) : null;
 
 // Auth link to add authorization headers
-const authLink = setContext((_, { headers }) => {
-  const token = typeof window !== 'undefined' 
-    ? localStorage.getItem('accessToken') 
-    : null;
+const authLink = setContext(async (_, { headers }) => {
+  let token = null;
+  let tenantId = '';
+  
+  if (typeof window !== 'undefined') {
+    // Use the auth manager to get valid tokens
+    try {
+      const { authManager } = await import('@/lib/auth');
+      token = await authManager.getAccessToken();
+      // Get tenant ID from localStorage for now (will be improved in tenant module)
+      tenantId = localStorage.getItem('currentTenantId') || '';
+    } catch (error) {
+      console.warn('Failed to get auth token:', error);
+      // Fallback to direct localStorage access
+      token = localStorage.getItem('accessToken');
+    }
+  }
   
   return {
     headers: {
       ...headers,
       authorization: token ? `Bearer ${token}` : '',
-      'x-tenant-id': typeof window !== 'undefined' 
-        ? localStorage.getItem('currentTenantId') || '' 
-        : '',
+      'x-tenant-id': tenantId,
     },
   };
 });
@@ -97,11 +115,16 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
       
       // Handle authentication errors
       if (extensions?.code === 'UNAUTHENTICATED') {
-        // Clear tokens and redirect to login
+        // Use auth manager to handle logout
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          window.location.href = '/login';
+          import('@/lib/auth').then(({ authManager }) => {
+            authManager.logout().catch(console.error);
+          }).catch(() => {
+            // Fallback to manual cleanup
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            window.location.href = '/login';
+          });
         }
       }
       
