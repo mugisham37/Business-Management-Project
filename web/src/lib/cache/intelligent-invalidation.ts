@@ -1,4 +1,3 @@
-import { DocumentNode } from '@apollo/client';
 import { apolloClient } from '@/lib/apollo/client';
 import { getMultiTierCache } from './multi-tier-cache';
 
@@ -12,7 +11,7 @@ export interface InvalidationRule {
   affectedQueries: string[];
   affectedTypes: string[];
   tenantSpecific: boolean;
-  customInvalidator?: (variables: any) => Promise<void>;
+  customInvalidator?: (variables: unknown) => Promise<void>;
 }
 
 export interface InvalidationMetrics {
@@ -131,11 +130,11 @@ class MutationImpactAnalyzer {
     return this.mutationRules.get(mutationType);
   }
 
-  analyzeImpact(mutationType: string, variables: any): {
+  analyzeImpact(mutationType: string, variables: unknown): {
     queries: string[];
     types: string[];
     tenantSpecific: boolean;
-    customInvalidator?: (variables: any) => Promise<void>;
+    customInvalidator?: (variables: unknown) => Promise<void>;
   } {
     const rule = this.getRule(mutationType);
     
@@ -153,14 +152,14 @@ class MutationImpactAnalyzer {
       queries: rule.affectedQueries,
       types: rule.affectedTypes,
       tenantSpecific: rule.tenantSpecific,
-      customInvalidator: rule.customInvalidator,
+      ...(rule.customInvalidator !== undefined && { customInvalidator: rule.customInvalidator }),
     };
   }
 
   private extractEntityType(mutationType: string): string {
     // Extract entity type from mutation name (e.g., 'createUser' -> 'User')
     const match = mutationType.match(/^(create|update|delete)(.+)$/);
-    return match ? this.capitalize(match[2]) : 'Unknown';
+    return match && match[2] ? this.capitalize(match[2]) : 'Unknown';
   }
 
   private capitalize(str: string): string {
@@ -195,7 +194,7 @@ export class CacheInvalidationEngine {
    */
   async invalidateFromMutation(
     mutationType: string,
-    variables: any,
+    variables: unknown,
     tenantId?: string
   ): Promise<void> {
     const startTime = Date.now();

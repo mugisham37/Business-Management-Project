@@ -100,7 +100,7 @@ export interface BrandingConfig {
 export interface FeatureFlag {
   key: string;
   enabled: boolean;
-  config: Record<string, any>;
+  config: Record<string, unknown>;
   requiredTier: BusinessTier;
 }
 
@@ -114,8 +114,8 @@ export interface TenantContext {
 // GraphQL Types
 export interface GraphQLOperation {
   query: string;
-  variables?: Record<string, any>;
-  context?: Record<string, any>;
+  variables?: Record<string, unknown>;
+  context?: Record<string, unknown>;
   errorPolicy?: ErrorPolicy;
   fetchPolicy?: FetchPolicy;
 }
@@ -124,7 +124,7 @@ export interface GraphQLError {
   message: string;
   locations?: Array<{ line: number; column: number }>;
   path?: Array<string | number>;
-  extensions?: Record<string, any>;
+  extensions?: Record<string, unknown>;
 }
 
 // Cache Types
@@ -154,7 +154,7 @@ export interface SubscriptionOptions {
 export interface AppError {
   code: string;
   message: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   timestamp: Date;
   userId?: string;
   tenantId?: string;

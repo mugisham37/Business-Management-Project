@@ -25,6 +25,11 @@ export type { OfflineQueueItem, OfflineMetrics, SyncResult } from './offline-cac
 export { default as cacheUtils } from '@/lib/apollo/cache-utils';
 export { useCacheStrategy } from '@/hooks/useCacheStrategy';
 
+// Import the functions for internal use in UnifiedCacheManager
+import { getMultiTierCache } from './multi-tier-cache';
+import { getCacheInvalidationEngine } from './intelligent-invalidation';
+import { getOfflineCacheManager } from './offline-cache';
+
 /**
  * Unified Cache Manager
  * Provides a single interface to all caching capabilities
@@ -80,7 +85,7 @@ export class UnifiedCacheManager {
    */
   async invalidateFromMutation(
     mutationType: string,
-    variables: any,
+    variables: unknown,
     tenantId?: string
   ): Promise<void> {
     return this.invalidationEngine.invalidateFromMutation(mutationType, variables, tenantId);
@@ -89,7 +94,7 @@ export class UnifiedCacheManager {
   /**
    * Queue mutation for offline sync
    */
-  queueMutation(mutation: any, variables: any, options: {
+  queueMutation(mutation: unknown, variables: unknown, options: {
     tenantId?: string;
     maxRetries?: number;
   } = {}): void {
@@ -101,7 +106,7 @@ export class UnifiedCacheManager {
    */
   async warmCache(keys: Array<{
     key: string;
-    loader: () => Promise<any>;
+    loader: () => Promise<unknown>;
     priority?: 'high' | 'medium' | 'low';
     tenantId?: string;
   }>): Promise<void> {

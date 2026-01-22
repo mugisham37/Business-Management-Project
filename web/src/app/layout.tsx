@@ -3,10 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import React from "react";
 import "./globals.css";
 import "@/lib/error-handling/error-boundary.css";
-import { ApolloProvider } from "@/lib/apollo";
+import { Providers } from "./providers";
 import { PerformanceMetrics } from "@/components/performance/PerformanceMetrics";
-import { setupErrorBoundaryHierarchy, initializeErrorHandling } from "@/lib/error-handling";
-import { DevToolsProvider } from "@/lib/dev-tools";
+import { initializeErrorHandling } from "@/lib/error-handling";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -64,23 +63,15 @@ export default function RootLayout({
     });
   }, []);
 
-  const ErrorBoundaries = setupErrorBoundaryHierarchy();
-
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ErrorBoundaries.App>
-          <ApolloProvider>
-            <DevToolsProvider>
-              <ErrorBoundaries.Page>
-                {children}
-              </ErrorBoundaries.Page>
-              <PerformanceMetrics />
-            </DevToolsProvider>
-          </ApolloProvider>
-        </ErrorBoundaries.App>
+        <Providers>
+          {children}
+          <PerformanceMetrics />
+        </Providers>
       </body>
     </html>
   );

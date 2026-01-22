@@ -1,12 +1,9 @@
-import { InMemoryCache } from '@apollo/client';
-import { apolloClient } from '@/lib/apollo/client';
-
 /**
  * Multi-tier caching system that respects backend Redis patterns
  * Implements L1 (memory), L2 (IndexedDB), and L3 (network) caching tiers
  */
 
-export interface CacheEntry<T = any> {
+export interface CacheEntry<T = unknown> {
   data: T;
   timestamp: number;
   ttl: number;
@@ -95,7 +92,7 @@ class L1Cache {
       data,
       timestamp: Date.now(),
       ttl,
-      tenantId,
+      ...(tenantId !== undefined && { tenantId }),
       priority,
       accessCount: 1,
       lastAccess: Date.now(),
@@ -201,7 +198,7 @@ class L2Cache {
     if (!this.db) return null;
 
     return new Promise((resolve) => {
-      const transaction = this.db!.createTransaction([this.storeName], 'readonly');
+      const transaction = this.db!.transaction([this.storeName], 'readonly');
       const store = transaction.objectStore(this.storeName);
       const request = store.get(key);
 
@@ -247,7 +244,7 @@ class L2Cache {
     } = options;
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.createTransaction([this.storeName], 'readwrite');
+      const transaction = this.db!.transaction([this.storeName], 'readwrite');
       const store = transaction.objectStore(this.storeName);
 
       const entry = {
@@ -273,7 +270,7 @@ class L2Cache {
     if (!this.db) return;
 
     return new Promise((resolve) => {
-      const transaction = this.db!.createTransaction([this.storeName], 'readwrite');
+      const transaction = this.db!.transaction([this.storeName], 'readwrite');
       const store = transaction.objectStore(this.storeName);
       const request = store.delete(key);
 
@@ -286,12 +283,12 @@ class L2Cache {
     if (!this.db) return;
 
     return new Promise((resolve) => {
-      const transaction = this.db!.createTransaction([this.storeName], 'readwrite');
+      const transaction = this.db!.transaction([this.storeName], 'readwrite');
       const store = transaction.objectStore(this.storeName);
       const index = store.index('tenantId');
       const request = index.openCursor(IDBKeyRange.only(tenantId));
 
-      request.onsuccess = (event) => {
+      request.onsuccess = (event: Event) => {
         const cursor = (event.target as IDBRequest).result;
         if (cursor) {
           cursor.delete();
@@ -311,12 +308,12 @@ class L2Cache {
     const cutoffTime = Date.now() - (24 * 60 * 60 * 1000); // 24 hours
 
     return new Promise((resolve) => {
-      const transaction = this.db!.createTransaction([this.storeName], 'readwrite');
+      const transaction = this.db!.transaction([this.storeName], 'readwrite');
       const store = transaction.objectStore(this.storeName);
       const index = store.index('timestamp');
       const request = index.openCursor(IDBKeyRange.upperBound(cutoffTime));
 
-      request.onsuccess = (event) => {
+      request.onsuccess = (event: Event) => {
         const cursor = (event.target as IDBRequest).result;
         if (cursor) {
           cursor.delete();
@@ -488,7 +485,7 @@ export class MultiTierCache {
 
   async warmCache(keys: Array<{
     key: string;
-    loader: () => Promise<any>;
+    loader: () => Promise<unknown>;
     priority?: 'high' | 'medium' | 'low';
     tenantId?: string;
   }>): Promise<void> {
@@ -511,8 +508,8 @@ export class MultiTierCache {
   }
 
   getMetrics(): CacheMetrics & {
-    l1Stats: any;
-    l2Stats: any;
+    l1Stats: unknown;
+    l2Stats: unknown;
     criticalKeysCount: number;
     warmingQueueSize: number;
   } {

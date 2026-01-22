@@ -12,13 +12,13 @@ export interface Permission {
   name: string;
   resource: string;
   action: string;
-  conditions?: Record<string, any>;
+  conditions?: Record<string, unknown>;
 }
 
 export interface PermissionCheck {
   resource: string;
   action: string;
-  conditions?: Record<string, any>;
+  conditions?: Record<string, unknown>;
 }
 
 export interface PermissionContext {
@@ -92,14 +92,18 @@ export class PermissionEngine {
   /**
    * Check permission with resource and action
    */
-  can(action: string, resource: string, conditions?: Record<string, any>): boolean {
-    return this.hasPermission({ resource, action, conditions });
+  can(action: string, resource: string, conditions?: Record<string, unknown>): boolean {
+    const check: PermissionCheck = { resource, action };
+    if (conditions !== undefined) {
+      check.conditions = conditions;
+    }
+    return this.hasPermission(check);
   }
 
   /**
    * Check if user cannot perform action (inverse of can)
    */
-  cannot(action: string, resource: string, conditions?: Record<string, any>): boolean {
+  cannot(action: string, resource: string, conditions?: Record<string, unknown>): boolean {
     return !this.can(action, resource, conditions);
   }
 
@@ -180,7 +184,7 @@ export class PermissionEngine {
   /**
    * Evaluate permission conditions
    */
-  private evaluateConditions(conditions: Record<string, any>): boolean {
+  private evaluateConditions(conditions: Record<string, unknown>): boolean {
     // Tenant-based conditions
     if (conditions.tenantId && this.context.tenantId) {
       if (conditions.tenantId !== this.context.tenantId) {
@@ -193,8 +197,10 @@ export class PermissionEngine {
       const requiredTier = conditions.businessTier;
       const userTier = this.context.businessTier;
       
-      if (!this.isTierSufficient(userTier, requiredTier)) {
-        return false;
+      if (typeof requiredTier === 'string' && typeof userTier === 'string') {
+        if (!this.isTierSufficient(userTier, requiredTier)) {
+          return false;
+        }
       }
     }
 
@@ -278,10 +284,10 @@ export function usePermissions(context: PermissionContext) {
  * Higher-Order Component for permission-based rendering
  */
 export interface WithPermissionsProps {
-  permissions?: (string | PermissionCheck)[];
-  requireAll?: boolean;
-  fallback?: React.ReactNode;
-  onUnauthorized?: () => void;
+  permissions?: (string | PermissionCheck)[] | undefined;
+  requireAll?: boolean | undefined;
+  fallback?: React.ReactNode | undefined;
+  onUnauthorized?: (() => void) | undefined;
 }
 
 export function withPermissions<P extends object>(

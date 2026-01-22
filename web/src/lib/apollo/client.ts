@@ -6,7 +6,7 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 import { config } from '@/lib/config/env';
-import { errorLogger, networkErrorHandler } from '@/lib/error-handling';
+import { errorLogger } from '@/lib/error-handling';
 
 // Cache configuration with type policies
 const cache = new InMemoryCache({
@@ -131,7 +131,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
           extensions,
           variables: operation.variables,
         },
-        ['graphql-error', extensions?.code?.toLowerCase() || 'unknown']
+        ['graphql-error', (typeof extensions?.code === 'string' ? extensions.code.toLowerCase() : 'unknown')]
       );
       
       // Handle authentication errors

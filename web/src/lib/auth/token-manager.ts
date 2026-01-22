@@ -4,7 +4,7 @@
  * Requirements: 3.1, 3.2, 3.4, 3.7
  */
 
-import { TokenPair, AuthState } from '@/types/core';
+import { TokenPair } from '@/types/core';
 
 export interface TokenStorage {
   getTokens(): TokenPair | null;
@@ -79,7 +79,12 @@ export class SecureTokenStorage implements TokenStorage {
 
   isTokenExpired(token: string): boolean {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const parts = token.split('.');
+      if (parts.length < 2 || !parts[1]) {
+        console.error('Invalid token format');
+        return true;
+      }
+      const payload = JSON.parse(atob(parts[1]));
       const expirationTime = payload.exp * 1000; // Convert to milliseconds
       return Date.now() >= expirationTime;
     } catch (error) {

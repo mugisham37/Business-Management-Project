@@ -166,7 +166,9 @@ export class AuthManager {
    * Check if user has specific permission
    */
   hasPermission(permission: string): boolean {
-    return this.currentState.permissions.includes(permission);
+    return this.currentState.permissions.some(
+      p => p.id === permission || p.name === permission || `${p.resource}:${p.action}` === permission
+    );
   }
 
   /**
