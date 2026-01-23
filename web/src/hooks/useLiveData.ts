@@ -185,11 +185,28 @@ export function useLiveInventory(productIds?: string[], locationId?: string) {
     );
   }, []);
 
+  // Enhanced inventory statistics
+  const inventoryStats = useMemo(() => {
+    const totalItems = inventoryLevels.length;
+    const lowStockCount = inventoryLevels.filter(item => item.status === 'low_stock').length;
+    const outOfStockCount = inventoryLevels.filter(item => item.currentLevel <= 0).length;
+    const totalValue = inventoryLevels.reduce((sum, item) => sum + (item.currentLevel * (item.averageCost || 0)), 0);
+    
+    return {
+      totalItems,
+      lowStockCount,
+      outOfStockCount,
+      totalValue,
+      alertsCount: lowStockItems.length,
+    };
+  }, [inventoryLevels, lowStockItems]);
+
   return {
     // Data
     inventoryLevels,
     dashboardData: dashboardData?.inventoryDashboard,
     lowStockItems,
+    inventoryStats,
     
     // Loading states
     inventoryLoading,

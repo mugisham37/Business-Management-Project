@@ -23,8 +23,55 @@ export const ProductCatalog = lazy(() =>
   }))
 );
 
-export { useInventory } from './hooks/useInventory';
-export { useProducts } from './hooks/useProducts';
+// Export hooks
+export {
+  useInventoryLevel,
+  useInventoryLevels,
+  useInventoryHistory,
+  useInventoryTransfer,
+  useInventoryReservation,
+  useInventorySummary,
+  useLowStockItems,
+  useOutOfStockItems,
+  useInventorySubscriptions,
+  useInventoryManagement,
+} from '@/hooks/useInventory';
+
+export {
+  useProduct,
+  useProducts,
+  useProductSearch,
+  useFeaturedProducts,
+  useProductSubscriptions,
+  useProductManagement,
+} from '@/hooks/useProducts';
+
+export {
+  useCategory,
+  useCategoryBySlug,
+  useCategories,
+  useCategoryTree,
+  useCategorySearch,
+  useCategoryManagement,
+} from '@/hooks/useCategories';
+
+export {
+  useBrand,
+  useBrandBySlug,
+  useBrands,
+  useBrandSearch,
+  usePopularBrands,
+  useBrandManagement,
+} from '@/hooks/useBrands';
+
+export {
+  useBatchTracking,
+  useBatchTrackings,
+  useExpiringBatches,
+  useFIFOBatches,
+  useBatchSubscriptions,
+  useBatchTrackingManagement,
+} from '@/hooks/useBatchTracking';
 
 export const inventoryModule = {
   name: 'Inventory Management',

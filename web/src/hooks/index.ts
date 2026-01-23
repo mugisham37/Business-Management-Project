@@ -117,3 +117,53 @@ export { useCustomerAnalytics, useCustomerLifetimeValue, useCustomersLifetimeVal
 export { useB2BCustomers, useB2BCustomer, useB2BCustomerMetrics, useB2BCustomersByIndustry, useB2BCustomersBySalesRep, useB2BCustomersWithExpiringContracts, useB2BCreditManagement } from './useB2BCustomers';
 export { useCommunications, useCustomerCommunications, useCommunicationStats, useCommunicationTemplates, useCommunicationAutomation } from './useCommunications';
 export { useSegmentation, useSegment, useSegmentMembers, useSegmentCriteriaBuilder, useSegmentTemplates } from './useSegmentation';
+
+// Inventory Hooks
+export {
+  useInventoryLevel,
+  useInventoryLevels,
+  useInventoryHistory,
+  useInventoryTransfer,
+  useInventoryReservation,
+  useInventorySummary,
+  useLowStockItems,
+  useOutOfStockItems,
+  useInventorySubscriptions,
+  useInventoryManagement,
+} from './useInventory';
+
+export {
+  useProduct,
+  useProducts,
+  useProductSearch,
+  useFeaturedProducts,
+  useProductSubscriptions,
+  useProductManagement,
+} from './useProducts';
+
+export {
+  useCategory,
+  useCategoryBySlug,
+  useCategories,
+  useCategoryTree,
+  useCategorySearch,
+  useCategoryManagement,
+} from './useCategories';
+
+export {
+  useBrand,
+  useBrandBySlug,
+  useBrands,
+  useBrandSearch,
+  usePopularBrands,
+  useBrandManagement,
+} from './useBrands';
+
+export {
+  useBatchTracking,
+  useBatchTrackings,
+  useExpiringBatches,
+  useFIFOBatches,
+  useBatchSubscriptions,
+  useBatchTrackingManagement,
+} from './useBatchTracking';

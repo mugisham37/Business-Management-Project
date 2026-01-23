@@ -122,6 +122,10 @@ export interface LiveInventoryLevel {
   reorderPoint: number;
   lastUpdated: Date;
   status: string;
+  averageCost?: number;
+  totalValue?: number;
+  binLocation?: string;
+  zone?: string;
 }
 
 export interface SalesDashboardOverview {
