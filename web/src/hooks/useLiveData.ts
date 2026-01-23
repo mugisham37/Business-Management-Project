@@ -576,6 +576,104 @@ export function useLiveAnalytics(locationId?: string) {
 }
 
 /**
+ * Live Employee Hook
+ * Manages real-time employee data and notifications
+ */
+export function useLiveEmployee(employeeId?: string, departmentId?: string) {
+  const currentTenant = useTenantStore(state => state.currentTenant);
+  const [employeeActivity, setEmployeeActivity] = useState<any[]>([]);
+  const [managerNotifications, setManagerNotifications] = useState<any[]>([]);
+  const [timeTrackingUpdates, setTimeTrackingUpdates] = useState<any[]>([]);
+
+  // Real-time subscriptions for employee events
+  const { data: employeeActivityData } = useSubscription('EMPLOYEE_ACTIVITY_UPDATED', {
+    onData: (data) => {
+      if (data) {
+        try {
+          const activity = JSON.parse(data as string);
+          handleEmployeeActivity(activity);
+        } catch (error) {
+          console.error('Failed to parse employee activity:', error);
+        }
+      }
+    },
+  });
+
+  const { data: timeTrackingData } = useSubscription('TIME_TRACKING_UPDATED', {
+    onData: (data) => {
+      if (data) {
+        try {
+          const update = JSON.parse(data as string);
+          handleTimeTrackingUpdate(update);
+        } catch (error) {
+          console.error('Failed to parse time tracking update:', error);
+        }
+      }
+    },
+  });
+
+  const { data: managerNotificationData } = useSubscription('MANAGER_NOTIFICATIONS', {
+    onData: (data) => {
+      if (data) {
+        try {
+          const notification = JSON.parse(data as string);
+          handleManagerNotification(notification);
+        } catch (error) {
+          console.error('Failed to parse manager notification:', error);
+        }
+      }
+    },
+  });
+
+  // Handle real-time employee activity
+  const handleEmployeeActivity = useCallback((activity: any) => {
+    // Filter by employeeId if specified
+    if (employeeId && activity.employeeId !== employeeId) {
+      return;
+    }
+
+    // Filter by department if specified
+    if (departmentId && activity.department !== departmentId) {
+      return;
+    }
+
+    setEmployeeActivity(prev => [activity, ...prev.slice(0, 49)]); // Keep last 50
+  }, [employeeId, departmentId]);
+
+  // Handle time tracking updates
+  const handleTimeTrackingUpdate = useCallback((update: any) => {
+    // Filter by employeeId if specified
+    if (employeeId && update.employeeId !== employeeId) {
+      return;
+    }
+
+    setTimeTrackingUpdates(prev => [update, ...prev.slice(0, 49)]); // Keep last 50
+  }, [employeeId]);
+
+  // Handle manager notifications
+  const handleManagerNotification = useCallback((notification: any) => {
+    setManagerNotifications(prev => [notification, ...prev.slice(0, 49)]); // Keep last 50
+  }, []);
+
+  return {
+    // Data
+    employeeActivity,
+    managerNotifications,
+    timeTrackingUpdates,
+    
+    // Methods
+    clearActivity: () => setEmployeeActivity([]),
+    clearNotifications: () => setManagerNotifications([]),
+    clearTimeTracking: () => setTimeTrackingUpdates([]),
+    dismissNotification: (notificationId: string) => {
+      setManagerNotifications(prev => 
+        prev.filter(notification => notification.id !== notificationId)
+      );
+    },
+  };
+}
+
+/**
  * Combined Live Data Hook
  * Provides access to all live data functionality
  */
@@ -584,6 +682,7 @@ export function useLiveData(options: {
   sales?: { locationId?: string };
   customerActivity?: { customerId?: string; locationId?: string };
   analytics?: { locationId?: string };
+  employee?: { employeeId?: string; departmentId?: string };
 } = {}) {
   const inventory = useLiveInventory(
     options.inventory?.productIds,
@@ -599,10 +698,16 @@ export function useLiveData(options: {
   
   const analytics = useLiveAnalytics(options.analytics?.locationId);
 
+  const employee = useLiveEmployee(
+    options.employee?.employeeId,
+    options.employee?.departmentId
+  );
+
   return {
     inventory,
     sales,
     customerActivity,
     analytics,
+    employee,
   };
 }

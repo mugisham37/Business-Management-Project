@@ -2,6 +2,7 @@
 export * from './core';
 export * from './communication';
 export * from './realtime';
+export * from './employee';
 
 // Re-export generated types when available (excluding conflicting types)
 export type {
