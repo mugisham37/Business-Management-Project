@@ -23,8 +23,15 @@ export const SalesPipeline = lazy(() =>
   }))
 );
 
-export { useCRM } from './hooks/useCRM';
-export { useCustomers } from './hooks/useCustomers';
+// Export all CRM hooks
+export { useCRM } from '@/hooks/useCRM';
+export { useCustomers, useCustomer, useCustomerByEmail, useCustomerByPhone, useCustomerSearch, useCustomerStats } from '@/hooks/useCustomers';
+export { useLoyalty, useCustomerLoyalty, useCampaignLoyalty, useLoyaltyStats, useLoyaltyTiers } from '@/hooks/useLoyalty';
+export { useCampaigns, useCampaign, useActiveCampaignsForCustomer, useCampaignPerformance, useCampaignStats, useCampaignValidation } from '@/hooks/useCampaigns';
+export { useCustomerAnalytics, useCustomerLifetimeValue, useCustomersLifetimeValue, useCustomerPurchasePatterns, useCustomerChurnRisk, useSegmentAnalytics, useAllSegmentsAnalytics, useHighChurnRiskCustomers, useCustomerMetrics, useAnalyticsInsights, usePredictiveAnalytics } from '@/hooks/useCustomerAnalytics';
+export { useB2BCustomers, useB2BCustomer, useB2BCustomerMetrics, useB2BCustomersByIndustry, useB2BCustomersBySalesRep, useB2BCustomersWithExpiringContracts, useB2BCreditManagement } from '@/hooks/useB2BCustomers';
+export { useCommunications, useCustomerCommunications, useCommunicationStats, useCommunicationTemplates, useCommunicationAutomation } from '@/hooks/useCommunications';
+export { useSegmentation, useSegment, useSegmentMembers, useSegmentCriteriaBuilder, useSegmentTemplates } from '@/hooks/useSegmentation';
 
 export const crmModule = {
   name: 'Customer Relationship Management',

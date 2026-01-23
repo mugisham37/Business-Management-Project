@@ -455,7 +455,11 @@ export type RealtimeEventType =
   | 'sales_updated'
   | 'customer_activity_updated'
   | 'analytics_updated'
-  | 'alert_triggered';
+  | 'alert_triggered'
+  | 'crm_customer_updated'
+  | 'crm_campaign_updated'
+  | 'crm_loyalty_updated'
+  | 'crm_communication_updated';
 
 export type WebSocketEventType =
   | 'connected'
@@ -488,4 +492,108 @@ export interface RealtimeState {
   unreadNotifications: number;
   activeSubscriptions: string[];
   lastActivity: Date;
+}
+
+// CRM Real-time Types
+export interface LiveCRMData {
+  customers: {
+    total: number;
+    active: number;
+    new_today: number;
+    high_value: number;
+  };
+  campaigns: {
+    active: number;
+    total_participants: number;
+    points_awarded_today: number;
+  };
+  loyalty: {
+    total_points_in_circulation: number;
+    points_redeemed_today: number;
+    new_members_today: number;
+  };
+  communications: {
+    scheduled_today: number;
+    completed_today: number;
+    pending: number;
+  };
+  last_updated: Date;
+}
+
+export interface CustomerUpdateEvent {
+  type: 'created' | 'updated' | 'deleted';
+  customer_id: string;
+  customer_data?: any;
+  changes?: string[];
+  timestamp: Date;
+}
+
+export interface CampaignUpdateEvent {
+  type: 'created' | 'updated' | 'activated' | 'paused' | 'completed';
+  campaign_id: string;
+  campaign_data?: any;
+  timestamp: Date;
+}
+
+export interface LoyaltyUpdateEvent {
+  type: 'points_awarded' | 'points_redeemed' | 'tier_changed' | 'reward_created';
+  customer_id: string;
+  points?: number;
+  tier?: string;
+  transaction_id?: string;
+  timestamp: Date;
+}
+
+export interface CommunicationUpdateEvent {
+  type: 'scheduled' | 'sent' | 'delivered' | 'failed';
+  communication_id: string;
+  customer_id: string;
+  communication_type: string;
+  timestamp: Date;
+}
+
+// CRM Subscription Inputs
+export interface CRMSubscriptionInput {
+  customer_ids?: string[];
+  campaign_ids?: string[];
+  communication_types?: string[];
+  include_analytics?: boolean;
+}
+
+export interface CustomerUpdatesSubscriptionInput {
+  customer_ids?: string[];
+  event_types?: ('created' | 'updated' | 'deleted')[];
+}
+
+export interface CampaignUpdatesSubscriptionInput {
+  campaign_ids?: string[];
+  event_types?: ('created' | 'updated' | 'activated' | 'paused' | 'completed')[];
+}
+
+export interface LoyaltyUpdatesSubscriptionInput {
+  customer_ids?: string[];
+  event_types?: ('points_awarded' | 'points_redeemed' | 'tier_changed' | 'reward_created')[];
+}
+
+export interface CommunicationUpdatesSubscriptionInput {
+  customer_ids?: string[];
+  communication_types?: string[];
+  event_types?: ('scheduled' | 'sent' | 'delivered' | 'failed')[];
+}
+
+// CRM Real-time Event Types
+export interface CRMCustomerUpdatedEvent {
+  crmCustomerUpdated: string; // JSON string
+}
+
+export interface CRMCampaignUpdatedEvent {
+  crmCampaignUpdated: string; // JSON string
+}
+
+export interface CRMLoyaltyUpdatedEvent {
+  crmLoyaltyUpdated: string; // JSON string
+}
+
+export interface CRMCommunicationUpdatedEvent {
+  crmCommunicationUpdated: string; // JSON string
 }

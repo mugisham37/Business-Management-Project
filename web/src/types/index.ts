@@ -4,6 +4,7 @@ export * from './communication';
 export * from './realtime';
 export * from './employee';
 export * from './supplier';
+export * from './crm';
 
 // Re-export generated types when available (excluding conflicting types)
 export type {

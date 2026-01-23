@@ -43,6 +43,12 @@ export {
   useLiveCustomerActivity,
   useLiveAnalytics,
   useLiveData,
+  // CRM real-time hooks
+  useLiveCRMData,
+  useLiveCustomerUpdates,
+  useLiveCampaignUpdates,
+  useLiveLoyaltyUpdates,
+  useLiveCommunicationUpdates,
 } from '@/hooks/useLiveData';
 
 // Types
