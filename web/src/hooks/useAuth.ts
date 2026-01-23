@@ -1,224 +1,446 @@
 /**
- * Authentication React Hooks
- * Provides React integration for authentication system
+ * Complete Auth Hooks
+ * Comprehensive React hooks for all auth functionality
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  AuthManager, 
-  authManager, 
-  MFAManager, 
-  mfaManager,
-  type LoginCredentials,
-  type AuthResult,
-  type AuthState,
-  type MFAState,
-  type MFAMethod,
-} from '@/lib/auth';
+import { useAuth } from './useAuth';
+import { advancedAuthManager, PasswordChangeRequest, PasswordResetRequest, PasswordResetConfirm } from '@/lib/auth/advanced-auth-manager';
+import { completeMfaManager, MfaSetupResponse, MfaStatusResponse } from '@/lib/auth/mfa-manager-complete';
+import { permissionsManager, Permission, Role, UserPermissionsResponse, GrantPermissionRequest, RevokePermissionRequest, AssignRoleRequest, BulkPermissionRequest, BulkPermissionResponse } from '@/lib/auth/permissions-manager';
+import { authSubscriptionManager, AuthSubscriptionOptions } from '@/lib/auth/subscription-manager';
+import { AuthEvent, AuthEventType } from '@/graphql/subscriptions/auth-subscriptions';
 
 /**
- * Main authentication hook
+ * Advanced Auth Hook
+ * Provides advanced authentication features
  */
-export function useAuth() {
-  const [authState, setAuthState] = useState<AuthState>(authManager.getAuthState());
+export function useAdvancedAuth() {
+  const { user, isAuthenticated } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    // Subscribe to auth state changes
-    const unsubscribe = authManager.onAuthStateChange(setAuthState);
-    return unsubscribe;
+  const requiresMfa = useCallback(async (email: string): Promise<boolean> => {
+    return advancedAuthManager.requiresMfa(email);
   }, []);
 
-  const login = useCallback(async (credentials: LoginCredentials): Promise<AuthResult> => {
-    return authManager.login(credentials);
+  const getCurrentUser = useCallback(async () => {
+    return advancedAuthManager.getCurrentUser();
   }, []);
 
-  const logout = useCallback(async (): Promise<void> => {
-    return authManager.logout();
-  }, []);
-
-  const refreshTokens = useCallback(async (): Promise<void> => {
+  const logoutAllSessions = useCallback(async (): Promise<void> => {
+    setIsLoading(true);
     try {
-      await authManager.refreshTokens();
-    } catch (error) {
-      console.error('Token refresh failed:', error);
+      await advancedAuthManager.logoutAllSessions();
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
-  const hasPermission = useCallback((permission: string): boolean => {
-    return authManager.hasPermission(permission);
+  const changePassword = useCallback(async (request: PasswordChangeRequest): Promise<void> => {
+    setIsLoading(true);
+    try {
+      await advancedAuthManager.changePassword(request);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const hasAnyPermission = useCallback((permissions: string[]): boolean => {
-    return authManager.hasAnyPermission(permissions);
+  const forgotPassword = useCallback(async (request: PasswordResetRequest): Promise<void> => {
+    setIsLoading(true);
+    try {
+      await advancedAuthManager.forgotPassword(request);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const hasAllPermissions = useCallback((permissions: string[]): boolean => {
-    return authManager.hasAllPermissions(permissions);
-  }, []);
-
-  const getAccessToken = useCallback(async (): Promise<string | null> => {
-    return authManager.getAccessToken();
+  const resetPassword = useCallback(async (request: PasswordResetConfirm): Promise<void> => {
+    setIsLoading(true);
+    try {
+      await advancedAuthManager.resetPassword(request);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   return {
-    // State
-    ...authState,
-    
-    // Actions
-    login,
-    logout,
-    refreshTokens,
-    
-    // Permission checks
+    user,
+    isAuthenticated,
+    isLoading,
+    requiresMfa,
+    getCurrentUser,
+    logoutAllSessions,
+    changePassword,
+    forgotPassword,
+    resetPassword,
+  };
+}
+
+/**
+ * Complete MFA Hook
+ * Provides comprehensive MFA functionality
+ */
+export function useCompleteMfa() {
+  const [mfaState, setMfaState] = useState(completeMfaManager.getMfaState());
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = completeMfaManager.onMfaStateChange(setMfaState);
+    return unsubscribe;
+  }, []);
+
+  const isMfaEnabled = useCallback(async (): Promise<boolean> => {
+    return completeMfaManager.isMfaEnabled();
+  }, []);
+
+  const getMfaStatus = useCallback(async (): Promise<MfaStatusResponse> => {
+    return completeMfaManager.getMfaStatus();
+  }, []);
+
+  const generateMfaSetup = useCallback(async (): Promise<MfaSetupResponse> => {
+    setIsLoading(true);
+    try {
+      return await completeMfaManager.generateMfaSetup();
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const enableMfa = useCallback(async (token: string) => {
+    setIsLoading(true);
+    try {
+      return await completeMfaManager.enableMfa(token);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const disableMfa = useCallback(async (token: string) => {
+    setIsLoading(true);
+    try {
+      return await completeMfaManager.disableMfa(token);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const verifyMfaToken = useCallback(async (token: string) => {
+    return completeMfaManager.verifyMfaToken(token);
+  }, []);
+
+  const generateBackupCodes = useCallback(async (token: string): Promise<string[]> => {
+    setIsLoading(true);
+    try {
+      return await completeMfaManager.generateBackupCodes(token);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const cancelMfaSetup = useCallback(() => {
+    completeMfaManager.cancelMfaSetup();
+  }, []);
+
+  return {
+    ...mfaState,
+    isLoading,
+    isMfaEnabled,
+    getMfaStatus,
+    generateMfaSetup,
+    enableMfa,
+    disableMfa,
+    verifyMfaToken,
+    generateBackupCodes,
+    cancelMfaSetup,
+    isValidTotpCode: completeMfaManager.isValidTotpCode,
+    isValidBackupCode: completeMfaManager.isValidBackupCode,
+  };
+}
+/**
+ * Permissions Hook
+ * Provides comprehensive permission management
+ */
+export function usePermissions() {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const getPermissions = useCallback(async (userId: string): Promise<string[]> => {
+    return permissionsManager.getPermissions(userId);
+  }, []);
+
+  const getMyPermissions = useCallback(async (): Promise<string[]> => {
+    return permissionsManager.getMyPermissions();
+  }, []);
+
+  const getRoles = useCallback(async (): Promise<Role[]> => {
+    return permissionsManager.getRoles();
+  }, []);
+
+  const getRolePermissions = useCallback(async (role: string): Promise<string[]> => {
+    return permissionsManager.getRolePermissions(role);
+  }, []);
+
+  const hasPermission = useCallback(async (
+    userId: string,
+    permission: string,
+    resource?: string,
+    resourceId?: string
+  ): Promise<boolean> => {
+    return permissionsManager.hasPermission(userId, permission, resource, resourceId);
+  }, []);
+
+  const hasAnyPermission = useCallback(async (userId: string, permissions: string[]): Promise<boolean> => {
+    return permissionsManager.hasAnyPermission(userId, permissions);
+  }, []);
+
+  const hasAllPermissions = useCallback(async (userId: string, permissions: string[]): Promise<boolean> => {
+    return permissionsManager.hasAllPermissions(userId, permissions);
+  }, []);
+
+  const getAllPermissions = useCallback(async (): Promise<string[]> => {
+    return permissionsManager.getAllPermissions();
+  }, []);
+
+  const getDetailedPermissions = useCallback(async (userId: string): Promise<UserPermissionsResponse> => {
+    return permissionsManager.getDetailedPermissions(userId);
+  }, []);
+
+  const getAvailablePermissions = useCallback(async () => {
+    return permissionsManager.getAvailablePermissions();
+  }, []);
+
+  const grantPermission = useCallback(async (request: GrantPermissionRequest): Promise<void> => {
+    setIsLoading(true);
+    try {
+      await permissionsManager.grantPermission(request);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const revokePermission = useCallback(async (request: RevokePermissionRequest): Promise<void> => {
+    setIsLoading(true);
+    try {
+      await permissionsManager.revokePermission(request);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const assignRole = useCallback(async (request: AssignRoleRequest): Promise<void> => {
+    setIsLoading(true);
+    try {
+      await permissionsManager.assignRole(request);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const bulkGrantPermissions = useCallback(async (request: BulkPermissionRequest): Promise<BulkPermissionResponse> => {
+    setIsLoading(true);
+    try {
+      return await permissionsManager.bulkGrantPermissions(request);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const bulkRevokePermissions = useCallback(async (request: BulkPermissionRequest): Promise<BulkPermissionResponse> => {
+    setIsLoading(true);
+    try {
+      return await permissionsManager.bulkRevokePermissions(request);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const clearCache = useCallback(() => {
+    permissionsManager.clearCache();
+  }, []);
+
+  return {
+    isLoading,
+    getPermissions,
+    getMyPermissions,
+    getRoles,
+    getRolePermissions,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
-    
-    // Token access
-    getAccessToken,
-    
-    // Computed properties
-    isLoggedIn: authState.isAuthenticated,
-    currentUser: authState.user,
+    getAllPermissions,
+    getDetailedPermissions,
+    getAvailablePermissions,
+    grantPermission,
+    revokePermission,
+    assignRole,
+    bulkGrantPermissions,
+    bulkRevokePermissions,
+    clearCache,
   };
 }
 
 /**
- * MFA-specific hook
+ * Auth Subscriptions Hook
+ * Provides real-time auth event subscriptions
  */
-export function useMFA() {
-  const [mfaState, setMFAState] = useState<MFAState>(mfaManager.getMFAState());
+export function useAuthSubscriptions() {
+  const [events, setEvents] = useState<AuthEvent[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
+
+  const addEvent = useCallback((event: AuthEvent) => {
+    setEvents(prev => [event, ...prev.slice(0, 99)]); // Keep last 100 events
+  }, []);
+
+  const subscribeToUserAuthEvents = useCallback((options: Partial<AuthSubscriptionOptions> = {}) => {
+    return authSubscriptionManager.subscribeToUserAuthEvents({
+      ...options,
+      onEvent: (event) => {
+        addEvent(event);
+        options.onEvent?.(event);
+      },
+    });
+  }, [addEvent]);
+
+  const subscribeToUserPermissionEvents = useCallback((options: Partial<AuthSubscriptionOptions> = {}) => {
+    return authSubscriptionManager.subscribeToUserPermissionEvents({
+      ...options,
+      onEvent: (event) => {
+        addEvent(event);
+        options.onEvent?.(event);
+      },
+    });
+  }, [addEvent]);
+
+  const subscribeToUserMfaEvents = useCallback((options: Partial<AuthSubscriptionOptions> = {}) => {
+    return authSubscriptionManager.subscribeToUserMfaEvents({
+      ...options,
+      onEvent: (event) => {
+        addEvent(event);
+        options.onEvent?.(event);
+      },
+    });
+  }, [addEvent]);
+
+  const subscribeToUserSessionEvents = useCallback((options: Partial<AuthSubscriptionOptions> = {}) => {
+    return authSubscriptionManager.subscribeToUserSessionEvents({
+      ...options,
+      onEvent: (event) => {
+        addEvent(event);
+        options.onEvent?.(event);
+      },
+    });
+  }, [addEvent]);
+
+  const subscribeToTenantAuthEvents = useCallback((options: Partial<AuthSubscriptionOptions> = {}) => {
+    return authSubscriptionManager.subscribeToTenantAuthEvents({
+      ...options,
+      onEvent: (event) => {
+        addEvent(event);
+        options.onEvent?.(event);
+      },
+    });
+  }, [addEvent]);
+
+  const subscribeToSecurityAlerts = useCallback((options: Partial<AuthSubscriptionOptions> = {}) => {
+    return authSubscriptionManager.subscribeToSecurityAlerts({
+      ...options,
+      onEvent: (event) => {
+        addEvent(event);
+        options.onEvent?.(event);
+      },
+    });
+  }, [addEvent]);
+
+  const addEventListener = useCallback((eventType: AuthEventType, listener: (event: AuthEvent) => void) => {
+    return authSubscriptionManager.addEventListener(eventType, listener);
+  }, []);
+
+  const clearEvents = useCallback(() => {
+    setEvents([]);
+  }, []);
+
+  const unsubscribeAll = useCallback(() => {
+    authSubscriptionManager.unsubscribeAll();
+    setIsConnected(false);
+  }, []);
 
   useEffect(() => {
-    // Subscribe to MFA state changes
-    const unsubscribe = mfaManager.onMFAStateChange(setMFAState);
+    setIsConnected(authSubscriptionManager.isSubscriptionConnected());
+  }, []);
+
+  return {
+    events,
+    isConnected,
+    subscribeToUserAuthEvents,
+    subscribeToUserPermissionEvents,
+    subscribeToUserMfaEvents,
+    subscribeToUserSessionEvents,
+    subscribeToTenantAuthEvents,
+    subscribeToSecurityAlerts,
+    addEventListener,
+    clearEvents,
+    unsubscribeAll,
+    activeSubscriptionCount: authSubscriptionManager.getActiveSubscriptionCount(),
+  };
+}
+
+/**
+ * Auth Event Hook
+ * Listen to specific auth event types
+ */
+export function useAuthEvent(eventType: AuthEventType, handler: (event: AuthEvent) => void) {
+  useEffect(() => {
+    const unsubscribe = authSubscriptionManager.addEventListener(eventType, handler);
     return unsubscribe;
-  }, []);
-
-  const setupMFA = useCallback(async (method: MFAMethod) => {
-    return mfaManager.setupMFA(method);
-  }, []);
-
-  const verifyMFA = useCallback(async (code: string) => {
-    return mfaManager.verifyMFA(code);
-  }, []);
-
-  const disableMFA = useCallback(async (password: string) => {
-    return mfaManager.disableMFA(password);
-  }, []);
-
-  const generateTOTPCode = useCallback((secret: string): string => {
-    return mfaManager.generateTOTPCode(secret);
-  }, []);
-
-  const isValidTOTPCode = useCallback((code: string): boolean => {
-    return mfaManager.isValidTOTPCode(code);
-  }, []);
-
-  const isValidSMSCode = useCallback((code: string): boolean => {
-    return mfaManager.isValidSMSCode(code);
-  }, []);
-
-  return {
-    // State
-    ...mfaState,
-    
-    // Actions
-    setupMFA,
-    verifyMFA,
-    disableMFA,
-    
-    // Utilities
-    generateTOTPCode,
-    isValidTOTPCode,
-    isValidSMSCode,
-  };
+  }, [eventType, handler]);
 }
 
 /**
- * Permission checking hook
+ * Permission Guard Hook
+ * Check permissions with loading state
  */
-export function usePermission(permission: string | string[]) {
-  const { hasPermission, hasAnyPermission, hasAllPermissions } = useAuth();
-
-  if (typeof permission === 'string') {
-    return hasPermission(permission);
-  }
-
-  // For array of permissions, check if user has any of them
-  return hasAnyPermission(permission);
-}
-
-/**
- * Hook for checking if user has all specified permissions
- */
-export function useRequireAllPermissions(permissions: string[]) {
-  const { hasAllPermissions } = useAuth();
-  return hasAllPermissions(permissions);
-}
-
-/**
- * Hook that redirects to login if not authenticated
- */
-export function useRequireAuth(redirectTo = '/login') {
-  const { isAuthenticated, isLoading } = useAuth();
+export function usePermissionGuard(permission: string | string[], userId?: string) {
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      // In a real app, you'd use your router's redirect method
-      if (typeof window !== 'undefined') {
-        window.location.href = redirectTo;
+    const checkPermission = async () => {
+      setIsLoading(true);
+      try {
+        if (!userId) {
+          // Check current user permissions
+          const myPermissions = await permissionsManager.getMyPermissions();
+          const permissions = Array.isArray(permission) ? permission : [permission];
+          const hasAny = permissions.some(perm => 
+            myPermissions.some(userPerm => {
+              if (userPerm === perm) return true;
+              if (userPerm.endsWith(':*')) {
+                const prefix = userPerm.slice(0, -1);
+                return perm.startsWith(prefix);
+              }
+              return false;
+            })
+          );
+          setHasAccess(hasAny);
+        } else {
+          // Check specific user permissions
+          if (Array.isArray(permission)) {
+            const hasAny = await permissionsManager.hasAnyPermission(userId, permission);
+            setHasAccess(hasAny);
+          } else {
+            const has = await permissionsManager.hasPermission(userId, permission);
+            setHasAccess(has);
+          }
+        }
+      } catch (error) {
+        console.error('Permission check failed:', error);
+        setHasAccess(false);
+      } finally {
+        setIsLoading(false);
       }
-    }
-  }, [isAuthenticated, isLoading, redirectTo]);
+    };
 
-  return { isAuthenticated, isLoading };
-}
+    checkPermission();
+  }, [permission, userId]);
 
-/**
- * Hook for handling authentication loading states
- */
-export function useAuthLoading() {
-  const { isLoading } = useAuth();
-  return isLoading;
-}
-
-/**
- * Hook for getting current user information
- */
-export function useCurrentUser() {
-  const { user, isAuthenticated } = useAuth();
-  return { user, isAuthenticated };
-}
-
-/**
- * Hook for token management
- */
-export function useTokens() {
-  const { tokens, getAccessToken } = useAuth();
-  
-  const isTokenExpired = useCallback((token: string): boolean => {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const expirationTime = payload.exp * 1000;
-      return Date.now() >= expirationTime;
-    } catch {
-      return true;
-    }
-  }, []);
-
-  const getValidAccessToken = useCallback(async (): Promise<string | null> => {
-    const token = await getAccessToken();
-    if (!token || isTokenExpired(token)) {
-      return null;
-    }
-    return token;
-  }, [getAccessToken, isTokenExpired]);
-
-  return {
-    tokens,
-    getAccessToken,
-    getValidAccessToken,
-    isTokenExpired,
-  };
+  return { hasAccess, isLoading };
 }

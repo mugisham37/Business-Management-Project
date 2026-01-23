@@ -1,74 +1,233 @@
 /**
- * Authentication Library Index
- * Central exports for all authentication functionality
+ * Complete Auth Library Index
+ * Comprehensive exports for all authentication functionality
  */
 
-// Token Management
-export {
-  TokenManager,
-  SecureTokenStorage,
-  createTokenManager,
-  getDefaultTokenManager,
-  setDefaultTokenManager,
-  type TokenStorage,
-  type TokenManagerConfig,
-} from './token-manager';
+// Re-export existing auth functionality
+export * from './index';
 
-// Authentication Management
+// Advanced Auth Management
 export {
-  AuthManager,
-  createAuthManager,
-  getDefaultAuthManager,
-  setDefaultAuthManager,
-  authManager,
-  type LoginCredentials,
-  type AuthResult,
-  type AuthManagerConfig,
-} from './auth-manager';
+  AdvancedAuthManager,
+  advancedAuthManager,
+  type SessionInfo,
+  type PasswordChangeRequest,
+  type PasswordResetRequest,
+  type PasswordResetConfirm,
+  type SecuritySettings,
+} from './advanced-auth-manager';
 
-// Multi-Factor Authentication
+// Complete MFA Management
 export {
-  MFAManager,
-  createMFAManager,
-  getDefaultMFAManager,
-  setDefaultMFAManager,
-  mfaManager,
-  type MFAMethod,
-  type MFASetupResult,
-  type MFAVerificationResult,
-  type MFAState,
-} from './mfa-manager';
+  CompleteMfaManager,
+  completeMfaManager,
+  type MfaSetupResponse,
+  type MfaStatusResponse,
+  type MfaState,
+  type MfaVerificationResult,
+} from './mfa-manager-complete';
 
-// Permission Engine
+// Permissions Management
 export {
-  PermissionEngine,
-  usePermissions,
-  withPermissions,
-  PermissionGuard,
-  usePermissionGuard,
-  createPermissionEngine,
-  getDefaultPermissionEngine,
-  setDefaultPermissionEngine,
+  PermissionsManager,
+  permissionsManager,
   type Permission,
-  type PermissionCheck,
-  type PermissionContext,
-  type WithPermissionsProps,
-  type PermissionGuardProps,
-} from './permission-engine';
+  type Role,
+  type UserPermissionsResponse,
+  type PermissionCheckResponse,
+  type BulkPermissionResult,
+  type BulkPermissionResponse,
+  type AvailablePermissionsResponse,
+  type GrantPermissionRequest,
+  type RevokePermissionRequest,
+  type AssignRoleRequest,
+  type BulkPermissionRequest,
+} from './permissions-manager';
 
-// GraphQL Mutations
+// Subscription Management
 export {
-  LOGIN_MUTATION,
-  REFRESH_TOKEN_MUTATION,
-  LOGOUT_MUTATION,
-  SETUP_MFA_MUTATION,
-  VERIFY_MFA_MUTATION,
-  DISABLE_MFA_MUTATION,
-} from '@/graphql/mutations/auth';
+  AuthSubscriptionManager,
+  authSubscriptionManager,
+  type AuthSubscriptionOptions,
+} from './subscription-manager';
 
-// Re-export types from core
-export type {
-  User,
-  TokenPair,
-  AuthState,
-} from '@/types/core';
+// GraphQL Operations
+export * from '@/graphql/mutations/auth-complete';
+export * from '@/graphql/queries/auth-complete';
+export * from '@/graphql/subscriptions/auth-subscriptions';
+
+// Complete Hooks
+export {
+  useAdvancedAuth,
+  useCompleteMfa,
+  usePermissions,
+  useAuthSubscriptions,
+  useAuthEvent,
+  usePermissionGuard,
+} from '@/hooks/useAuthComplete';
+
+// Auth Event Types and Interfaces
+export {
+  AuthEventType,
+  type AuthEvent,
+} from '@/graphql/subscriptions/auth-subscriptions';
+
+/**
+ * Complete Auth System Configuration
+ */
+export interface CompleteAuthConfig {
+  // JWT Configuration
+  jwtSecret: string;
+  jwtExpiresIn: string;
+  jwtRefreshSecret: string;
+  jwtRefreshExpiresIn: string;
+  
+  // Security Configuration
+  bcryptRounds: number;
+  maxFailedAttempts: number;
+  lockoutDuration: number;
+  passwordResetExpiration: number;
+  
+  // MFA Configuration
+  mfaIssuer: string;
+  mfaAppName: string;
+  backupCodesCount: number;
+  
+  // Session Configuration
+  sessionTimeout: number;
+  maxSessions: number;
+  
+  // Subscription Configuration
+  enableRealTimeEvents: boolean;
+  subscriptionRetryAttempts: number;
+  subscriptionRetryDelay: number;
+}
+
+/**
+ * Auth System Status
+ */
+export interface AuthSystemStatus {
+  isInitialized: boolean;
+  isConnected: boolean;
+  activeSubscriptions: number;
+  cacheSize: number;
+  lastActivity: Date;
+}
+
+/**
+ * Complete Auth System Manager
+ * Central manager for all auth functionality
+ */
+export class CompleteAuthSystem {
+  private config: CompleteAuthConfig;
+  private status: AuthSystemStatus;
+
+  constructor(config: Partial<CompleteAuthConfig> = {}) {
+    this.config = {
+      jwtSecret: '',
+      jwtExpiresIn: '15m',
+      jwtRefreshSecret: '',
+      jwtRefreshExpiresIn: '7d',
+      bcryptRounds: 12,
+      maxFailedAttempts: 5,
+      lockoutDuration: 15 * 60 * 1000,
+      passwordResetExpiration: 60 * 60 * 1000,
+      mfaIssuer: 'Unified Business Platform',
+      mfaAppName: 'Unified Business Platform',
+      backupCodesCount: 10,
+      sessionTimeout: 30 * 60 * 1000,
+      maxSessions: 5,
+      enableRealTimeEvents: true,
+      subscriptionRetryAttempts: 3,
+      subscriptionRetryDelay: 5000,
+      ...config,
+    };
+
+    this.status = {
+      isInitialized: false,
+      isConnected: false,
+      activeSubscriptions: 0,
+      cacheSize: 0,
+      lastActivity: new Date(),
+    };
+  }
+
+  /**
+   * Initialize the complete auth system
+   */
+  async initialize(): Promise<void> {
+    try {
+      // Initialize managers
+      await this.initializeManagers();
+      
+      // Setup subscriptions if enabled
+      if (this.config.enableRealTimeEvents) {
+        await this.setupSubscriptions();
+      }
+      
+      this.status.isInitialized = true;
+      this.status.isConnected = true;
+      this.status.lastActivity = new Date();
+    } catch (error) {
+      console.error('Failed to initialize auth system:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Initialize all managers
+   */
+  private async initializeManagers(): Promise<void> {
+    // Managers are already initialized as singletons
+    // This method can be used for additional setup if needed
+  }
+
+  /**
+   * Setup default subscriptions
+   */
+  private async setupSubscriptions(): Promise<void> {
+    // Setup basic user subscriptions
+    authSubscriptionManager.subscribeToUserAuthEvents();
+    authSubscriptionManager.subscribeToUserPermissionEvents();
+    authSubscriptionManager.subscribeToUserMfaEvents();
+    authSubscriptionManager.subscribeToUserSessionEvents();
+  }
+
+  /**
+   * Get system status
+   */
+  getStatus(): AuthSystemStatus {
+    return {
+      ...this.status,
+      activeSubscriptions: authSubscriptionManager.getActiveSubscriptionCount(),
+      isConnected: authSubscriptionManager.isSubscriptionConnected(),
+    };
+  }
+
+  /**
+   * Get system configuration
+   */
+  getConfig(): CompleteAuthConfig {
+    return { ...this.config };
+  }
+
+  /**
+   * Update system configuration
+   */
+  updateConfig(updates: Partial<CompleteAuthConfig>): void {
+    this.config = { ...this.config, ...updates };
+  }
+
+  /**
+   * Shutdown the auth system
+   */
+  shutdown(): void {
+    authSubscriptionManager.unsubscribeAll();
+    permissionsManager.clearCache();
+    this.status.isInitialized = false;
+    this.status.isConnected = false;
+  }
+}
+
+// Export singleton instance
+export const completeAuthSystem = new CompleteAuthSystem();
