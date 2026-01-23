@@ -63,6 +63,115 @@ const cache = new InMemoryCache({
             return [...existing, ...incoming];
           },
         },
+        // Warehouse module caching
+        warehouses: {
+          keyArgs: ['filter'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            
+            return {
+              ...incoming,
+              edges: [...(existing.edges || []), ...(incoming.edges || [])],
+            };
+          },
+        },
+        warehouseZones: {
+          keyArgs: ['warehouseId', 'filter'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            
+            return {
+              ...incoming,
+              edges: [...(existing.edges || []), ...(incoming.edges || [])],
+            };
+          },
+        },
+        binLocations: {
+          keyArgs: ['warehouseId', 'filter'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            
+            return {
+              ...incoming,
+              edges: [...(existing.edges || []), ...(incoming.edges || [])],
+            };
+          },
+        },
+        pickingWaves: {
+          keyArgs: ['warehouseId', 'filter'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            
+            return {
+              ...incoming,
+              edges: [...(existing.edges || []), ...(incoming.edges || [])],
+            };
+          },
+        },
+        pickLists: {
+          keyArgs: ['warehouseId', 'filter'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            
+            return {
+              ...incoming,
+              edges: [...(existing.edges || []), ...(incoming.edges || [])],
+            };
+          },
+        },
+        kitDefinitions: {
+          keyArgs: ['filter'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            
+            return {
+              ...incoming,
+              edges: [...(existing.edges || []), ...(incoming.edges || [])],
+            };
+          },
+        },
+        assemblyWorkOrders: {
+          keyArgs: ['warehouseId', 'filter'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            
+            return {
+              ...incoming,
+              edges: [...(existing.edges || []), ...(incoming.edges || [])],
+            };
+          },
+        },
+        lots: {
+          keyArgs: ['warehouseId', 'filter'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            
+            return {
+              ...incoming,
+              edges: [...(existing.edges || []), ...(incoming.edges || [])],
+            };
+          },
+        },
+        shipments: {
+          keyArgs: ['warehouseId', 'filter'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            
+            return {
+              ...incoming,
+              edges: [...(existing.edges || []), ...(incoming.edges || [])],
+            };
+          },
+        },
       },
     },
     User: {
@@ -79,8 +188,87 @@ const cache = new InMemoryCache({
         },
       },
     },
-    // Supplier module type policies
-    Supplier: {
+    // Warehouse module type policies
+    Warehouse: {
+      fields: {
+        zones: {
+          merge: false,
+        },
+        binLocations: {
+          merge: false,
+        },
+        capacity: {
+          merge: false,
+        },
+      },
+    },
+    WarehouseZone: {
+      fields: {
+        binLocations: {
+          merge: false,
+        },
+      },
+    },
+    PickingWave: {
+      fields: {
+        pickLists: {
+          merge: false,
+        },
+        assignedPickers: {
+          merge: false,
+        },
+        statistics: {
+          merge: false,
+        },
+      },
+    },
+    PickList: {
+      fields: {
+        items: {
+          merge: false,
+        },
+      },
+    },
+    KitDefinition: {
+      fields: {
+        components: {
+          merge: false,
+        },
+        qualityChecks: {
+          merge: false,
+        },
+        workOrders: {
+          merge: false,
+        },
+      },
+    },
+    AssemblyWorkOrder: {
+      fields: {
+        components: {
+          merge: false,
+        },
+        qualityResults: {
+          merge: false,
+        },
+      },
+    },
+    LotInfo: {
+      fields: {
+        movementHistory: {
+          merge: false,
+        },
+      },
+    },
+    Shipment: {
+      fields: {
+        items: {
+          merge: false,
+        },
+        trackingEvents: {
+          merge: false,
+        },
+      },
+    },
       fields: {
         contacts: {
           merge: false,
