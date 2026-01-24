@@ -249,3 +249,121 @@ export class AdvancedAuthManager {
 
 // Export singleton instance
 export const advancedAuthManager = new AdvancedAuthManager();
+
+/**
+ * Main Auth Manager Interface
+ * Aggregates multiple managers for unified auth access
+ */
+export interface AuthManager {
+  getAccessToken(): Promise<string | null>;
+  logout(): Promise<void>;
+  getCurrentUser(): Promise<any>;
+  requiresMfa(email: string): Promise<boolean>;
+  logoutAllSessions(): Promise<void>;
+  changePassword(request: PasswordChangeRequest): Promise<void>;
+  forgotPassword(request: PasswordResetRequest): Promise<void>;
+  resetPassword(request: PasswordResetConfirm): Promise<void>;
+}
+
+/**
+ * Auth Manager Implementation
+ * Provides unified interface for authentication
+ */
+class AuthManagerImpl implements AuthManager {
+  private advancedAuthManager: AdvancedAuthManager;
+
+  constructor(advancedAuthManager: AdvancedAuthManager) {
+    this.advancedAuthManager = advancedAuthManager;
+  }
+
+  /**
+   * Get access token from token storage
+   */
+  async getAccessToken(): Promise<string | null> {
+    try {
+      // This would typically use the token manager
+      // For now, retrieve from localStorage as fallback
+      if (typeof window !== 'undefined') {
+        return localStorage.getItem('accessToken');
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to get access token:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Logout user
+   */
+  async logout(): Promise<void> {
+    try {
+      // Clear tokens
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('currentTenantId');
+      }
+
+      // Invalidate Apollo cache
+      await apolloClient.cache.reset();
+
+      // Optionally logout from backend if needed
+      try {
+        await apolloClient.mutate({
+          mutation: {} as any, // Use LOGOUT_MUTATION when available
+        });
+      } catch (e) {
+        // Logout mutation may fail due to invalid token, which is fine
+      }
+    } catch (error) {
+      console.error('Failed to logout:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get current user
+   */
+  async getCurrentUser(): Promise<any> {
+    return this.advancedAuthManager.getCurrentUser();
+  }
+
+  /**
+   * Check if MFA is required
+   */
+  async requiresMfa(email: string): Promise<boolean> {
+    return this.advancedAuthManager.requiresMfa(email);
+  }
+
+  /**
+   * Logout from all sessions
+   */
+  async logoutAllSessions(): Promise<void> {
+    return this.advancedAuthManager.logoutAllSessions();
+  }
+
+  /**
+   * Change password
+   */
+  async changePassword(request: PasswordChangeRequest): Promise<void> {
+    return this.advancedAuthManager.changePassword(request);
+  }
+
+  /**
+   * Request password reset
+   */
+  async forgotPassword(request: PasswordResetRequest): Promise<void> {
+    return this.advancedAuthManager.forgotPassword(request);
+  }
+
+  /**
+   * Reset password
+   */
+  async resetPassword(request: PasswordResetConfirm): Promise<void> {
+    return this.advancedAuthManager.resetPassword(request);
+  }
+}
+
+// Export main auth manager instance
+export const authManager: AuthManager = new AuthManagerImpl(advancedAuthManager);

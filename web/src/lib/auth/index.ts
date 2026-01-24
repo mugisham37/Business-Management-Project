@@ -3,8 +3,13 @@
  * Comprehensive exports for all authentication functionality
  */
 
-// Re-export existing auth functionality
-export * from './index';
+// Token Management
+export {
+  SecureTokenStorage,
+  TokenManager,
+  type TokenStorage,
+  type TokenManagerConfig,
+} from './token-manager';
 
 // Advanced Auth Management
 export {
@@ -16,6 +21,12 @@ export {
   type PasswordResetConfirm,
   type SecuritySettings,
 } from './advanced-auth-manager';
+
+// Auth Manager - Main interface
+export {
+  authManager,
+  type AuthManager,
+} from './auth-manager';
 
 // Complete MFA Management
 export {
@@ -50,27 +61,6 @@ export {
   authSubscriptionManager,
   type AuthSubscriptionOptions,
 } from './subscription-manager';
-
-// GraphQL Operations
-export * from '@/graphql/mutations/auth-complete';
-export * from '@/graphql/queries/auth-complete';
-export * from '@/graphql/subscriptions/auth-subscriptions';
-
-// Complete Hooks
-export {
-  useAdvancedAuth,
-  useCompleteMfa,
-  usePermissions,
-  useAuthSubscriptions,
-  useAuthEvent,
-  usePermissionGuard,
-} from '@/hooks/useAuthComplete';
-
-// Auth Event Types and Interfaces
-export {
-  AuthEventType,
-  type AuthEvent,
-} from '@/graphql/subscriptions/auth-subscriptions';
 
 /**
  * Complete Auth System Configuration

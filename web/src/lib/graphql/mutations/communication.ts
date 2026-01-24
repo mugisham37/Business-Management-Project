@@ -10,7 +10,7 @@ import {
   BULK_EMAIL_RESULT_FRAGMENT,
   BULK_SMS_RESULT_FRAGMENT,
   INTEGRATION_TEST_RESULT_FRAGMENT,
-} from './communication';
+} from '../fragments/communication-fragments';
 
 // Multi-channel communication mutations
 export const SEND_MULTI_CHANNEL_NOTIFICATION = gql`

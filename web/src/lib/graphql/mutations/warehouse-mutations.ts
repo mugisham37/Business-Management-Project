@@ -15,7 +15,7 @@ import {
   LOT_INFO_FRAGMENT,
   KIT_DEFINITION_FRAGMENT,
   ASSEMBLY_WORK_ORDER_FRAGMENT,
-} from './warehouse-queries';
+} from '../queries/warehouse-queries';
 
 // ===== WAREHOUSE MUTATIONS =====
 
