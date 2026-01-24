@@ -26,6 +26,55 @@ const cache = new InMemoryCache({
             return [...existing, ...incoming];
           },
         },
+        // Financial module caching
+        accounts: {
+          keyArgs: ['accountType', 'isActive', 'parentAccountId'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
+        budgets: {
+          keyArgs: ['fiscalYear', 'status', 'budgetType'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
+        journalEntries: {
+          keyArgs: ['dateFrom', 'dateTo', 'status', 'sourceType'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
+        getReceivables: {
+          keyArgs: ['status', 'customerId'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
+        getPayables: {
+          keyArgs: ['status', 'supplierId'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
+        reconciliations: {
+          keyArgs: ['accountId', 'status'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
         // Supplier module caching
         suppliers: {
           keyArgs: ['filter'],
@@ -188,6 +237,80 @@ const cache = new InMemoryCache({
         },
       },
     },
+    // Financial module type policies
+    ChartOfAccount: {
+      fields: {
+        currentBalance: {
+          merge: false,
+        },
+        childAccounts: {
+          merge: false,
+        },
+        parentAccount: {
+          merge: false,
+        },
+      },
+    },
+    JournalEntry: {
+      fields: {
+        lineItems: {
+          merge: false,
+        },
+        totalDebitAmount: {
+          merge: false,
+        },
+        totalCreditAmount: {
+          merge: false,
+        },
+      },
+    },
+    Budget: {
+      fields: {
+        budgetLines: {
+          merge: false,
+        },
+        totalBudgetAmount: {
+          merge: false,
+        },
+        totalActualAmount: {
+          merge: false,
+        },
+      },
+    },
+    FinancialReport: {
+      fields: {
+        data: {
+          merge: false,
+        },
+        metadata: {
+          merge: false,
+        },
+      },
+    },
+    BudgetVarianceAnalysis: {
+      fields: {
+        accountVariances: {
+          merge: false,
+        },
+      },
+    },
+    GeneralLedger: {
+      fields: {
+        transactions: {
+          merge: false,
+        },
+        summary: {
+          merge: false,
+        },
+      },
+    },
+    Reconciliation: {
+      fields: {
+        items: {
+          merge: false,
+        },
+      },
+    },
     // Warehouse module type policies
     Warehouse: {
       fields: {
@@ -269,6 +392,7 @@ const cache = new InMemoryCache({
         },
       },
     },
+    Supplier: {
       fields: {
         contacts: {
           merge: false,
