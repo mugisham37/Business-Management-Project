@@ -180,6 +180,12 @@ export { useLoyalty, useCustomerLoyalty, useCampaignLoyalty, useLoyaltyStats, us
 export { useCampaigns, useCampaign, useActiveCampaignsForCustomer, useCampaignPerformance, useCampaignStats, useCampaignValidation } from './useCampaigns';
 export { useCustomerAnalytics, useCustomerLifetimeValue, useCustomersLifetimeValue, useCustomerPurchasePatterns, useCustomerChurnRisk, useSegmentAnalytics, useAllSegmentsAnalytics, useHighChurnRiskCustomers, useCustomerMetrics, useAnalyticsInsights, usePredictiveAnalytics } from './useCustomerAnalytics';
 export { useB2BCustomers, useB2BCustomer, useB2BCustomerMetrics, useB2BCustomersByIndustry, useB2BCustomersBySalesRep, useB2BCustomersWithExpiringContracts, useB2BCreditManagement } from './useB2BCustomers';
+export { useB2BOrders, useB2BOrder, useB2BOrderByNumber, useOrdersRequiringApproval, useB2BOrderAnalytics } from './useB2BOrders';
+export { useQuotes, useQuote, useQuoteSubscriptions } from './useQuotes';
+export { useContracts, useContract, useExpiringContracts, useContractExpirationNotifications } from './useContracts';
+export { useB2BPricing, useCustomerPricing, useBulkPricing, usePricingChangeNotifications } from './useB2BPricing';
+export { useTerritories, useTerritory, useTerritoryPerformance, useTerritoryCustomers } from './useTerritories';
+export { useB2BWorkflows, useB2BWorkflow, usePendingApprovals, useWorkflowAnalytics, useWorkflowHistory } from './useB2BWorkflows';
 export { useCommunications, useCustomerCommunications, useCommunicationStats, useCommunicationTemplates, useCommunicationAutomation } from './useCommunications';
 export { useSegmentation, useSegment, useSegmentMembers, useSegmentCriteriaBuilder, useSegmentTemplates } from './useSegmentation';
 

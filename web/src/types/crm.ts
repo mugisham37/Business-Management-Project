@@ -696,11 +696,414 @@ export interface CRMPaginationInfo {
   hasPreviousPage: boolean;
 }
 
+// B2B Order Types
+export interface B2BOrder extends BaseEntity {
+  orderNumber: string;
+  customerId: string;
+  salesRepId?: string;
+  accountManagerId?: string;
+  quoteId?: string;
+  status: B2BOrderStatus;
+  orderDate: Date;
+  requestedDeliveryDate?: Date;
+  actualDeliveryDate?: Date;
+  paymentTerms: string;
+  paymentDueDate?: Date;
+  subtotal: number;
+  taxAmount: number;
+  shippingAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  currency: string;
+  requiresApproval: boolean;
+  approvedBy?: string;
+  approvedAt?: Date;
+  approvalNotes?: string;
+  rejectedBy?: string;
+  rejectedAt?: Date;
+  rejectionReason?: string;
+  shippedBy?: string;
+  shippedAt?: Date;
+  trackingNumber?: string;
+  estimatedDeliveryDate?: Date;
+  cancelledBy?: string;
+  cancelledAt?: Date;
+  cancellationReason?: string;
+  items: B2BOrderItem[];
+  shippingAddress?: Address;
+  billingAddress?: Address;
+  notes?: string;
+  metadata?: Record<string, any>;
+  // Computed fields
+  canBeApproved?: boolean;
+  canBeRejected?: boolean;
+  canBeCancelled?: boolean;
+  canBeShipped?: boolean;
+  isOverdue?: boolean;
+  daysUntilDue?: number;
+  totalSavings?: number;
+  fulfillmentPercentage?: number;
+  availableActions?: string[];
+}
+
+export interface B2BOrderItem extends BaseEntity {
+  orderId: string;
+  productId: string;
+  productName: string;
+  productSku: string;
+  quantity: number;
+  unitPrice: number;
+  listPrice: number;
+  discountPercentage: number;
+  discountAmount: number;
+  lineTotal: number;
+  quantityShipped: number;
+  quantityBackordered: number;
+  notes?: string;
+  // Computed fields
+  isBackordered?: boolean;
+  totalSavings?: number;
+}
+
+export enum B2BOrderStatus {
+  DRAFT = 'draft',
+  PENDING_APPROVAL = 'pending_approval',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  PROCESSING = 'processing',
+  SHIPPED = 'shipped',
+  DELIVERED = 'delivered',
+  CANCELLED = 'cancelled',
+  COMPLETED = 'completed'
+}
+
+// Quote Types
+export interface Quote extends BaseEntity {
+  quoteNumber: string;
+  customerId: string;
+  salesRepId?: string;
+  accountManagerId?: string;
+  status: QuoteStatus;
+  quoteDate: Date;
+  expirationDate: Date;
+  validUntil: Date;
+  subtotal: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  currency: string;
+  requiresApproval: boolean;
+  approvedBy?: string;
+  approvedAt?: Date;
+  approvalNotes?: string;
+  rejectedBy?: string;
+  rejectedAt?: Date;
+  rejectionReason?: string;
+  sentAt?: Date;
+  sentTo?: string[];
+  acceptedAt?: Date;
+  convertedToOrderId?: string;
+  convertedAt?: Date;
+  items: QuoteItem[];
+  terms?: string;
+  notes?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface QuoteItem extends BaseEntity {
+  quoteId: string;
+  productId: string;
+  productName: string;
+  productSku: string;
+  quantity: number;
+  unitPrice: number;
+  listPrice: number;
+  discountPercentage: number;
+  discountAmount: number;
+  lineTotal: number;
+  notes?: string;
+}
+
+export enum QuoteStatus {
+  DRAFT = 'draft',
+  PENDING_APPROVAL = 'pending_approval',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  SENT = 'sent',
+  ACCEPTED = 'accepted',
+  EXPIRED = 'expired',
+  CONVERTED = 'converted',
+  CANCELLED = 'cancelled'
+}
+
+// Contract Types
+export interface Contract extends BaseEntity {
+  contractNumber: string;
+  customerId: string;
+  salesRepId?: string;
+  accountManagerId?: string;
+  status: ContractStatus;
+  contractType: string;
+  startDate: Date;
+  endDate: Date;
+  contractValue: number;
+  currency: string;
+  paymentTerms: string;
+  autoRenewal: boolean;
+  renewalNoticeDays?: number;
+  customerSignedAt?: Date;
+  companySignedAt?: Date;
+  approvedBy?: string;
+  approvedAt?: Date;
+  approvalNotes?: string;
+  pricingTerms?: Record<string, any>;
+  terms?: string;
+  notes?: string;
+  metadata?: Record<string, any>;
+  // Computed fields
+  isExpired?: boolean;
+  daysUntilExpiration?: number;
+  requiresRenewalNotice?: boolean;
+}
+
+export enum ContractStatus {
+  DRAFT = 'draft',
+  PENDING_APPROVAL = 'pending_approval',
+  APPROVED = 'approved',
+  ACTIVE = 'active',
+  EXPIRED = 'expired',
+  TERMINATED = 'terminated',
+  RENEWED = 'renewed'
+}
+
+// Pricing Types
+export interface PricingRule extends BaseEntity {
+  name: string;
+  description?: string;
+  ruleType: PricingRuleType;
+  targetType: PricingTargetType;
+  targetId?: string;
+  discountType: DiscountType;
+  discountValue: number;
+  minimumQuantity?: number;
+  maximumQuantity?: number;
+  minimumAmount?: number;
+  effectiveDate: Date;
+  expirationDate?: Date;
+  priority: number;
+  isActive: boolean;
+  // Computed fields
+  isCurrentlyActive?: boolean;
+}
+
+export enum PricingRuleType {
+  CUSTOMER_SPECIFIC = 'customer_specific',
+  PRODUCT_SPECIFIC = 'product_specific',
+  CATEGORY_SPECIFIC = 'category_specific',
+  VOLUME_DISCOUNT = 'volume_discount',
+  CONTRACT_PRICING = 'contract_pricing'
+}
+
+export enum PricingTargetType {
+  CUSTOMER = 'customer',
+  PRODUCT = 'product',
+  CATEGORY = 'category',
+  GLOBAL = 'global'
+}
+
+export enum DiscountType {
+  PERCENTAGE = 'percentage',
+  FIXED_AMOUNT = 'fixed_amount',
+  FIXED_PRICE = 'fixed_price'
+}
+
+export interface CustomerPricing {
+  customerId: string;
+  productId: string;
+  quantity: number;
+  listPrice: number;
+  customerPrice: number;
+  discountPercentage: number;
+  discountAmount: number;
+  appliedRules: PricingRule[];
+  pricingTier?: string;
+  contractPricing: boolean;
+  totalSavings: number;
+  savingsPercentage: number;
+}
+
+// Territory Types
+export interface Territory extends BaseEntity {
+  territoryCode: string;
+  name: string;
+  description?: string;
+  territoryType: TerritoryType;
+  primarySalesRepId?: string;
+  secondarySalesRepIds?: string[];
+  managerId?: string;
+  isActive: boolean;
+  revenueTarget?: number;
+  customerTarget?: number;
+  regions?: string[];
+  postalCodes?: string[];
+  states?: string[];
+  countries?: string[];
+  // Computed fields
+  customerCount?: number;
+  currentRevenue?: number;
+  targetAchievement?: number;
+}
+
+export enum TerritoryType {
+  GEOGRAPHIC = 'geographic',
+  INDUSTRY = 'industry',
+  ACCOUNT_SIZE = 'account_size',
+  PRODUCT_LINE = 'product_line'
+}
+
+export interface TerritoryCustomerAssignment extends BaseEntity {
+  territoryId: string;
+  customerId: string;
+  assignedBy: string;
+  assignedAt: Date;
+  isActive: boolean;
+  notes?: string;
+}
+
+export interface TerritoryPerformance {
+  territoryId: string;
+  period: {
+    startDate: Date;
+    endDate: Date;
+  };
+  metrics: {
+    totalRevenue: number;
+    customerCount: number;
+    orderCount: number;
+    averageOrderValue: number;
+    revenueTarget: number;
+    targetAchievement: number;
+    revenueGrowth: number;
+    customerGrowth: number;
+  };
+  topCustomers: Array<{
+    customerId: string;
+    companyName: string;
+    revenue: number;
+  }>;
+  monthlyBreakdown: Array<{
+    month: string;
+    revenue: number;
+    orders: number;
+    customers: number;
+  }>;
+}
+
+// Workflow Types
+export interface Workflow extends BaseEntity {
+  workflowType: WorkflowType;
+  entityType: EntityType;
+  entityId: string;
+  status: WorkflowStatus;
+  priority: WorkflowPriority;
+  initiatedBy: string;
+  initiatedAt: Date;
+  completedAt?: Date;
+  expiresAt?: Date;
+  currentStepId?: string;
+  totalSteps: number;
+  completedSteps: number;
+  notes?: string;
+  metadata?: Record<string, any>;
+  // Computed fields
+  isExpired?: boolean;
+  daysUntilExpiration?: number;
+  canBeApproved?: boolean;
+  canBeRejected?: boolean;
+}
+
+export interface ApprovalStep extends BaseEntity {
+  workflowId: string;
+  stepNumber: number;
+  stepType: ApprovalStepType;
+  approverId: string;
+  status: ApprovalStepStatus;
+  requiredBy?: Date;
+  approvedAt?: Date;
+  rejectedAt?: Date;
+  approvalNotes?: string;
+  rejectionReason?: string;
+  reassignedFrom?: string;
+  reassignedTo?: string;
+  reassignedAt?: Date;
+  reassignmentReason?: string;
+}
+
+export enum WorkflowType {
+  ORDER_APPROVAL = 'order_approval',
+  QUOTE_APPROVAL = 'quote_approval',
+  CONTRACT_APPROVAL = 'contract_approval',
+  PRICING_APPROVAL = 'pricing_approval',
+  CREDIT_APPROVAL = 'credit_approval'
+}
+
+export enum EntityType {
+  ORDER = 'order',
+  QUOTE = 'quote',
+  CONTRACT = 'contract',
+  PRICING_RULE = 'pricing_rule',
+  CUSTOMER = 'customer'
+}
+
+export enum WorkflowStatus {
+  PENDING = 'pending',
+  IN_PROGRESS = 'in_progress',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  EXPIRED = 'expired',
+  CANCELLED = 'cancelled'
+}
+
+export enum WorkflowPriority {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  URGENT = 'urgent'
+}
+
+export enum ApprovalStepType {
+  SEQUENTIAL = 'sequential',
+  PARALLEL = 'parallel',
+  CONDITIONAL = 'conditional'
+}
+
+export enum ApprovalStepStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  SKIPPED = 'skipped',
+  REASSIGNED = 'reassigned'
+}
+
+// Address Type
+export interface Address {
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
 // Event Types for Real-time Updates
 export interface CRMRealtimeEvent {
   type: 'customer_created' | 'customer_updated' | 'customer_deleted' |
         'campaign_created' | 'campaign_updated' | 'campaign_activated' |
-        'loyalty_transaction' | 'communication_scheduled';
+        'loyalty_transaction' | 'communication_scheduled' |
+        'b2b_order_created' | 'b2b_order_updated' | 'b2b_order_approved' |
+        'quote_created' | 'quote_sent' | 'quote_converted' |
+        'contract_expiring' | 'contract_renewed' |
+        'pricing_rule_updated' | 'workflow_step_approved';
   data: any;
   timestamp: Date;
   tenantId: string;

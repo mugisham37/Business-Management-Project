@@ -190,3 +190,6 @@ export * from './financial';
 
 // Re-export POS utilities
 export * from './pos-utils';
+
+// Re-export B2B utilities
+export * from './b2b-utils';
