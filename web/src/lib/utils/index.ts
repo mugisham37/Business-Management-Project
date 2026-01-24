@@ -187,3 +187,6 @@ export * from './supplier';
 
 // Re-export financial utilities
 export * from './financial';
+
+// Re-export POS utilities
+export * from './pos-utils';

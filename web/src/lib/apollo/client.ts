@@ -221,6 +221,49 @@ const cache = new InMemoryCache({
             };
           },
         },
+        // POS module caching
+        transactions: {
+          keyArgs: ['query'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            
+            return {
+              ...incoming,
+              edges: [...(existing.edges || []), ...(incoming.edges || [])],
+            };
+          },
+        },
+        posSession: {
+          keyArgs: ['id'],
+          merge: false,
+        },
+        activePOSSessions: {
+          keyArgs: ['locationId'],
+          merge: false,
+        },
+        transactionHistory: {
+          keyArgs: ['filters'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return {
+              ...incoming,
+              transactions: [...(existing.transactions || []), ...(incoming.transactions || [])],
+            };
+          },
+        },
+        reconciliationHistory: {
+          keyArgs: ['locationId'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return {
+              ...incoming,
+              reports: [...(existing.reports || []), ...(incoming.reports || [])],
+            };
+          },
+        },
       },
     },
     User: {
@@ -388,6 +431,34 @@ const cache = new InMemoryCache({
           merge: false,
         },
         trackingEvents: {
+          merge: false,
+        },
+      },
+    },
+    // POS module type policies
+    Transaction: {
+      fields: {
+        items: {
+          merge: false,
+        },
+        payments: {
+          merge: false,
+        },
+      },
+    },
+    POSSession: {
+      fields: {
+        transactions: {
+          merge: false,
+        },
+      },
+    },
+    ReconciliationReport: {
+      fields: {
+        paymentMethodBreakdown: {
+          merge: false,
+        },
+        discrepancies: {
           merge: false,
         },
       },

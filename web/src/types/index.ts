@@ -6,6 +6,7 @@ export * from './employee';
 export * from './supplier';
 export * from './crm';
 export * from './inventory';
+export * from './pos';
 
 // Re-export generated types when available (excluding conflicting types)
 export type {
