@@ -26,6 +26,123 @@ const cache = new InMemoryCache({
             return [...existing, ...incoming];
           },
         },
+        // Analytics module caching
+        getMetrics: {
+          keyArgs: ['filter'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
+        getKPIs: {
+          keyArgs: ['filter'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
+        getTrends: {
+          keyArgs: ['filter'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
+        getDashboard: {
+          keyArgs: ['dashboardId'],
+          merge: false,
+        },
+        getWidgetData: {
+          keyArgs: ['widgetId'],
+          merge: false,
+        },
+        reports: {
+          keyArgs: false,
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
+        getReport: {
+          keyArgs: ['reportId'],
+          merge: false,
+        },
+        getReportExecution: {
+          keyArgs: ['executionId'],
+          merge: false,
+        },
+        executeReport: {
+          keyArgs: ['input'],
+          merge: false,
+        },
+        getForecast: {
+          keyArgs: ['metricName', 'periods', 'productId', 'locationId'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return Array.isArray(incoming) ? incoming : [incoming];
+          },
+        },
+        detectAnomalies: {
+          keyArgs: ['metricName', 'threshold'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
+        compareTimePeriods: {
+          keyArgs: ['input'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
+        compareLocations: {
+          keyArgs: ['input'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
+        compareSegments: {
+          keyArgs: ['input'],
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
+        getDataCubes: {
+          keyArgs: false,
+          merge(existing, incoming) {
+            if (!existing) return incoming;
+            if (!incoming) return existing;
+            return [...existing, ...incoming];
+          },
+        },
+        getDataCube: {
+          keyArgs: ['cubeName'],
+          merge: false,
+        },
+        queryWarehouse: {
+          keyArgs: ['query'],
+          merge: false,
+        },
+        getPipelines: {
+          keyArgs: false,
+          merge: false,
+        },
+        getPipelineStatus: {
+          keyArgs: ['pipelineId'],
+          merge: false,
+        },
         // Financial module caching
         accounts: {
           keyArgs: ['accountType', 'isActive', 'parentAccountId'],
@@ -341,6 +458,120 @@ const cache = new InMemoryCache({
       fields: {
         features: {
           merge: false, // Replace instead of merging
+        },
+      },
+    },
+    // Analytics module type policies
+    Metric: {
+      fields: {
+        dimensions: {
+          merge: false,
+        },
+      },
+    },
+    KPI: {
+      fields: {
+        changePercentage: {
+          merge: false,
+        },
+      },
+    },
+    Trend: {
+      fields: {
+        dataPoints: {
+          merge: false,
+        },
+      },
+    },
+    Dashboard: {
+      fields: {
+        widgets: {
+          merge: false,
+        },
+      },
+    },
+    Report: {
+      fields: {
+        metrics: {
+          merge: false,
+        },
+        dimensions: {
+          merge: false,
+        },
+      },
+    },
+    ReportExecution: {
+      fields: {
+        result: {
+          merge: false,
+        },
+      },
+    },
+    Forecast: {
+      fields: {
+        predictions: {
+          merge: false,
+        },
+      },
+    },
+    Anomaly: {
+      fields: {
+        deviationScore: {
+          merge: false,
+        },
+      },
+    },
+    ComparisonResult: {
+      fields: {
+        variance: {
+          merge: false,
+        },
+        percentageChange: {
+          merge: false,
+        },
+      },
+    },
+    LocationComparison: {
+      fields: {
+        metrics: {
+          merge: false,
+        },
+      },
+    },
+    SegmentComparison: {
+      fields: {
+        metrics: {
+          merge: false,
+        },
+      },
+    },
+    DataCube: {
+      fields: {
+        dimensions: {
+          merge: false,
+        },
+        measures: {
+          merge: false,
+        },
+      },
+    },
+    ETLPipeline: {
+      fields: {
+        sourceConfig: {
+          merge: false,
+        },
+        transformConfig: {
+          merge: false,
+        },
+        destinationConfig: {
+          merge: false,
+        },
+      },
+    },
+    ETLJobResult: {
+      fields: {
+        executionLog: {
+          merge: false,
         },
       },
     },

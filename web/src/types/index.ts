@@ -1,4 +1,5 @@
 // Type definitions exports
+export * from './analytics';
 export * from './core';
 export * from './communication';
 export * from './realtime';

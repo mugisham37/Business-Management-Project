@@ -182,6 +182,9 @@ export function omit<T extends Record<string, unknown>, K extends keyof T>(
   return result;
 }
 
+// Re-export analytics utilities
+export * from './analytics';
+
 // Re-export supplier utilities
 export * from './supplier';
 

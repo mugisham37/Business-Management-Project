@@ -16,6 +16,17 @@ export {
   useTokens 
 } from './useAuth';
 
+// Analytics hooks
+export {
+  useAnalytics,
+  useReports,
+  useDashboards,
+  usePredictiveAnalytics,
+  useComparativeAnalysis,
+  useDataWarehouse,
+  useETL,
+} from '@/modules/analytics';
+
 // Financial hooks
 export {
   useBalanceSheet,
