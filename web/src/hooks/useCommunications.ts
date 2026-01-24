@@ -1,10 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import { 
   Communication, 
   CreateCommunicationInput,
   ScheduleCommunicationInput,
-  UseCommunicationsResult 
+  UseCommunicationsResult,
+  CommunicationType as CommunicationTypeEnum,
 } from '@/types/crm';
 import {
   GET_COMMUNICATIONS,
@@ -18,7 +19,7 @@ import {
   COMMUNICATION_SCHEDULED,
 } from '@/graphql/subscriptions/crm-subscriptions';
 import { useTenantStore } from '@/lib/stores/tenant-store';
-import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { useErrorHandler } from './useErrorHandler';
 
 /**
  * Hook for managing customer communications
@@ -145,12 +146,12 @@ export function useCommunications(
     } catch (error) {
       throw error;
     }
-  }, []);
+  }, [refetch]);
 
   return {
     communications: data?.getCommunications || [],
     loading,
-    error: error || undefined,
+    error: error ? new Error(error.message) : undefined,
     recordCommunication,
     scheduleCommunication,
     getCommunicationTimeline,
@@ -220,37 +221,37 @@ export function useCommunicationStats() {
  * Hook for communication templates and automation
  */
 export function useCommunicationTemplates() {
-  const templates = {
+  const templates = useMemo(() => ({
     welcome: {
-      type: 'email',
+      type: CommunicationTypeEnum.EMAIL,
       subject: 'Welcome to our loyalty program!',
       content: 'Thank you for joining our loyalty program. You\'ve earned {{points}} points to get started!',
     },
     pointsAwarded: {
-      type: 'email',
+      type: CommunicationTypeEnum.EMAIL,
       subject: 'Points awarded for your recent purchase',
       content: 'Great news! You\'ve earned {{points}} points from your recent purchase. Your total balance is now {{totalPoints}} points.',
     },
     contractExpiring: {
-      type: 'email',
+      type: CommunicationTypeEnum.EMAIL,
       subject: 'Contract renewal reminder',
       content: 'Your contract is set to expire on {{expiryDate}}. Please contact us to discuss renewal options.',
     },
     churnRisk: {
-      type: 'email',
+      type: CommunicationTypeEnum.EMAIL,
       subject: 'We miss you!',
       content: 'We noticed you haven\'t made a purchase recently. Here\'s a special offer just for you: {{offer}}',
     },
     campaignInvitation: {
-      type: 'email',
+      type: CommunicationTypeEnum.EMAIL,
       subject: 'Exclusive campaign invitation',
       content: 'You\'re invited to participate in our {{campaignName}} campaign. Earn {{multiplier}}x points on all purchases!',
     },
-  };
+  }), []);
 
   const generateFromTemplate = useCallback((
     templateKey: keyof typeof templates,
-    variables: Record<string, any>
+    variables: Record<string, string | number>
   ) => {
     const template = templates[templateKey];
     if (!template) return null;
@@ -264,7 +265,7 @@ export function useCommunicationTemplates() {
       ...template,
       content,
     };
-  }, []);
+  }, [templates]);
 
   return {
     templates,
@@ -288,7 +289,7 @@ export function useCommunicationAutomation() {
 
     return scheduleCommunication({
       customerId,
-      type: template.type as any,
+      type: template.type,
       subject: template.subject,
       content: template.content,
       scheduledAt: new Date(),
@@ -305,7 +306,7 @@ export function useCommunicationAutomation() {
 
     return scheduleCommunication({
       customerId,
-      type: template.type as any,
+      type: template.type,
       subject: template.subject,
       content: template.content,
       scheduledAt: new Date(),
@@ -327,7 +328,7 @@ export function useCommunicationAutomation() {
 
     return scheduleCommunication({
       customerId,
-      type: template.type as any,
+      type: template.type,
       subject: template.subject,
       content: template.content,
       scheduledAt: reminderDate,
@@ -343,7 +344,7 @@ export function useCommunicationAutomation() {
 
     return scheduleCommunication({
       customerId,
-      type: template.type as any,
+      type: template.type,
       subject: template.subject,
       content: template.content,
       scheduledAt: new Date(),
@@ -363,7 +364,7 @@ export function useCommunicationAutomation() {
 
     return scheduleCommunication({
       customerId,
-      type: template.type as any,
+      type: template.type,
       subject: template.subject,
       content: template.content,
       scheduledAt: new Date(),

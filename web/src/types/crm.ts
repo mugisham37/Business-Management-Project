@@ -718,7 +718,7 @@ export interface SegmentJobResponse {
 export interface UseCustomersResult {
   customers: Customer[];
   loading: boolean;
-  error?: Error;
+  error: Error | undefined;
   totalCount: number;
   hasNextPage: boolean;
   hasPreviousPage: boolean;
@@ -842,7 +842,7 @@ export interface UseB2BWorkflowsResult {
 export interface UseCommunicationsResult {
   communications: Communication[];
   loading: boolean;
-  error?: Error;
+  error: Error | undefined;
   recordCommunication: (input: CreateCommunicationInput) => Promise<Communication>;
   scheduleCommunication: (input: ScheduleCommunicationInput) => Promise<Communication>;
   getCommunicationTimeline: (customerId: string, limit?: number) => Promise<Communication[]>;
@@ -858,6 +858,20 @@ export interface UseSegmentationResult {
   recalculateSegment: (id: string) => Promise<SegmentJobResponse>;
   getSegmentMembers: (segmentId: string, limit?: number) => Promise<SegmentMember[]>;
   evaluateSegmentMembership: (segmentId: string, customerId: string) => Promise<boolean>;
+}
+
+export interface UseContractsResult {
+  contracts: Contract[];
+  loading: boolean;
+  error?: Error | undefined;
+  totalCount: number;
+  createContract: (input: CreateContractInput) => Promise<Contract>;
+  updateContract: (id: string, input: UpdateContractInput) => Promise<Contract>;
+  approveContract: (id: string, approvalNotes?: string) => Promise<Contract>;
+  signContract: (id: string, input: SignContractInput) => Promise<Contract>;
+  renewContract: (id: string, input: RenewContractInput) => Promise<Contract>;
+  terminateContract: (id: string, terminationReason: string, terminationDate?: Date) => Promise<Contract>;
+  refetch: () => Promise<void>;
 }
 
 // Utility Types
@@ -1088,6 +1102,67 @@ export enum ContractStatus {
   EXPIRED = 'expired',
   TERMINATED = 'terminated',
   RENEWED = 'renewed'
+}
+
+// Contract Input Types
+export interface ContractQueryInput {
+  search?: string;
+  status?: ContractStatus;
+  customerId?: string;
+  salesRepId?: string;
+  contractType?: string;
+  expiringWithinDays?: number;
+  autoRenewal?: boolean;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface CreateContractInput {
+  customerId: string;
+  salesRepId?: string;
+  accountManagerId?: string;
+  contractType: string;
+  startDate: Date;
+  endDate: Date;
+  contractValue: number;
+  currency?: string;
+  paymentTerms: string;
+  autoRenewal?: boolean;
+  renewalNoticeDays?: number;
+  pricingTerms?: Record<string, unknown>;
+  terms?: string;
+  notes?: string;
+}
+
+export interface UpdateContractInput {
+  salesRepId?: string;
+  accountManagerId?: string;
+  contractType?: string;
+  startDate?: Date;
+  endDate?: Date;
+  contractValue?: number;
+  currency?: string;
+  paymentTerms?: string;
+  autoRenewal?: boolean;
+  renewalNoticeDays?: number;
+  customerSignedAt?: Date;
+  companySignedAt?: Date;
+  pricingTerms?: Record<string, unknown>;
+  terms?: string;
+  notes?: string;
+}
+
+export interface RenewContractInput {
+  newEndDate: Date;
+  contractValue?: number;
+  pricingTerms?: string;
+}
+
+export interface SignContractInput {
+  customerSignedAt?: Date;
+  digitalSignature?: string;
 }
 
 // Pricing Types

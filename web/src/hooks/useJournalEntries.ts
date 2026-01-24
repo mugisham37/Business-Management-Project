@@ -24,7 +24,7 @@ import {
   JOURNAL_ENTRY_POSTED,
   JOURNAL_ENTRY_UPDATED,
 } from '@/graphql/subscriptions/financial';
-import { useAuth } from './useAuth';
+import { useTenantStore } from '@/lib/stores/tenant-store';
 import { errorLogger } from '@/lib/error-handling';
 
 export interface JournalEntryFilters {
@@ -66,7 +66,7 @@ export interface UpdateJournalEntryInput {
 
 // Single Journal Entry Hook
 export function useJournalEntry(entryId: string) {
-  const { currentTenant } = useAuth();
+  const currentTenant = useTenantStore(state => state.currentTenant);
 
   const {
     data,
@@ -92,10 +92,10 @@ export function useJournalEntry(entryId: string) {
       totalCreditAmount: totalCredits,
       isBalanced: Math.abs(totalDebits - totalCredits) < 0.01,
       balanceDifference: totalDebits - totalCredits,
-      lineItems: entry.lineItems?.map((line: any) => ({
+      lineItems: entry.lineItems?.map((line: Record<string, unknown>) => ({
         ...line,
-        debitAmount: parseFloat(line.debitAmount || '0'),
-        creditAmount: parseFloat(line.creditAmount || '0'),
+        debitAmount: parseFloat((line.debitAmount as string) || '0'),
+        creditAmount: parseFloat((line.creditAmount as string) || '0'),
       })) || [],
     };
   }, [data]);
@@ -110,7 +110,7 @@ export function useJournalEntry(entryId: string) {
 
 // Multiple Journal Entries Hook
 export function useJournalEntries(filters: JournalEntryFilters = {}) {
-  const { currentTenant } = useAuth();
+  const currentTenant = useTenantStore(state => state.currentTenant);
 
   const {
     data,
@@ -126,12 +126,12 @@ export function useJournalEntries(filters: JournalEntryFilters = {}) {
   const journalEntries = useMemo(() => {
     if (!data?.journalEntries) return [];
     
-    return data.journalEntries.map((entry: any) => ({
+    return data.journalEntries.map((entry: Record<string, unknown>) => ({
       ...entry,
-      totalDebitAmount: parseFloat(entry.totalDebitAmount || '0'),
-      totalCreditAmount: parseFloat(entry.totalCreditAmount || '0'),
+      totalDebitAmount: parseFloat((entry.totalDebitAmount as string) || '0'),
+      totalCreditAmount: parseFloat((entry.totalCreditAmount as string) || '0'),
       isBalanced: entry.isBalanced || Math.abs(
-        parseFloat(entry.totalDebitAmount || '0') - parseFloat(entry.totalCreditAmount || '0')
+        parseFloat((entry.totalDebitAmount as string) || '0') - parseFloat((entry.totalCreditAmount as string) || '0')
       ) < 0.01,
     }));
   }, [data]);
@@ -140,13 +140,19 @@ export function useJournalEntries(filters: JournalEntryFilters = {}) {
     if (!journalEntries.length) return null;
     
     const totalEntries = journalEntries.length;
-    const draftEntries = journalEntries.filter(e => e.status === 'draft').length;
-    const postedEntries = journalEntries.filter(e => e.status === 'posted').length;
-    const reversedEntries = journalEntries.filter(e => e.status === 'reversed').length;
-    const unbalancedEntries = journalEntries.filter(e => !e.isBalanced).length;
+    const draftEntries = journalEntries.filter((e: Record<string, unknown>) => e.status === 'draft').length;
+    const postedEntries = journalEntries.filter((e: Record<string, unknown>) => e.status === 'posted').length;
+    const reversedEntries = journalEntries.filter((e: Record<string, unknown>) => e.status === 'reversed').length;
+    const unbalancedEntries = journalEntries.filter((e: Record<string, unknown>) => e.isBalanced === false).length;
     
-    const totalDebits = journalEntries.reduce((sum, entry) => sum + entry.totalDebitAmount, 0);
-    const totalCredits = journalEntries.reduce((sum, entry) => sum + entry.totalCreditAmount, 0);
+    const totalDebits = journalEntries.reduce((sum: number, entry: Record<string, unknown>) => {
+      const amount = typeof entry.totalDebitAmount === 'number' ? entry.totalDebitAmount : 0;
+      return sum + amount;
+    }, 0);
+    const totalCredits = journalEntries.reduce((sum: number, entry: Record<string, unknown>) => {
+      const amount = typeof entry.totalCreditAmount === 'number' ? entry.totalCreditAmount : 0;
+      return sum + amount;
+    }, 0);
     
     return {
       totalEntries,
@@ -176,7 +182,7 @@ export function useGeneralLedger(accountId: string, options: {
   dateTo?: Date;
   includeUnposted?: boolean;
 } = {}) {
-  const { currentTenant } = useAuth();
+  const currentTenant = useTenantStore(state => state.currentTenant);
 
   const {
     data,
@@ -201,11 +207,11 @@ export function useGeneralLedger(accountId: string, options: {
     
     return {
       ...ledger,
-      transactions: ledger.transactions?.map((transaction: any) => ({
+      transactions: ledger.transactions?.map((transaction: Record<string, unknown>) => ({
         ...transaction,
-        debitAmount: parseFloat(transaction.debitAmount || '0'),
-        creditAmount: parseFloat(transaction.creditAmount || '0'),
-        runningBalance: parseFloat(transaction.runningBalance || '0'),
+        debitAmount: parseFloat((transaction.debitAmount as string) || '0'),
+        creditAmount: parseFloat((transaction.creditAmount as string) || '0'),
+        runningBalance: parseFloat((transaction.runningBalance as string) || '0'),
       })) || [],
       summary: {
         ...ledger.summary,
@@ -228,75 +234,117 @@ export function useGeneralLedger(accountId: string, options: {
 
 // Journal Entry Mutations Hook
 export function useJournalEntryMutations() {
-  const { currentTenant } = useAuth();
+  const currentTenant = useTenantStore(state => state.currentTenant);
 
   const [createJournalEntryMutation] = useMutation(CREATE_JOURNAL_ENTRY, {
     onError: (error) => {
-      errorLogger.logError(error, {
-        component: 'useJournalEntryMutations',
-        operation: 'createJournalEntry',
-        tenantId: currentTenant?.id,
-      });
+      errorLogger.logError(error, currentTenant?.id
+        ? {
+            component: 'useJournalEntryMutations',
+            operationId: 'createJournalEntry',
+            tenantId: currentTenant.id,
+          }
+        : {
+            component: 'useJournalEntryMutations',
+            operationId: 'createJournalEntry',
+          }
+      );
     },
   });
 
   const [updateJournalEntryMutation] = useMutation(UPDATE_JOURNAL_ENTRY, {
     onError: (error) => {
-      errorLogger.logError(error, {
-        component: 'useJournalEntryMutations',
-        operation: 'updateJournalEntry',
-        tenantId: currentTenant?.id,
-      });
+      errorLogger.logError(error, currentTenant?.id
+        ? {
+            component: 'useJournalEntryMutations',
+            operationId: 'updateJournalEntry',
+            tenantId: currentTenant.id,
+          }
+        : {
+            component: 'useJournalEntryMutations',
+            operationId: 'updateJournalEntry',
+          }
+      );
     },
   });
 
   const [postJournalEntryMutation] = useMutation(POST_JOURNAL_ENTRY, {
     onError: (error) => {
-      errorLogger.logError(error, {
-        component: 'useJournalEntryMutations',
-        operation: 'postJournalEntry',
-        tenantId: currentTenant?.id,
-      });
+      errorLogger.logError(error, currentTenant?.id
+        ? {
+            component: 'useJournalEntryMutations',
+            operationId: 'postJournalEntry',
+            tenantId: currentTenant.id,
+          }
+        : {
+            component: 'useJournalEntryMutations',
+            operationId: 'postJournalEntry',
+          }
+      );
     },
   });
 
   const [reverseJournalEntryMutation] = useMutation(REVERSE_JOURNAL_ENTRY, {
     onError: (error) => {
-      errorLogger.logError(error, {
-        component: 'useJournalEntryMutations',
-        operation: 'reverseJournalEntry',
-        tenantId: currentTenant?.id,
-      });
+      errorLogger.logError(error, currentTenant?.id
+        ? {
+            component: 'useJournalEntryMutations',
+            operationId: 'reverseJournalEntry',
+            tenantId: currentTenant.id,
+          }
+        : {
+            component: 'useJournalEntryMutations',
+            operationId: 'reverseJournalEntry',
+          }
+      );
     },
   });
 
   const [deleteJournalEntryMutation] = useMutation(DELETE_JOURNAL_ENTRY, {
     onError: (error) => {
-      errorLogger.logError(error, {
-        component: 'useJournalEntryMutations',
-        operation: 'deleteJournalEntry',
-        tenantId: currentTenant?.id,
-      });
+      errorLogger.logError(error, currentTenant?.id
+        ? {
+            component: 'useJournalEntryMutations',
+            operationId: 'deleteJournalEntry',
+            tenantId: currentTenant.id,
+          }
+        : {
+            component: 'useJournalEntryMutations',
+            operationId: 'deleteJournalEntry',
+          }
+      );
     },
   });
 
   const [batchPostJournalEntriesMutation] = useMutation(BATCH_POST_JOURNAL_ENTRIES, {
     onError: (error) => {
-      errorLogger.logError(error, {
-        component: 'useJournalEntryMutations',
-        operation: 'batchPostJournalEntries',
-        tenantId: currentTenant?.id,
-      });
+      errorLogger.logError(error, currentTenant?.id
+        ? {
+            component: 'useJournalEntryMutations',
+            operationId: 'batchPostJournalEntries',
+            tenantId: currentTenant.id,
+          }
+        : {
+            component: 'useJournalEntryMutations',
+            operationId: 'batchPostJournalEntries',
+          }
+      );
     },
   });
 
   const [batchCreateJournalEntriesMutation] = useMutation(BATCH_CREATE_JOURNAL_ENTRIES, {
     onError: (error) => {
-      errorLogger.logError(error, {
-        component: 'useJournalEntryMutations',
-        operation: 'batchCreateJournalEntries',
-        tenantId: currentTenant?.id,
-      });
+      errorLogger.logError(error, currentTenant?.id
+        ? {
+            component: 'useJournalEntryMutations',
+            operationId: 'batchCreateJournalEntries',
+            tenantId: currentTenant.id,
+          }
+        : {
+            component: 'useJournalEntryMutations',
+            operationId: 'batchCreateJournalEntries',
+          }
+      );
     },
   });
 
@@ -403,8 +451,8 @@ export function useJournalEntryMutations() {
 
 // Journal Entry Subscriptions Hook
 export function useJournalEntrySubscriptions() {
-  const { currentTenant } = useAuth();
-  const [entryNotifications, setEntryNotifications] = useState<any[]>([]);
+  const currentTenant = useTenantStore(state => state.currentTenant);
+  const [entryNotifications, setEntryNotifications] = useState<Record<string, unknown>[]>([]);
 
   useSubscription(JOURNAL_ENTRY_CREATED, {
     variables: { tenantId: currentTenant?.id },
@@ -564,33 +612,5 @@ export function useJournalEntryValidation() {
   return {
     validateJournalEntry,
     validateLineItem,
-  };
-}
-
-// Comprehensive Journal Entries Hook
-export function useJournalEntries(filters: JournalEntryFilters = {}) {
-  const entries = useJournalEntries(filters);
-  const mutations = useJournalEntryMutations();
-  const subscriptions = useJournalEntrySubscriptions();
-  const validation = useJournalEntryValidation();
-
-  return {
-    // Entries data
-    journalEntries: entries.journalEntries,
-    entrySummary: entries.entrySummary,
-    loading: entries.loading,
-    error: entries.error,
-    
-    // Mutations
-    ...mutations,
-    
-    // Subscriptions
-    ...subscriptions,
-    
-    // Validation
-    ...validation,
-    
-    // Refresh functions
-    refetch: entries.refetch,
   };
 }

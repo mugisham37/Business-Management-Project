@@ -5,14 +5,32 @@
 
 import { useState, useCallback } from 'react';
 
+export interface ComplianceRequirementStatus {
+  id: string;
+  title: string;
+  status: 'COMPLIANT' | 'NON_COMPLIANT' | 'PENDING' | 'NOT_APPLICABLE';
+  score: number;
+  lastAssessed: Date;
+}
+
 export interface ComplianceStatus {
   averageScore: number;
   frameworks: Record<string, { score: number; status: string }>;
 }
 
+export interface ComplianceViolation {
+  id: string;
+  title: string;
+  category: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  status: 'ACTIVE' | 'MITIGATED' | 'RESOLVED';
+  detectedAt: Date;
+  remediationDue?: Date;
+}
+
 export function useCompliance() {
   const [complianceStatus, setComplianceStatus] = useState<ComplianceStatus | null>(null);
-  const [recentViolations, setRecentViolations] = useState<any[]>([]);
+  const [recentViolations, setRecentViolations] = useState<ComplianceViolation[]>([]);
 
   const refreshComplianceStatus = useCallback(async () => {
     // Placeholder implementation

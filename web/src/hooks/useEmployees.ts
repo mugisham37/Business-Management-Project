@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
-import { useQuery, useMutation, useSubscription } from '@apollo/client';
+import { useQuery, useSubscription } from '@apollo/client';
 import { 
   GET_EMPLOYEES, 
   GET_EMPLOYEE, 
@@ -17,9 +17,9 @@ import {
   TERMINATE_EMPLOYEE 
 } from '@/graphql/mutations/employee';
 import { 
-  EMPLOYEE_CREATED, 
-  EMPLOYEE_UPDATED, 
-  EMPLOYEE_TERMINATED 
+  EMPLOYEE_CREATED_SUBSCRIPTION, 
+  EMPLOYEE_UPDATED_SUBSCRIPTION, 
+  EMPLOYEE_TERMINATED_SUBSCRIPTION 
 } from '@/graphql/subscriptions/employee';
 import { useCreateMutation, useUpdateMutation, useDeleteMutation } from './useGraphQLMutations';
 import { useTenantStore } from '@/lib/stores/tenant-store';
@@ -54,9 +54,9 @@ export function useEmployees(query?: EmployeeQueryInput) {
     CREATE_EMPLOYEE,
     GET_EMPLOYEES,
     'employees',
-    (variables) => ({
+    (variables: Record<string, unknown>) => ({
       id: `temp-${Date.now()}`,
-      ...variables.input,
+      ...(variables.input as Record<string, unknown>),
       tenantId: currentTenant?.id || '',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -80,7 +80,7 @@ export function useEmployees(query?: EmployeeQueryInput) {
   );
 
   // Real-time subscriptions
-  useSubscription(EMPLOYEE_CREATED, {
+  useSubscription(EMPLOYEE_CREATED_SUBSCRIPTION, {
     onData: ({ data: subscriptionData }) => {
       if (subscriptionData?.data?.employeeCreated) {
         // Cache will be updated automatically by useCreateMutation
@@ -89,7 +89,7 @@ export function useEmployees(query?: EmployeeQueryInput) {
     },
   });
 
-  useSubscription(EMPLOYEE_UPDATED, {
+  useSubscription(EMPLOYEE_UPDATED_SUBSCRIPTION, {
     onData: ({ data: subscriptionData }) => {
       if (subscriptionData?.data?.employeeUpdated) {
         // Cache will be updated automatically by useUpdateMutation
@@ -98,7 +98,7 @@ export function useEmployees(query?: EmployeeQueryInput) {
     },
   });
 
-  useSubscription(EMPLOYEE_TERMINATED, {
+  useSubscription(EMPLOYEE_TERMINATED_SUBSCRIPTION, {
     onData: ({ data: subscriptionData }) => {
       if (subscriptionData?.data?.employeeTerminated) {
         // Cache will be updated automatically by useDeleteMutation
@@ -303,7 +303,7 @@ export function useEmployeeSearch() {
 
   const { employees, loading, error, totalCount, refetch } = useEmployees(query);
 
-  const updateFilter = useCallback((key: keyof EmployeeQueryInput, value: any) => {
+  const updateFilter = useCallback((key: keyof EmployeeQueryInput, value: unknown) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   }, []);
 

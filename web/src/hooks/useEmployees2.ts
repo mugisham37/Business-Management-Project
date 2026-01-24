@@ -13,7 +13,6 @@ import { errorLogger } from '@/lib/error-handling';
 import {
   GET_EMPLOYEES,
   GET_EMPLOYEE,
-  GET_EMPLOYEE_BY_NUMBER,
   GET_ACTIVE_EMPLOYEES,
   GET_DEPARTMENTS,
   GET_POSITIONS,
@@ -94,7 +93,7 @@ interface UseEmployeesReturn {
   setLimit: (limit: number) => void;
   
   // Import/Export
-  importEmployees: (file: File, options?: any) => Promise<boolean>;
+  importEmployees: (file: File, options?: Record<string, unknown>) => Promise<boolean>;
   exportEmployees: (options: EmployeeExportOptions) => Promise<string>;
   
   // Utilities
@@ -109,14 +108,14 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
   
   const currentTenant = useTenantStore(state => state.currentTenant);
   const [query, setQuery] = useState<EmployeeQueryInput>(initialQuery || { page: 1, limit: 20 });
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedEmployeeId] = useState<string | null>(null);
   
   // Main employees query
   const {
     data: employeesData,
     loading,
     error,
-    refetch: refetchEmployees,
+    refetch: refetchEmployeesQuery,
   } = useQuery(GET_EMPLOYEES, {
     variables: { query },
     skip: !currentTenant?.id,
@@ -124,14 +123,19 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     notifyOnNetworkStatusChange: true,
   });
 
+  // Wrap refetch to match interface signature
+  const refetchEmployees = useCallback(async () => {
+    await refetchEmployeesQuery();
+  }, [refetchEmployeesQuery]);
+
   // Individual employee query
   const {
     data: employeeData,
     loading: employeeLoading,
     refetch: refetchEmployee,
   } = useQuery(GET_EMPLOYEE, {
-    variables: { id: selectedEmployee?.id || '' },
-    skip: !selectedEmployee?.id,
+    variables: { id: selectedEmployeeId || '' },
+    skip: !selectedEmployeeId,
     errorPolicy: 'all',
   });
 
@@ -161,9 +165,9 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     CREATE_EMPLOYEE,
     GET_EMPLOYEES,
     'employees',
-    (variables) => ({
+    (variables: Record<string, unknown>) => ({
       id: `temp-${Date.now()}`,
-      ...variables.input,
+      ...(variables.input as Record<string, unknown>),
       __typename: 'Employee',
     })
   );
@@ -189,7 +193,7 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     onData: ({ data }) => {
       if (data?.data?.employeeUpdated && enableRealTimeUpdates) {
         refetchEmployees();
-        if (selectedEmployee?.id === data.data.employeeUpdated.id) {
+        if (employeeData?.employee?.id === data.data.employeeUpdated.id) {
           refetchEmployee();
         }
       }
@@ -214,22 +218,18 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     return employeesData?.employees || null;
   }, [employeesData]);
 
-  const employee = useMemo(() => {
-    return employeeData?.employee || selectedEmployee;
-  }, [employeeData, selectedEmployee]);
-
   const departments = useMemo(() => {
     const depts = departmentsData?.employees?.employees
       ?.map((emp: Employee) => emp.department)
       .filter((dept: string | undefined): dept is string => Boolean(dept));
-    return [...new Set(depts)] || [];
+    return Array.from(new Set(depts ?? []));
   }, [departmentsData]);
 
   const positions = useMemo(() => {
     const pos = positionsData?.employees?.employees
       ?.map((emp: Employee) => emp.position)
-      .filter(Boolean);
-    return [...new Set(pos)] || [];
+      .filter((position: string | undefined): position is string => Boolean(position));
+    return Array.from(new Set(pos ?? []));
   }, [positionsData]);
 
   const managers = useMemo(() => {
@@ -250,7 +250,7 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     } catch (error) {
       errorLogger.logError(error as Error, {
         component: 'useEmployees',
-        operation: 'createEmployee',
+        operationId: 'createEmployee',
       });
       throw error;
     }
@@ -263,7 +263,7 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     } catch (error) {
       errorLogger.logError(error as Error, {
         component: 'useEmployees',
-        operation: 'updateEmployee',
+        operationId: 'updateEmployee',
       });
       throw error;
     }
@@ -271,12 +271,12 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
 
   const terminateEmployee = useCallback(async (id: string): Promise<boolean> => {
     try {
-      const result = await terminateEmployeeMutation({ id });
+      const result = await terminateEmployeeMutation(id as unknown as Record<string, unknown>);
       return result.data?.terminateEmployee?.success || false;
     } catch (error) {
       errorLogger.logError(error as Error, {
         component: 'useEmployees',
-        operation: 'terminateEmployee',
+        operationId: 'terminateEmployee',
       });
       throw error;
     }
@@ -293,7 +293,7 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     } catch (error) {
       errorLogger.logError(error as Error, {
         component: 'useEmployees',
-        operation: 'bulkUpdateEmployees',
+        operationId: 'bulkUpdateEmployees',
       });
       throw error;
     }
@@ -307,7 +307,7 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     } catch (error) {
       errorLogger.logError(error as Error, {
         component: 'useEmployees',
-        operation: 'fetchEmployee',
+        operationId: 'fetchEmployee',
       });
       return null;
     }
@@ -320,7 +320,7 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     } catch (error) {
       errorLogger.logError(error as Error, {
         component: 'useEmployees',
-        operation: 'fetchEmployeeByNumber',
+        operationId: 'fetchEmployeeByNumber',
       });
       return null;
     }
@@ -329,17 +329,16 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
   // Filtering and sorting
   const setFilters = useCallback((filters: EmployeeFilters) => {
     const newQuery: EmployeeQueryInput = {
-      ...query,
-      search: filters.search,
-      department: filters.departments?.[0],
-      position: filters.positions?.[0],
-      employmentStatus: filters.employmentStatuses?.[0],
-      employmentType: filters.employmentTypes?.[0],
-      managerId: filters.managers?.[0],
+      ...(filters.search !== undefined && { search: filters.search }),
+      ...(filters.departments?.[0] !== undefined && { department: filters.departments[0] }),
+      ...(filters.positions?.[0] !== undefined && { position: filters.positions[0] }),
+      ...(filters.employmentStatuses?.[0] !== undefined && { employmentStatus: filters.employmentStatuses[0] }),
+      ...(filters.employmentTypes?.[0] !== undefined && { employmentType: filters.employmentTypes[0] }),
+      ...(filters.managers?.[0] !== undefined && { managerId: filters.managers[0] }),
       page: 1, // Reset to first page when filtering
     };
-    setQuery(newQuery);
-  }, [query]);
+    setQuery(newQuery as EmployeeQueryInput);
+  }, []);
 
   const setSorting = useCallback((sort: EmployeeSortOptions) => {
     setQuery(prev => ({
@@ -363,7 +362,7 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
   }, []);
 
   // Import/Export
-  const importEmployees = useCallback(async (file: File, options?: any): Promise<boolean> => {
+  const importEmployees = useCallback(async (file: File, options?: Record<string, unknown>): Promise<boolean> => {
     try {
       const result = await importMutation({
         variables: { file, options },
@@ -372,7 +371,7 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     } catch (error) {
       errorLogger.logError(error as Error, {
         component: 'useEmployees',
-        operation: 'importEmployees',
+        operationId: 'importEmployees',
       });
       throw error;
     }
@@ -390,7 +389,7 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
     } catch (error) {
       errorLogger.logError(error as Error, {
         component: 'useEmployees',
-        operation: 'exportEmployees',
+        operationId: 'exportEmployees',
       });
       throw error;
     }
@@ -402,24 +401,24 @@ export function useEmployees(options: UseEmployeesOptions = {}): UseEmployeesRet
   }, []);
 
   const getEmployeesByDepartment = useCallback((department: string): Employee[] => {
-    return employees.filter(emp => emp.department === department);
+    return employees.filter((emp: Record<string, unknown>) => (emp as Record<string, string>).department === department);
   }, [employees]);
 
   const getEmployeesByManager = useCallback((managerId: string): Employee[] => {
-    return employees.filter(emp => emp.managerId === managerId);
+    return employees.filter((emp: Record<string, unknown>) => (emp as Record<string, string>).managerId === managerId);
   }, [employees]);
 
   const isManager = useCallback((employeeId: string): boolean => {
-    return managers.some(manager => manager.id === employeeId);
+    return managers.some((manager: Record<string, unknown>) => (manager as Record<string, string>).id === employeeId);
   }, [managers]);
 
   return {
     // Data
     employees,
-    employee,
+    employee: employeeData?.employee || null,
     connection,
-    departments,
-    positions,
+    departments: departments as string[],
+    positions: positions as string[],
     managers,
     activeEmployees,
     

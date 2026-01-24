@@ -22,7 +22,7 @@ import {
   BULK_DELETE_LOCATIONS,
   CANCEL_BULK_OPERATION
 } from '@/graphql/mutations/location-mutations';
-import { useTenant } from '@/hooks/useTenant';
+import { useTenantStore } from '@/lib/stores/tenant-store';
 import { useAuth } from '@/hooks/useAuth';
 import { CreateLocationInput, UpdateLocationInput } from './useLocations';
 
@@ -43,19 +43,19 @@ export interface BulkOperationSummary {
     itemIndex: number;
     itemId?: string;
     error: string;
-    details?: any;
+    details?: Record<string, unknown>;
   }>;
   warnings: Array<{
     itemIndex: number;
     itemId?: string;
     warning: string;
-    details?: any;
+    details?: Record<string, unknown>;
   }>;
   results: Array<{
     itemIndex: number;
     itemId?: string;
     success: boolean;
-    result?: any;
+    result?: Record<string, unknown>;
     error?: string;
   }>;
   metadata?: {
@@ -119,7 +119,7 @@ export function useBulkOperationStatus(operationId: string, options?: QueryHookO
 
 // Hook for tenant bulk operations
 export function useTenantBulkOperations(limit: number = 50, options?: QueryHookOptions) {
-  const { currentTenant } = useTenant();
+  const currentTenant = useTenantStore(state => state.currentTenant);
 
   const { data, loading, error, refetch } = useQuery(GET_TENANT_BULK_OPERATIONS, {
     variables: { limit },
@@ -141,7 +141,7 @@ export function useTenantBulkOperations(limit: number = 50, options?: QueryHookO
 // Hook for bulk operation mutations
 export function useBulkOperationMutations() {
   const { user } = useAuth();
-  const { currentTenant } = useTenant();
+  const currentTenant = useTenantStore(state => state.currentTenant);
 
   const [bulkCreateLocationsMutation] = useMutation(BULK_CREATE_LOCATIONS);
   const [bulkUpdateLocationsMutation] = useMutation(BULK_UPDATE_LOCATIONS);
@@ -152,7 +152,7 @@ export function useBulkOperationMutations() {
   const bulkCreateLocations = useCallback(async (
     request: BulkCreateRequest,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<Record<string, unknown>>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -171,7 +171,7 @@ export function useBulkOperationMutations() {
   const bulkUpdateLocations = useCallback(async (
     request: BulkUpdateRequest,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<Record<string, unknown>>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -190,7 +190,7 @@ export function useBulkOperationMutations() {
   const bulkChangeLocationStatus = useCallback(async (
     request: BulkStatusChangeRequest,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<Record<string, unknown>>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -211,7 +211,7 @@ export function useBulkOperationMutations() {
   const bulkDeleteLocations = useCallback(async (
     request: BulkDeleteRequest,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<Record<string, unknown>>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -231,7 +231,7 @@ export function useBulkOperationMutations() {
   const cancelBulkOperation = useCallback(async (
     operationId: string,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<Record<string, unknown>>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -504,12 +504,12 @@ export function useBulkOperationTemplates() {
     const lines = csvContent.trim().split('\n');
     if (lines.length < 2) return [];
 
-    const headers = lines[0].split(',').map(h => h.trim());
+    const headers = (lines[0] || '').split(',').map(h => h.trim());
     const locations: CreateLocationInput[] = [];
 
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim());
-      const location: any = {};
+      const values = (lines[i] || '').split(',').map(v => v.trim());
+      const location: Record<string, unknown> = {};
 
       headers.forEach((header, index) => {
         const value = values[index] || '';
@@ -532,24 +532,24 @@ export function useBulkOperationTemplates() {
             break;
           case 'street':
             if (!location.address) location.address = {};
-            location.address.street = value;
+            (location.address as Record<string, unknown>)['street'] = value;
             break;
           case 'city':
             if (!location.address) location.address = {};
-            location.address.city = value;
+            (location.address as Record<string, unknown>)['city'] = value;
             break;
           case 'state':
             if (!location.address) location.address = {};
-            location.address.state = value;
+            (location.address as Record<string, unknown>)['state'] = value;
             break;
           case 'country':
             if (!location.address) location.address = {};
-            location.address.country = value;
+            (location.address as Record<string, unknown>)['country'] = value;
             break;
           case 'postalcode':
           case 'postal_code':
             if (!location.address) location.address = {};
-            location.address.postalCode = value;
+            (location.address as Record<string, unknown>)['postalCode'] = value;
             break;
           case 'phone':
             location.phone = value;
@@ -576,7 +576,7 @@ export function useBulkOperationTemplates() {
       });
 
       if (location.name && location.code) {
-        locations.push(location as CreateLocationInput);
+        locations.push(location as unknown as CreateLocationInput);
       }
     }
 

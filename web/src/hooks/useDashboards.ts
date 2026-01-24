@@ -3,7 +3,7 @@
  * Comprehensive hook for dashboard management and widget data
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import {
   GET_DASHBOARD,
@@ -14,7 +14,6 @@ import {
 } from '@/graphql/mutations/analytics-mutations';
 import {
   DASHBOARD_UPDATED,
-  WIDGET_DATA_UPDATED,
 } from '@/graphql/subscriptions/analytics-subscriptions';
 import type {
   Dashboard,
@@ -29,22 +28,23 @@ export function useDashboards(): UseDashboardsResult {
   const [widgetLoading, setWidgetLoading] = useState<Record<string, boolean>>({});
 
   // Mutations
-  const [createDashboardMutation, { loading: createLoading }] = useMutation(CREATE_DASHBOARD);
+  const [createDashboardMutation] = useMutation(CREATE_DASHBOARD);
 
   // Dashboard query (lazy loaded)
-  const [getDashboardQuery, { loading: dashboardLoading, error: dashboardError }] = useQuery(
-    GET_DASHBOARD,
-    { skip: true }
-  );
+  const {
+    refetch: getDashboardQuery,
+    loading: dashboardLoading,
+    error: dashboardError,
+  } = useQuery(GET_DASHBOARD, { skip: true });
 
   // Widget data query (lazy loaded)
-  const [getWidgetDataQuery, { loading: widgetDataLoading, error: widgetError }] = useQuery(
-    GET_WIDGET_DATA,
-    { skip: true }
-  );
+  const {
+    refetch: getWidgetDataQuery,
+    error: widgetError,
+  } = useQuery(GET_WIDGET_DATA, { skip: true });
 
   // Subscriptions for real-time updates
-  const { data: dashboardSubscriptionData } = useSubscription(DASHBOARD_UPDATED, {
+  useSubscription(DASHBOARD_UPDATED, {
     skip: !currentDashboard?.id,
     variables: { dashboardId: currentDashboard?.id },
     onSubscriptionData: ({ subscriptionData }) => {
@@ -115,12 +115,12 @@ export function useDashboards(): UseDashboardsResult {
   }, [getWidgetDataQuery]);
 
   // Subscription management
-  const subscribeToDashboard = useCallback((dashboardId: string) => {
+  const subscribeToDashboard = useCallback(() => {
     // Subscription is automatically managed by useSubscription hook
     // This function exists for API consistency
   }, []);
 
-  const unsubscribeFromDashboard = useCallback((dashboardId: string) => {
+  const unsubscribeFromDashboard = useCallback(() => {
     // Subscription cleanup is handled by React
     // This function exists for API consistency
   }, []);
@@ -128,7 +128,7 @@ export function useDashboards(): UseDashboardsResult {
   return {
     // Data
     dashboards,
-    currentDashboard,
+    ...(currentDashboard && { currentDashboard }),
     widgetData,
     
     // Loading states
@@ -137,9 +137,8 @@ export function useDashboards(): UseDashboardsResult {
     widgetLoading,
     
     // Error states
-    dashboardsError: undefined,
-    dashboardError: dashboardError || undefined,
-    widgetError: widgetError || undefined,
+    ...(dashboardError && { dashboardError: dashboardError as Error }),
+    ...(widgetError && { widgetError: widgetError as Error }),
     
     // Actions
     getDashboard,

@@ -10,13 +10,9 @@ import {
 } from '@/types/crm';
 import {
   GET_CUSTOMER_LIFETIME_VALUE,
-  GET_CUSTOMERS_LIFETIME_VALUE,
   GET_SEGMENT_ANALYTICS,
-  GET_ALL_SEGMENTS_ANALYTICS,
   GET_CUSTOMER_PURCHASE_PATTERNS,
-  GET_CUSTOMERS_PURCHASE_PATTERNS,
   GET_CUSTOMER_CHURN_RISK,
-  GET_CUSTOMERS_CHURN_RISK,
   GET_HIGH_CHURN_RISK_CUSTOMERS,
   GET_CUSTOMER_METRICS,
 } from '@/graphql/queries/crm-queries';
@@ -43,98 +39,110 @@ export function useCustomerAnalytics(): UseCustomerAnalyticsResult {
     },
   });
 
+  // Lazy queries for on-demand execution
+  const {
+    refetch: lifetimeValueRefetch,
+  } = useQuery(GET_CUSTOMER_LIFETIME_VALUE, {
+    skip: true,
+    errorPolicy: 'all',
+  });
+
+  const {
+    refetch: purchasePatternsRefetch,
+  } = useQuery(GET_CUSTOMER_PURCHASE_PATTERNS, {
+    skip: true,
+    errorPolicy: 'all',
+  });
+
+  const {
+    refetch: churnRiskRefetch,
+  } = useQuery(GET_CUSTOMER_CHURN_RISK, {
+    skip: true,
+    errorPolicy: 'all',
+  });
+
+  const {
+    refetch: segmentAnalyticsRefetch,
+  } = useQuery(GET_SEGMENT_ANALYTICS, {
+    skip: true,
+    errorPolicy: 'all',
+  });
+
+  const {
+    refetch: highChurnRiskRefetch,
+  } = useQuery(GET_HIGH_CHURN_RISK_CUSTOMERS, {
+    skip: true,
+    errorPolicy: 'all',
+  });
+
   const loading = metricsLoading;
-  const error = metricsError || undefined;
+  const error: Error | undefined = metricsError ? new Error(String(metricsError)) : undefined;
 
   const getLifetimeValue = useCallback(async (customerId: string): Promise<CustomerLifetimeValue> => {
     try {
-      const { data } = await useQuery(GET_CUSTOMER_LIFETIME_VALUE, {
-        variables: { customerId },
-        fetchPolicy: 'network-only',
-      });
-
-      return data.customerLifetimeValue;
-    } catch (error) {
-      handleError(error as Error, 'Failed to fetch customer lifetime value');
-      throw error;
+      const { data } = await lifetimeValueRefetch({ customerId });
+      return data?.customerLifetimeValue || {};
+    } catch (err) {
+      handleError(err as Error, 'Failed to fetch customer lifetime value');
+      throw err;
     }
-  }, [handleError]);
+  }, [lifetimeValueRefetch, handleError]);
 
   const getPurchasePatterns = useCallback(async (customerId: string): Promise<PurchasePattern> => {
     try {
-      const { data } = await useQuery(GET_CUSTOMER_PURCHASE_PATTERNS, {
-        variables: { customerId },
-        fetchPolicy: 'network-only',
-      });
-
-      return data.customerPurchasePatterns;
-    } catch (error) {
-      handleError(error as Error, 'Failed to fetch purchase patterns');
-      throw error;
+      const { data } = await purchasePatternsRefetch({ customerId });
+      return data?.customerPurchasePatterns || {};
+    } catch (err) {
+      handleError(err as Error, 'Failed to fetch purchase patterns');
+      throw err;
     }
-  }, [handleError]);
+  }, [purchasePatternsRefetch, handleError]);
 
   const getChurnRisk = useCallback(async (customerId: string): Promise<ChurnRiskAnalysis> => {
     try {
-      const { data } = await useQuery(GET_CUSTOMER_CHURN_RISK, {
-        variables: { customerId },
-        fetchPolicy: 'network-only',
-      });
-
-      return data.customerChurnRisk;
-    } catch (error) {
-      handleError(error as Error, 'Failed to fetch churn risk analysis');
-      throw error;
+      const { data } = await churnRiskRefetch({ customerId });
+      return data?.customerChurnRisk || {};
+    } catch (err) {
+      handleError(err as Error, 'Failed to fetch churn risk analysis');
+      throw err;
     }
-  }, [handleError]);
+  }, [churnRiskRefetch, handleError]);
 
   const getSegmentAnalytics = useCallback(async (segmentId: string): Promise<SegmentAnalytics> => {
     try {
-      const { data } = await useQuery(GET_SEGMENT_ANALYTICS, {
-        variables: { segmentId },
-        fetchPolicy: 'network-only',
-      });
-
-      return data.segmentAnalytics;
-    } catch (error) {
-      handleError(error as Error, 'Failed to fetch segment analytics');
-      throw error;
+      const { data } = await segmentAnalyticsRefetch({ segmentId });
+      return data?.segmentAnalytics || {};
+    } catch (err) {
+      handleError(err as Error, 'Failed to fetch segment analytics');
+      throw err;
     }
-  }, [handleError]);
+  }, [segmentAnalyticsRefetch, handleError]);
 
   const getCustomerMetrics = useCallback(async (): Promise<CustomerMetrics> => {
     try {
-      const { data } = await useQuery(GET_CUSTOMER_METRICS, {
-        fetchPolicy: 'network-only',
-      });
-
-      return data.customerMetrics;
-    } catch (error) {
-      handleError(error as Error, 'Failed to fetch customer metrics');
-      throw error;
+      return metricsData?.customerMetrics || {};
+    } catch (err) {
+      handleError(err as Error, 'Failed to fetch customer metrics');
+      throw err;
     }
-  }, [handleError]);
+  }, [metricsData, handleError]);
 
   const getHighChurnRiskCustomers = useCallback(async (
     threshold = 0.7, 
     limit = 50
   ): Promise<ChurnRiskAnalysis[]> => {
     try {
-      const { data } = await useQuery(GET_HIGH_CHURN_RISK_CUSTOMERS, {
-        variables: { threshold, limit },
-        fetchPolicy: 'network-only',
-      });
-
-      return data.highChurnRiskCustomers;
-    } catch (error) {
-      handleError(error as Error, 'Failed to fetch high churn risk customers');
-      throw error;
+      const { data } = await highChurnRiskRefetch({ threshold, limit });
+      return data?.highChurnRiskCustomers || [];
+    } catch (err) {
+      handleError(err as Error, 'Failed to fetch high churn risk customers');
+      throw err;
     }
-  }, [handleError]);
+  }, [highChurnRiskRefetch, handleError]);
 
   return {
     loading,
-    error,
+    ...(error && { error }),
     getLifetimeValue,
     getPurchasePatterns,
     getChurnRisk,
@@ -157,23 +165,6 @@ export function useCustomerLifetimeValue(customerId: string) {
     errorPolicy: 'all',
     onError: (error) => {
       handleError(error, 'Failed to fetch customer lifetime value');
-    },
-  });
-}
-
-/**
- * Hook for multiple customers lifetime value analysis
- */
-export function useCustomersLifetimeValue(customerIds: string[]) {
-  const { currentTenant } = useTenantStore();
-  const { handleError } = useErrorHandler();
-
-  return useQuery(GET_CUSTOMERS_LIFETIME_VALUE, {
-    variables: { customerIds },
-    skip: !currentTenant?.id || !customerIds.length,
-    errorPolicy: 'all',
-    onError: (error) => {
-      handleError(error, 'Failed to fetch customers lifetime value');
     },
   });
 }
@@ -225,22 +216,6 @@ export function useSegmentAnalytics(segmentId: string) {
     errorPolicy: 'all',
     onError: (error) => {
       handleError(error, 'Failed to fetch segment analytics');
-    },
-  });
-}
-
-/**
- * Hook for all segments analytics
- */
-export function useAllSegmentsAnalytics() {
-  const { currentTenant } = useTenantStore();
-  const { handleError } = useErrorHandler();
-
-  return useQuery(GET_ALL_SEGMENTS_ANALYTICS, {
-    skip: !currentTenant?.id,
-    errorPolicy: 'all',
-    onError: (error) => {
-      handleError(error, 'Failed to fetch all segments analytics');
     },
   });
 }

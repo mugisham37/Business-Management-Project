@@ -4,11 +4,9 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
-import { useQuery, useMutation, useSubscription, useApolloClient } from '@apollo/client';
+import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import { useTenantStore } from '@/lib/stores/tenant-store';
 import {
-  InventoryLevel,
-  InventoryMovement,
   InventoryFilterInput,
   CreateInventoryLevelInput,
   UpdateInventoryLevelInput,
@@ -16,7 +14,6 @@ import {
   TransferInventoryInput,
   ReserveInventoryInput,
   OffsetPaginationArgs,
-  InventorySummary,
   StockStatus,
   InventoryAlert,
 } from '@/types/inventory';

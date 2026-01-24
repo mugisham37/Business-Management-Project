@@ -26,20 +26,23 @@ export function useComparativeAnalysis(): UseComparativeAnalysisResult {
   const [segmentComparisons, setSegmentComparisons] = useState<SegmentComparison[]>([]);
 
   // Lazy queries for on-demand execution
-  const [compareTimePeriodsQuery, { loading: timePeriodLoading, error: timePeriodError }] = useQuery(
-    COMPARE_TIME_PERIODS,
-    { skip: true }
-  );
+  const {
+    refetch: compareTimePeriodsQuery,
+    loading: timePeriodLoading,
+    error: timePeriodError,
+  } = useQuery(COMPARE_TIME_PERIODS, { skip: true });
 
-  const [compareLocationsQuery, { loading: locationLoading, error: locationError }] = useQuery(
-    COMPARE_LOCATIONS,
-    { skip: true }
-  );
+  const {
+    refetch: compareLocationsQuery,
+    loading: locationLoading,
+    error: locationError,
+  } = useQuery(COMPARE_LOCATIONS, { skip: true });
 
-  const [compareSegmentsQuery, { loading: segmentLoading, error: segmentError }] = useQuery(
-    COMPARE_SEGMENTS,
-    { skip: true }
-  );
+  const {
+    refetch: compareSegmentsQuery,
+    loading: segmentLoading,
+    error: segmentError,
+  } = useQuery(COMPARE_SEGMENTS, { skip: true });
 
   // Actions
   const compareTimePeriods = useCallback(async (
@@ -111,9 +114,9 @@ export function useComparativeAnalysis(): UseComparativeAnalysisResult {
     segmentLoading,
     
     // Error states
-    timePeriodError: timePeriodError || undefined,
-    locationError: locationError || undefined,
-    segmentError: segmentError || undefined,
+    ...(timePeriodError && { timePeriodError: timePeriodError as Error }),
+    ...(locationError && { locationError: locationError as Error }),
+    ...(segmentError && { segmentError: segmentError as Error }),
     
     // Actions
     compareTimePeriods,

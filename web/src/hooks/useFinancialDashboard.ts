@@ -49,8 +49,8 @@ export function useFinancialDashboard(options: FinancialDashboardOptions = {}) {
   const chartOfAccounts = useChartOfAccounts();
   
   const journalEntries = useJournalEntries({
-    dateFrom: period.startDate.toISOString().split('T')[0],
-    dateTo: period.endDate.toISOString().split('T')[0],
+    dateFrom: period.startDate.toISOString().split('T')[0] || '',
+    dateTo: period.endDate.toISOString().split('T')[0] || '',
   });
 
   const multiCurrency = useMultiCurrency();
@@ -121,15 +121,15 @@ export function useFinancialDashboard(options: FinancialDashboardOptions = {}) {
     }
 
     const currentYearBudgets = budgetManagement.budgets.filter(
-      b => b.budgetYear === new Date().getFullYear() && b.status === 'approved'
+      (b: Record<string, unknown>) => b.budgetYear === new Date().getFullYear() && b.status === 'approved'
     );
 
     if (!currentYearBudgets.length) {
       return null;
     }
 
-    const totalBudgeted = currentYearBudgets.reduce((sum, b) => sum + b.totalBudgetAmount, 0);
-    const totalActual = currentYearBudgets.reduce((sum, b) => sum + b.totalActualAmount, 0);
+    const totalBudgeted = currentYearBudgets.reduce((sum: number, b: Record<string, unknown>) => sum + (typeof b.totalBudgetAmount === 'number' ? b.totalBudgetAmount : 0), 0);
+    const totalActual = currentYearBudgets.reduce((sum: number, b: Record<string, unknown>) => sum + (typeof b.totalActualAmount === 'number' ? b.totalActualAmount : 0), 0);
     const totalVariance = totalBudgeted - totalActual;
     const variancePercentage = totalBudgeted > 0 ? (totalVariance / totalBudgeted) * 100 : 0;
 
@@ -142,8 +142,12 @@ export function useFinancialDashboard(options: FinancialDashboardOptions = {}) {
       isOverBudget: totalActual > totalBudgeted,
       budgetAccuracy: Math.abs(variancePercentage),
       topVariances: currentYearBudgets
-        .filter(b => Math.abs(b.variancePercentage) > 10)
-        .sort((a, b) => Math.abs(b.variancePercentage) - Math.abs(a.variancePercentage))
+        .filter((b: Record<string, unknown>) => typeof b.variancePercentage === 'number' && Math.abs(b.variancePercentage) > 10)
+        .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+          const aVar = typeof a.variancePercentage === 'number' ? a.variancePercentage : 0;
+          const bVar = typeof b.variancePercentage === 'number' ? b.variancePercentage : 0;
+          return Math.abs(bVar) - Math.abs(aVar);
+        })
         .slice(0, 5),
     };
   }, [includeBudgetComparison, budgetManagement.budgets]);
@@ -192,8 +196,12 @@ export function useFinancialDashboard(options: FinancialDashboardOptions = {}) {
     }
 
     const recentEntries = entries
-      .filter(e => e.status === 'posted')
-      .sort((a, b) => new Date(b.postingDate).getTime() - new Date(a.postingDate).getTime())
+      .filter((e: Record<string, unknown>) => e.status === 'posted')
+      .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+        const aDate = typeof a.postingDate === 'string' ? new Date(a.postingDate).getTime() : 0;
+        const bDate = typeof b.postingDate === 'string' ? new Date(b.postingDate).getTime() : 0;
+        return bDate - aDate;
+      })
       .slice(0, 10);
 
     const accountsWithActivity = accounts
@@ -204,9 +212,9 @@ export function useFinancialDashboard(options: FinancialDashboardOptions = {}) {
     return {
       recentEntries,
       accountsWithActivity,
-      totalPostedEntries: entries.filter(e => e.status === 'posted').length,
-      totalDraftEntries: entries.filter(e => e.status === 'draft').length,
-      unbalancedEntries: entries.filter(e => !e.isBalanced).length,
+      totalPostedEntries: entries.filter((e: Record<string, unknown>) => e.status === 'posted').length,
+      totalDraftEntries: entries.filter((e: Record<string, unknown>) => e.status === 'draft').length,
+      unbalancedEntries: entries.filter((e: Record<string, unknown>) => e.isBalanced === false).length,
     };
   }, [chartOfAccounts.accounts, journalEntries.journalEntries]);
 

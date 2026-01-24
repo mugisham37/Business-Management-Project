@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useApolloClient } from '@apollo/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useTenantStore } from '@/lib/stores/tenant-store';
 import {
   EmailMessage,
   EmailTemplate,
@@ -39,17 +39,14 @@ import {
 
 import {
   EMAIL_EVENTS,
-  EMAIL_DELIVERY_EVENTS,
-  EMAIL_BULK_EVENTS,
 } from '@/graphql/subscriptions/communication';
 
 export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn => {
-  const { currentUser } = useAuth();
+  const { currentTenant } = useTenantStore();
   const apolloClient = useApolloClient();
   
   const {
-    tenantId = currentUser?.tenantId,
-    userId = currentUser?.id,
+    tenantId = currentTenant?.id,
     autoRefresh = true,
     refreshInterval = 60000,
     enableRealtime = true,
@@ -63,7 +60,6 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
 
   // Queries
   const { 
-    data: templatesData, 
     loading: templatesLoading, 
     error: templatesError,
     refetch: refetchTemplates 
@@ -83,7 +79,6 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
   });
 
   const { 
-    data: providersData, 
     loading: providersLoading, 
     error: providersError,
     refetch: refetchProviders 
@@ -156,7 +151,7 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
 
     const subscription = apolloClient.subscribe({
       query: EMAIL_EVENTS,
-      variables: { tenantId, userId },
+      variables: { tenantId },
       errorPolicy: 'all',
     }).subscribe({
       next: (result) => {
@@ -178,7 +173,7 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
     });
 
     return () => subscription.unsubscribe();
-  }, [enableRealtime, tenantId, userId, apolloClient, refetchTemplates, refetchProviders]);
+  }, [enableRealtime, tenantId, apolloClient, refetchTemplates, refetchProviders]);
 
   // Email operations
   const sendEmail = useCallback(async (
@@ -341,8 +336,8 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
   }, [tenantId, apolloClient]);
 
   const createTemplate = useCallback(async (template: EmailTemplate): Promise<void> => {
-    if (!tenantId || !userId) {
-      throw new Error('Tenant ID and User ID are required');
+    if (!tenantId) {
+      throw new Error('Tenant ID is required');
     }
 
     setLoading(true);
@@ -380,7 +375,7 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
         variables: {
           tenantId,
           template: templateWithVariables,
-          createdBy: userId,
+          createdBy: '',
         },
       });
     } catch (error) {
@@ -390,14 +385,14 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
     } finally {
       setLoading(false);
     }
-  }, [tenantId, userId, createTemplateMutation]);
+  }, [tenantId, createTemplateMutation]);
 
   const updateTemplate = useCallback(async (
     templateName: string,
     template: EmailTemplate
   ): Promise<void> => {
-    if (!tenantId || !userId) {
-      throw new Error('Tenant ID and User ID are required');
+    if (!tenantId) {
+      throw new Error('Tenant ID is required');
     }
 
     setLoading(true);
@@ -432,7 +427,7 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
           tenantId,
           templateName,
           template: templateWithVariables,
-          updatedBy: userId,
+          updatedBy: '',
         },
       });
     } catch (error) {
@@ -442,11 +437,11 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
     } finally {
       setLoading(false);
     }
-  }, [tenantId, userId, updateTemplateMutation]);
+  }, [tenantId, updateTemplateMutation]);
 
   const deleteTemplate = useCallback(async (templateName: string): Promise<void> => {
-    if (!tenantId || !userId) {
-      throw new Error('Tenant ID and User ID are required');
+    if (!tenantId) {
+      throw new Error('Tenant ID is required');
     }
 
     setLoading(true);
@@ -457,7 +452,7 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
         variables: {
           tenantId,
           templateName,
-          deletedBy: userId,
+          deletedBy: '',
         },
       });
     } catch (error) {
@@ -467,7 +462,7 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
     } finally {
       setLoading(false);
     }
-  }, [tenantId, userId, deleteTemplateMutation]);
+  }, [tenantId, deleteTemplateMutation]);
 
   // Provider management
   const getProviders = useCallback(async (): Promise<EmailProvider[]> => {
@@ -486,8 +481,8 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
   }, [tenantId, refetchProviders]);
 
   const configureProvider = useCallback(async (provider: EmailProviderConfig): Promise<void> => {
-    if (!tenantId || !userId) {
-      throw new Error('Tenant ID and User ID are required');
+    if (!tenantId) {
+      throw new Error('Tenant ID is required');
     }
 
     setLoading(true);
@@ -504,7 +499,7 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
       }
 
       // Basic validation based on provider type
-      const config = provider.configuration;
+      const config = provider.configuration as Record<string, unknown>;
       switch (provider.type) {
         case 'sendgrid':
           if (!config.apiKey || !config.fromEmail) {
@@ -516,11 +511,13 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
             throw new Error('AWS SES credentials, region, and from email are required');
           }
           break;
-        case 'smtp':
-          if (!config.host || !config.auth?.user || !config.auth?.pass || !config.fromEmail) {
+        case 'smtp': {
+          const auth = config.auth as Record<string, unknown> | undefined;
+          if (!config.host || !auth?.user || !auth?.pass || !config.fromEmail) {
             throw new Error('SMTP host, credentials, and from email are required');
           }
           break;
+        }
         case 'mailgun':
           if (!config.apiKey || !config.domain || !config.fromEmail) {
             throw new Error('Mailgun API key, domain, and from email are required');
@@ -534,7 +531,7 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
       }
 
       // Validate from email
-      if (config.fromEmail && !CommunicationUtils.validateEmail(config.fromEmail)) {
+      if (config.fromEmail && typeof config.fromEmail === 'string' && !CommunicationUtils.validateEmail(config.fromEmail)) {
         throw new Error('Invalid from email address');
       }
 
@@ -542,7 +539,6 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
         variables: {
           tenantId,
           provider,
-          updatedBy: userId,
         },
       });
     } catch (error) {
@@ -552,7 +548,7 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
     } finally {
       setLoading(false);
     }
-  }, [tenantId, userId, configureProviderMutation]);
+  }, [tenantId, configureProviderMutation]);
 
   const testProvider = useCallback(async (provider: EmailProviderConfig): Promise<CommunicationResult> => {
     if (!tenantId) {
@@ -583,25 +579,6 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
       setLoading(false);
     }
   }, [tenantId, testProviderMutation]);
-
-  // Utility methods
-  const previewTemplate = useCallback((template: EmailTemplate, variables: Record<string, any>) => {
-    return CommunicationUtils.previewTemplate(template, variables);
-  }, []);
-
-  const validateTemplate = useCallback((template: EmailTemplate) => {
-    const errors: string[] = [];
-
-    if (!template.name) errors.push('Template name is required');
-    if (!template.subject) errors.push('Subject is required');
-    if (!template.htmlTemplate) errors.push('HTML template is required');
-
-    return errors;
-  }, []);
-
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
 
   // Update loading state based on queries
   useEffect(() => {
@@ -639,10 +616,5 @@ export const useEmail = (options: CommunicationHookOptions = {}): UseEmailReturn
     error,
     templates,
     providers,
-    
-    // Utility methods
-    previewTemplate,
-    validateTemplate,
-    clearError,
   };
 };

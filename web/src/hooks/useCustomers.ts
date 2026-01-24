@@ -1,11 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useQuery, useMutation, useSubscription } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client';
 import { 
   Customer, 
   CreateCustomerInput, 
   UpdateCustomerInput, 
   CustomerFilterInput,
-  UseCustomersResult 
+  UseCustomersResult,
 } from '@/types/crm';
 import {
   GET_CUSTOMERS,
@@ -21,8 +21,7 @@ import {
   UPDATE_CUSTOMER_LOYALTY_POINTS,
 } from '@/graphql/mutations/crm-mutations';
 import { useTenantStore } from '@/lib/stores/tenant-store';
-import { useErrorHandler } from '@/hooks/useErrorHandler';
-import { useOptimisticUpdates } from '@/hooks/useOptimisticUpdates';
+import { useErrorHandler } from './useErrorHandler';
 
 /**
  * Hook for managing customers with comprehensive CRUD operations
@@ -30,7 +29,6 @@ import { useOptimisticUpdates } from '@/hooks/useOptimisticUpdates';
 export function useCustomers(filters?: CustomerFilterInput): UseCustomersResult {
   const { currentTenant } = useTenantStore();
   const { handleError } = useErrorHandler();
-  const { addOptimisticUpdate, removeOptimisticUpdate } = useOptimisticUpdates();
   
   const [totalCount, setTotalCount] = useState(0);
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -113,38 +111,17 @@ export function useCustomers(filters?: CustomerFilterInput): UseCustomersResult 
   }, [fetchMoreQuery, filters, hasNextPage, loading, handleError]);
 
   const createCustomer = useCallback(async (input: CreateCustomerInput): Promise<Customer> => {
-    const optimisticId = `temp-${Date.now()}`;
-    const optimisticCustomer: Customer = {
-      id: optimisticId,
-      ...input,
-      status: 'active' as const,
-      loyaltyPoints: 0,
-      totalSpent: 0,
-      totalOrders: 0,
-      averageOrderValue: 0,
-      churnRisk: 0,
-      marketingOptIn: input.marketingOptIn ?? false,
-      emailOptIn: input.emailOptIn ?? false,
-      smsOptIn: input.smsOptIn ?? false,
-      tags: input.tags || [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    addOptimisticUpdate(optimisticId, optimisticCustomer);
-
     try {
       const result = await createCustomerMutation({
         variables: { input },
       });
 
-      removeOptimisticUpdate(optimisticId);
       return result.data.createCustomer;
     } catch (error) {
-      removeOptimisticUpdate(optimisticId);
+      handleError(error as Error, 'Failed to create customer');
       throw error;
     }
-  }, [createCustomerMutation, addOptimisticUpdate, removeOptimisticUpdate]);
+  }, [createCustomerMutation, handleError]);
 
   const updateCustomer = useCallback(async (
     id: string, 
@@ -160,17 +137,6 @@ export function useCustomers(filters?: CustomerFilterInput): UseCustomersResult 
             ...input,
             updatedAt: new Date().toISOString(),
           },
-        },
-        update: (cache, { data }) => {
-          if (data?.updateCustomer) {
-            cache.modify({
-              id: cache.identify(data.updateCustomer),
-              fields: {
-                ...input,
-                updatedAt: () => new Date().toISOString(),
-              },
-            });
-          }
         },
       });
 
@@ -188,8 +154,11 @@ export function useCustomers(filters?: CustomerFilterInput): UseCustomersResult 
           deleteCustomer: true,
         },
         update: (cache) => {
-          cache.evict({ id: cache.identify({ __typename: 'Customer', id }) });
-          cache.gc();
+          const cacheId = cache.identify({ __typename: 'Customer', id });
+          if (cacheId) {
+            cache.evict({ id: cacheId });
+            cache.gc();
+          }
         },
       });
 
@@ -238,7 +207,7 @@ export function useCustomers(filters?: CustomerFilterInput): UseCustomersResult 
   return {
     customers: data?.customers || [],
     loading,
-    error: error || undefined,
+    error: error ? new Error(error.message) : undefined,
     totalCount,
     hasNextPage,
     hasPreviousPage,

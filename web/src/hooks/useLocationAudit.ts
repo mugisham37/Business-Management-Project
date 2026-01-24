@@ -14,7 +14,7 @@ import {
   GET_TENANT_AUDIT_HISTORY,
   GET_COMPLIANCE_REPORT
 } from '@/graphql/queries/location-queries';
-import { useTenant } from '@/hooks/useTenant';
+import { useTenantStore } from '@/lib/stores/tenant-store';
 
 // Types
 export interface AuditEntry {
@@ -26,14 +26,14 @@ export interface AuditEntry {
   action: string;
   entityType: string;
   entityId: string;
-  oldValues?: Record<string, any>;
-  newValues?: Record<string, any>;
+  oldValues?: Record<string, unknown>;
+  newValues?: Record<string, unknown>;
   changes: Array<{
     field: string;
-    oldValue: any;
-    newValue: any;
+    oldValue: unknown;
+    newValue: unknown;
   }>;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
   timestamp: string;
@@ -118,7 +118,7 @@ export function useLocationAuditHistory(
   query?: Omit<AuditQuery, 'locationId'>,
   options?: QueryHookOptions
 ) {
-  const { currentTenant } = useTenant();
+  const currentTenant = useTenantStore(state => state.currentTenant);
   
   const { data, loading, error, refetch } = useQuery(GET_LOCATION_AUDIT_HISTORY, {
     variables: { 
@@ -155,7 +155,7 @@ export function useLocationAuditSummary(
   days: number = 30,
   options?: QueryHookOptions
 ) {
-  const { currentTenant } = useTenant();
+  const currentTenant = useTenantStore(state => state.currentTenant);
 
   const { data, loading, error, refetch } = useQuery(GET_LOCATION_AUDIT_SUMMARY, {
     variables: { locationId, days },
@@ -179,7 +179,7 @@ export function useTenantAuditHistory(
   query?: AuditQuery,
   options?: QueryHookOptions
 ) {
-  const { currentTenant } = useTenant();
+  const currentTenant = useTenantStore(state => state.currentTenant);
 
   const { data, loading, error, refetch } = useQuery(GET_TENANT_AUDIT_HISTORY, {
     variables: { 
@@ -216,7 +216,7 @@ export function useComplianceReport(
   endDate: Date,
   options?: QueryHookOptions
 ) {
-  const { currentTenant } = useTenant();
+  const currentTenant = useTenantStore(state => state.currentTenant);
 
   const { data, loading, error, refetch } = useQuery(GET_COMPLIANCE_REPORT, {
     variables: { 
@@ -375,7 +375,7 @@ export function useAuditAnalysis() {
 
     // Check for rapid successive changes
     userTimeGroups.forEach((timeGroups, userId) => {
-      timeGroups.forEach((hourEntries, timeKey) => {
+      timeGroups.forEach((hourEntries) => {
         if (hourEntries.length > 20) {
           anomalies.push({
             type: 'RAPID_CHANGES',

@@ -3,16 +3,12 @@
  * Specialized hooks for live business data (inventory, sales, analytics, customer activity)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { useSubscription } from '@/lib/subscriptions';
 import { useTenantStore } from '@/lib/stores/tenant-store';
 import {
   LiveInventoryLevel,
-  SalesDashboardOverview,
-  CustomerActivity,
-  AnalyticsOverview,
-  KPIMetric,
   InventorySubscriptionInput,
   SalesSubscriptionInput,
   CustomerActivitySubscriptionInput,
@@ -61,7 +57,7 @@ import {
 export function useLiveInventory(productIds?: string[], locationId?: string) {
   const currentTenant = useTenantStore(state => state.currentTenant);
   const [inventoryLevels, setInventoryLevels] = useState<LiveInventoryLevel[]>([]);
-  const [lowStockItems, setLowStockItems] = useState<any[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<Record<string, unknown>[]>([]);
 
   // Queries
   const { data: inventoryData, loading: inventoryLoading, refetch: refetchInventory } = useQuery(
@@ -86,8 +82,8 @@ export function useLiveInventory(productIds?: string[], locationId?: string) {
   const [subscribeToInventoryMutation] = useMutation(SUBSCRIBE_TO_INVENTORY_UPDATES);
   const [configureAlertsMutation] = useMutation(CONFIGURE_INVENTORY_ALERTS);
 
-  // Real-time subscriptions
-  const { data: inventoryUpdateData } = useSubscription(INVENTORY_UPDATED, {
+  // Real-time subscriptions (keep subscription references active)
+  useSubscription(INVENTORY_UPDATED, {
     onData: (data) => {
       if (data) {
         try {
@@ -100,7 +96,7 @@ export function useLiveInventory(productIds?: string[], locationId?: string) {
     },
   });
 
-  const { data: lowStockAlertData } = useSubscription(LOW_STOCK_ALERT, {
+  useSubscription(LOW_STOCK_ALERT, {
     onData: (data) => {
       if (data) {
         try {
@@ -114,21 +110,25 @@ export function useLiveInventory(productIds?: string[], locationId?: string) {
   });
 
   // Handle real-time inventory updates
-  const handleInventoryUpdate = useCallback((update: any) => {
+  const handleInventoryUpdate = useCallback((update: Record<string, unknown>) => {
     setInventoryLevels(prev => {
       const index = prev.findIndex(
         item => item.productId === update.productId && item.locationId === update.locationId
       );
       
       if (index >= 0) {
+        const newQuantity = typeof update.newQuantity === 'number' ? update.newQuantity : 0;
         const updated = [...prev];
-        updated[index] = {
-          ...updated[index],
-          currentLevel: update.newQuantity,
-          availableLevel: update.newQuantity - updated[index].reservedLevel,
-          lastUpdated: new Date(),
-          status: update.newQuantity <= updated[index].reorderPoint ? 'low_stock' : 'in_stock',
-        };
+        const existing = updated[index];
+        if (existing) {
+          updated[index] = {
+            ...existing,
+            currentLevel: newQuantity,
+            availableLevel: newQuantity - (existing.reservedLevel ?? 0),
+            lastUpdated: new Date(),
+            status: newQuantity <= (existing.reorderPoint ?? 0) ? 'low_stock' : 'in_stock',
+          };
+        }
         return updated;
       }
       
@@ -137,7 +137,7 @@ export function useLiveInventory(productIds?: string[], locationId?: string) {
   }, []);
 
   // Handle low stock alerts
-  const handleLowStockAlert = useCallback((alert: any) => {
+  const handleLowStockAlert = useCallback((alert: Record<string, unknown>) => {
     setLowStockItems(prev => {
       const exists = prev.some(item => 
         item.productId === alert.productId && item.locationId === alert.locationId
@@ -151,12 +151,13 @@ export function useLiveInventory(productIds?: string[], locationId?: string) {
     });
   }, []);
 
-  // Update inventory levels when query data changes
+  // Sync query data to state
   useEffect(() => {
-    if (inventoryData?.liveInventoryLevels) {
-      setInventoryLevels(inventoryData.liveInventoryLevels);
+    const data = inventoryData?.liveInventoryLevels || [];
+    if (data.length > 0) {
+      setInventoryLevels(data);
     }
-  }, [inventoryData]);
+  }, [inventoryData?.liveInventoryLevels]);
 
   // Methods
   const subscribeToUpdates = useCallback(async (input: InventorySubscriptionInput) => {
@@ -226,8 +227,8 @@ export function useLiveInventory(productIds?: string[], locationId?: string) {
  */
 export function useLiveSales(locationId?: string) {
   const currentTenant = useTenantStore(state => state.currentTenant);
-  const [salesMetrics, setSalesMetrics] = useState<any>(null);
-  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [salesMetrics, setSalesMetrics] = useState<Record<string, unknown> | null>(null);
+  const [recentTransactions, setRecentTransactions] = useState<Record<string, unknown>[]>([]);
 
   // Queries
   const { data: dashboardData, loading: dashboardLoading, refetch: refetchDashboard } = useQuery(
@@ -252,8 +253,8 @@ export function useLiveSales(locationId?: string) {
   const [subscribeToSalesMutation] = useMutation(SUBSCRIBE_TO_SALES_UPDATES);
   const [setSalesTargetsMutation] = useMutation(SET_SALES_TARGETS);
 
-  // Real-time subscriptions
-  const { data: salesUpdateData } = useSubscription(SALES_UPDATED, {
+  // Real-time subscriptions (keep subscription references active)
+  useSubscription(SALES_UPDATED, {
     onData: (data) => {
       if (data) {
         try {
@@ -267,35 +268,42 @@ export function useLiveSales(locationId?: string) {
   });
 
   // Handle real-time sales updates
-  const handleSalesUpdate = useCallback((update: any) => {
+  const handleSalesUpdate = useCallback((update: Record<string, unknown>) => {
     if (update.type === 'transaction_created') {
       setRecentTransactions(prev => [update, ...prev.slice(0, 49)]); // Keep last 50
       
       // Update metrics
-      setSalesMetrics((prev: any) => {
+      setSalesMetrics((prev: Record<string, unknown> | null) => {
         if (!prev) return prev;
+        
+        const prevTotal = typeof prev.totalSales === 'number' ? prev.totalSales : 0;
+        const prevCount = typeof prev.transactionCount === 'number' ? prev.transactionCount : 0;
+        const updateTotal = typeof update.total === 'number' ? update.total : 0;
+        const newTotal = prevTotal + updateTotal;
+        const newCount = prevCount + 1;
         
         return {
           ...prev,
-          totalSales: prev.totalSales + update.total,
-          transactionCount: prev.transactionCount + 1,
-          averageTransactionValue: (prev.totalSales + update.total) / (prev.transactionCount + 1),
+          totalSales: newTotal,
+          transactionCount: newCount,
+          averageTransactionValue: newTotal / newCount,
           lastUpdated: new Date(),
         };
       });
     }
   }, []);
 
-  // Update metrics when query data changes
+  // Sync parsed metrics to state
   useEffect(() => {
     if (metricsData?.liveSalesMetrics) {
       try {
-        setSalesMetrics(JSON.parse(metricsData.liveSalesMetrics));
+        const parsed = JSON.parse(metricsData.liveSalesMetrics);
+        setSalesMetrics(parsed);
       } catch (error) {
         console.error('Failed to parse sales metrics:', error);
       }
     }
-  }, [metricsData]);
+  }, [metricsData?.liveSalesMetrics]);
 
   // Methods
   const subscribeToUpdates = useCallback(async (input: SalesSubscriptionInput) => {
@@ -341,8 +349,8 @@ export function useLiveSales(locationId?: string) {
  */
 export function useLiveCustomerActivity(customerId?: string, locationId?: string) {
   const currentTenant = useTenantStore(state => state.currentTenant);
-  const [activityFeed, setActivityFeed] = useState<CustomerActivity[]>([]);
-  const [engagementMetrics, setEngagementMetrics] = useState<any>(null);
+  const [activityFeed, setActivityFeed] = useState<Record<string, unknown>[]>([]);
+  const [engagementMetrics, setEngagementMetrics] = useState<Record<string, unknown> | null>(null);
 
   // Queries
   const { data: feedData, loading: feedLoading, refetch: refetchFeed } = useQuery(
@@ -365,8 +373,8 @@ export function useLiveCustomerActivity(customerId?: string, locationId?: string
   // Mutations
   const [subscribeToActivityMutation] = useMutation(SUBSCRIBE_TO_CUSTOMER_ACTIVITY);
 
-  // Real-time subscriptions
-  const { data: activityUpdateData } = useSubscription(CUSTOMER_ACTIVITY_UPDATED, {
+  // Real-time subscriptions (keep subscription references active)
+  useSubscription(CUSTOMER_ACTIVITY_UPDATED, {
     onData: (data) => {
       if (data) {
         try {
@@ -380,7 +388,7 @@ export function useLiveCustomerActivity(customerId?: string, locationId?: string
   });
 
   // Handle real-time activity updates
-  const handleActivityUpdate = useCallback((activity: any) => {
+  const handleActivityUpdate = useCallback((activity: Record<string, unknown>) => {
     // Filter by customerId if specified
     if (customerId && activity.customerId !== customerId) {
       return;
@@ -394,23 +402,25 @@ export function useLiveCustomerActivity(customerId?: string, locationId?: string
     setActivityFeed(prev => [activity, ...prev.slice(0, 49)]); // Keep last 50
   }, [customerId, locationId]);
 
-  // Update activity feed when query data changes
+  // Sync activity feed from query data
   useEffect(() => {
-    if (feedData?.customerActivityFeed) {
-      setActivityFeed(feedData.customerActivityFeed);
+    const data = feedData?.customerActivityFeed || [];
+    if (data.length > 0) {
+      setActivityFeed(data);
     }
-  }, [feedData]);
+  }, [feedData?.customerActivityFeed]);
 
-  // Update engagement metrics when query data changes
+  // Sync engagement metrics from query data
   useEffect(() => {
     if (metricsData?.customerEngagementMetrics) {
       try {
-        setEngagementMetrics(JSON.parse(metricsData.customerEngagementMetrics));
+        const parsed = JSON.parse(metricsData.customerEngagementMetrics);
+        setEngagementMetrics(parsed);
       } catch (error) {
         console.error('Failed to parse engagement metrics:', error);
       }
     }
-  }, [metricsData]);
+  }, [metricsData?.customerEngagementMetrics]);
 
   // Methods
   const subscribeToUpdates = useCallback(async (input: CustomerActivitySubscriptionInput) => {
@@ -444,8 +454,8 @@ export function useLiveCustomerActivity(customerId?: string, locationId?: string
  */
 export function useLiveAnalytics(locationId?: string) {
   const currentTenant = useTenantStore(state => state.currentTenant);
-  const [kpiMetrics, setKpiMetrics] = useState<KPIMetric[]>([]);
-  const [alerts, setAlerts] = useState<any[]>([]);
+  const [kpiMetrics, setKpiMetrics] = useState<Record<string, unknown>[]>([]);
+  const [alerts, setAlerts] = useState<Record<string, unknown>[]>([]);
 
   // Queries
   const { data: overviewData, loading: overviewLoading, refetch: refetchOverview } = useQuery(
@@ -479,8 +489,8 @@ export function useLiveAnalytics(locationId?: string) {
   const [subscribeToAnalyticsMutation] = useMutation(SUBSCRIBE_TO_ANALYTICS_UPDATES);
   const [createAlertMutation] = useMutation(CREATE_ANALYTICS_ALERT);
 
-  // Real-time subscriptions
-  const { data: analyticsUpdateData } = useSubscription(ANALYTICS_UPDATED, {
+  // Real-time subscriptions (keep subscription references active)
+  useSubscription(ANALYTICS_UPDATED, {
     onData: (data) => {
       if (data) {
         try {
@@ -493,7 +503,7 @@ export function useLiveAnalytics(locationId?: string) {
     },
   });
 
-  const { data: alertTriggeredData } = useSubscription(ALERT_TRIGGERED, {
+  useSubscription(ALERT_TRIGGERED, {
     onData: (data) => {
       if (data) {
         try {
@@ -507,35 +517,41 @@ export function useLiveAnalytics(locationId?: string) {
   });
 
   // Handle real-time analytics updates
-  const handleAnalyticsUpdate = useCallback((update: any) => {
+  const handleAnalyticsUpdate = useCallback((update: Record<string, unknown>) => {
     if (update.type === 'kpi_update') {
       setKpiMetrics(prev => {
-        const index = prev.findIndex(metric => metric.name === update.metric.name);
+        const metricName = typeof update.metric === 'object' && update.metric !== null && 'name' in update.metric 
+          ? (update.metric as Record<string, unknown>).name
+          : null;
+        const index = prev.findIndex(metric => metric.name === metricName);
         
-        if (index >= 0) {
+        if (index >= 0 && typeof update.metric === 'object' && update.metric !== null) {
           const updated = [...prev];
-          updated[index] = { ...updated[index], ...update.metric };
+          updated[index] = { ...updated[index], ...(update.metric as Record<string, unknown>) };
           return updated;
         }
         
-        return [...prev, update.metric];
+        return typeof update.metric === 'object' && update.metric !== null 
+          ? [...prev, update.metric as Record<string, unknown>]
+          : prev;
       });
     }
   }, []);
 
   // Handle alert triggers
-  const handleAlertTriggered = useCallback((alert: any) => {
+  const handleAlertTriggered = useCallback((alert: Record<string, unknown>) => {
     setAlerts(prev => [alert, ...prev.slice(0, 49)]); // Keep last 50
   }, []);
 
-  // Update KPI metrics when query data changes
+  // Sync KPI metrics from query data
   useEffect(() => {
-    if (kpiData?.kpiMetrics) {
-      setKpiMetrics(kpiData.kpiMetrics);
+    const data = kpiData?.kpiMetrics || [];
+    if (data.length > 0) {
+      setKpiMetrics(data);
     }
-  }, [kpiData]);
+  }, [kpiData?.kpiMetrics]);
 
-  // Update alerts when query data changes
+  // Sync analytics alerts from query data
   useEffect(() => {
     if (alertsData?.analyticsAlerts) {
       try {
@@ -545,7 +561,7 @@ export function useLiveAnalytics(locationId?: string) {
         console.error('Failed to parse analytics alerts:', error);
       }
     }
-  }, [alertsData]);
+  }, [alertsData?.analyticsAlerts]);
 
   // Methods
   const subscribeToUpdates = useCallback(async (input: AnalyticsSubscriptionInput) => {
@@ -596,13 +612,16 @@ export function useLiveAnalytics(locationId?: string) {
  * Live Employee Hook
  * Manages real-time employee data and notifications
  */
-export function useLiveEmployee(employeeId?: string, departmentId?: string) {
-  const currentTenant = useTenantStore(state => state.currentTenant);
-  const [employeeActivity, setEmployeeActivity] = useState<any[]>([]);
-  const [managerNotifications, setManagerNotifications] = useState<any[]>([]);
-  const [timeTrackingUpdates, setTimeTrackingUpdates] = useState<any[]>([]);
+export function useLiveEmployee() {
+  const [employeeActivity, setEmployeeActivity] = useState<Record<string, unknown>[]>([]);
+  const [managerNotifications, setManagerNotifications] = useState<Record<string, unknown>[]>([]);
+  const [timeTrackingUpdates, setTimeTrackingUpdates] = useState<Record<string, unknown>[]>([]);
 
   // Real-time subscriptions for employee events
+  // NOTE: These require proper GraphQL subscription documents to be imported
+  // TODO: Replace string literals with actual GraphQL subscription documents from @/graphql/subscriptions/employee
+  
+  /*
   const { data: employeeActivityData } = useSubscription('EMPLOYEE_ACTIVITY_UPDATED', {
     onData: (data) => {
       if (data) {
@@ -641,9 +660,12 @@ export function useLiveEmployee(employeeId?: string, departmentId?: string) {
       }
     },
   });
+  */
 
+  // TODO: Uncomment these handlers when GraphQL subscription documents are added
+  /*
   // Handle real-time employee activity
-  const handleEmployeeActivity = useCallback((activity: any) => {
+  const handleEmployeeActivity = useCallback((activity: Record<string, unknown>) => {
     // Filter by employeeId if specified
     if (employeeId && activity.employeeId !== employeeId) {
       return;
@@ -658,7 +680,7 @@ export function useLiveEmployee(employeeId?: string, departmentId?: string) {
   }, [employeeId, departmentId]);
 
   // Handle time tracking updates
-  const handleTimeTrackingUpdate = useCallback((update: any) => {
+  const handleTimeTrackingUpdate = useCallback((update: Record<string, unknown>) => {
     // Filter by employeeId if specified
     if (employeeId && update.employeeId !== employeeId) {
       return;
@@ -668,9 +690,10 @@ export function useLiveEmployee(employeeId?: string, departmentId?: string) {
   }, [employeeId]);
 
   // Handle manager notifications
-  const handleManagerNotification = useCallback((notification: any) => {
+  const handleManagerNotification = useCallback((notification: Record<string, unknown>) => {
     setManagerNotifications(prev => [notification, ...prev.slice(0, 49)]); // Keep last 50
   }, []);
+  */
 
   return {
     // Data
@@ -715,10 +738,7 @@ export function useLiveData(options: {
   
   const analytics = useLiveAnalytics(options.analytics?.locationId);
 
-  const employee = useLiveEmployee(
-    options.employee?.employeeId,
-    options.employee?.departmentId
-  );
+  const employee = useLiveEmployee();
 
   return {
     inventory,

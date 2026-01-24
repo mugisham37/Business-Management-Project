@@ -3,7 +3,7 @@
  * Custom hooks for account management and operations
  */
 
-import { useQuery, useMutation, useSubscription } from '@apollo/client';
+import { useQuery, useMutation, useSubscription, useLazyQuery, ApolloError } from '@apollo/client';
 import { useState, useCallback, useMemo } from 'react';
 import {
   GET_ACCOUNTS,
@@ -21,8 +21,54 @@ import {
 import {
   ACCOUNT_BALANCE_UPDATED,
 } from '@/graphql/subscriptions/financial';
-import { useAuth } from './useAuth';
+import { useTenantStore } from '@/lib/stores/tenant-store';
 import { errorLogger } from '@/lib/error-handling';
+
+// Type definitions matching backend
+export interface ChartOfAccount {
+  id: string;
+  tenantId: string;
+  accountNumber: string;
+  accountName: string;
+  accountType: string;
+  accountSubType: string;
+  parentAccountId?: string;
+  accountLevel: number;
+  accountPath: string;
+  normalBalance: 'debit' | 'credit';
+  description?: string;
+  taxReportingCategory?: string;
+  isActive: boolean;
+  allowManualEntries: boolean;
+  requireDepartment: boolean;
+  requireProject: boolean;
+  isSystemAccount: boolean;
+  externalAccountId?: string;
+  currentBalance: number | string;
+  settings: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy?: string;
+  updatedBy?: string;
+  version: number;
+  parentAccount?: Omit<ChartOfAccount, 'parentAccount' | 'childAccounts'>;
+  childAccounts?: Omit<ChartOfAccount, 'childAccounts'>[];
+  currentAccountBalance?: {
+    accountId: string;
+    debitBalance: string;
+    creditBalance: string;
+    netBalance: string;
+    asOfDate: Date;
+  };
+}
+
+// Hierarchy node with UI properties
+export interface HierarchyNode extends ChartOfAccount {
+  level: number;
+  children: HierarchyNode[];
+  hasChildren: boolean;
+  isExpanded: boolean;
+}
 
 export interface AccountFilters {
   accountType?: string;
@@ -62,16 +108,16 @@ export interface UpdateAccountInput {
 
 // Single Account Hook
 export function useAccount(accountId: string) {
-  const { currentTenant } = useAuth();
+  const { currentTenant } = useTenantStore();
 
   const {
     data,
     loading,
     error,
     refetch,
-  } = useQuery(GET_ACCOUNT, {
+  } = useQuery<{ account: ChartOfAccount }>(GET_ACCOUNT, {
     variables: { id: accountId },
-    skip: !currentTenant || !accountId,
+    skip: !currentTenant?.id || !accountId,
     errorPolicy: 'all',
   });
 
@@ -81,8 +127,10 @@ export function useAccount(accountId: string) {
     const accountData = data.account;
     return {
       ...accountData,
-      currentBalance: parseFloat(accountData.currentBalance || '0'),
-      hasChildren: accountData.childAccounts?.length > 0,
+      currentBalance: typeof accountData.currentBalance === 'string' 
+        ? parseFloat(accountData.currentBalance || '0') 
+        : accountData.currentBalance,
+      hasChildren: accountData.childAccounts?.length ?? 0 > 0,
       depth: accountData.accountLevel || 0,
       fullPath: accountData.parentAccount ? 
         `${accountData.parentAccount.accountName} > ${accountData.accountName}` : 
@@ -100,25 +148,27 @@ export function useAccount(accountId: string) {
 
 // Multiple Accounts Hook
 export function useAccounts(filters: AccountFilters = {}) {
-  const { currentTenant } = useAuth();
+  const { currentTenant } = useTenantStore();
 
   const {
     data,
     loading,
     error,
     refetch,
-  } = useQuery(GET_ACCOUNTS, {
+  } = useQuery<{ accounts: ChartOfAccount[] }>(GET_ACCOUNTS, {
     variables: filters,
-    skip: !currentTenant,
+    skip: !currentTenant?.id,
     errorPolicy: 'all',
   });
 
   const accounts = useMemo(() => {
     if (!data?.accounts) return [];
     
-    return data.accounts.map((account: any) => ({
+    return data.accounts.map((account: ChartOfAccount) => ({
       ...account,
-      currentBalance: parseFloat(account.currentBalance || '0'),
+      currentBalance: typeof account.currentBalance === 'string'
+        ? parseFloat(account.currentBalance || '0')
+        : account.currentBalance,
       depth: account.accountLevel || 0,
     }));
   }, [data]);
@@ -126,7 +176,7 @@ export function useAccounts(filters: AccountFilters = {}) {
   const accountSummary = useMemo(() => {
     if (!accounts.length) return null;
     
-    const byType = accounts.reduce((acc, account) => {
+    const byType = accounts.reduce((acc: Record<string, { count: number; totalBalance: number }>, account: ChartOfAccount & { currentBalance: number }) => {
       const type = account.accountType;
       if (!acc[type]) {
         acc[type] = { count: 0, totalBalance: 0 };
@@ -138,10 +188,10 @@ export function useAccounts(filters: AccountFilters = {}) {
     
     return {
       totalAccounts: accounts.length,
-      activeAccounts: accounts.filter(a => a.isActive).length,
-      inactiveAccounts: accounts.filter(a => !a.isActive).length,
+      activeAccounts: accounts.filter((a: ChartOfAccount) => a.isActive).length,
+      inactiveAccounts: accounts.filter((a: ChartOfAccount) => !a.isActive).length,
       byType,
-      totalBalance: accounts.reduce((sum, account) => sum + account.currentBalance, 0),
+      totalBalance: accounts.reduce((sum: number, account: ChartOfAccount & { currentBalance: number }) => sum + account.currentBalance, 0),
     };
   }, [accounts]);
 
@@ -156,28 +206,28 @@ export function useAccounts(filters: AccountFilters = {}) {
 
 // Account Hierarchy Hook
 export function useAccountHierarchy(rootAccountId?: string) {
-  const { currentTenant } = useAuth();
+  const { currentTenant } = useTenantStore();
 
   const {
     data,
     loading,
     error,
     refetch,
-  } = useQuery(GET_ACCOUNT_HIERARCHY, {
+  } = useQuery<{ accountHierarchy: ChartOfAccount[] }>(GET_ACCOUNT_HIERARCHY, {
     variables: { rootAccountId },
-    skip: !currentTenant,
+    skip: !currentTenant?.id,
     errorPolicy: 'all',
   });
 
   const hierarchy = useMemo(() => {
     if (!data?.accountHierarchy) return [];
     
-    const buildHierarchy = (accounts: any[], level = 0): any[] => {
-      return accounts.map(account => ({
+    const buildHierarchy = (accounts: ChartOfAccount[], level = 0): HierarchyNode[] => {
+      return accounts.map((account: ChartOfAccount) => ({
         ...account,
         level,
-        children: account.children ? buildHierarchy(account.children, level + 1) : [],
-        hasChildren: account.children && account.children.length > 0,
+        children: account.childAccounts ? buildHierarchy(account.childAccounts, level + 1) : [],
+        hasChildren: account.childAccounts ? account.childAccounts.length > 0 : false,
         isExpanded: level < 2, // Auto-expand first 2 levels
       }));
     };
@@ -186,8 +236,8 @@ export function useAccountHierarchy(rootAccountId?: string) {
   }, [data]);
 
   const flattenedAccounts = useMemo(() => {
-    const flatten = (accounts: any[]): any[] => {
-      return accounts.reduce((acc, account) => {
+    const flatten = (accounts: HierarchyNode[]): HierarchyNode[] => {
+      return accounts.reduce((acc: HierarchyNode[], account: HierarchyNode) => {
         acc.push(account);
         if (account.children) {
           acc.push(...flatten(account.children));
@@ -210,18 +260,17 @@ export function useAccountHierarchy(rootAccountId?: string) {
 
 // Account Search Hook
 export function useAccountSearch() {
-  const { currentTenant } = useAuth();
+  const { currentTenant } = useTenantStore();
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<ChartOfAccount[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  const [searchAccounts] = useQuery(SEARCH_ACCOUNTS, {
-    skip: true,
+  const [searchAccounts] = useLazyQuery<{ searchAccounts: ChartOfAccount[] }>(SEARCH_ACCOUNTS, {
     errorPolicy: 'all',
   });
 
   const performSearch = useCallback(async (term: string, limit = 10) => {
-    if (!term.trim() || !currentTenant) {
+    if (!term.trim() || !currentTenant?.id) {
       setSearchResults([]);
       return;
     }
@@ -235,21 +284,23 @@ export function useAccountSearch() {
       });
 
       const results = result.data?.searchAccounts || [];
-      setSearchResults(results.map((account: any) => ({
+      setSearchResults(results.map((account: ChartOfAccount) => ({
         ...account,
-        currentBalance: parseFloat(account.currentBalance || '0'),
+        currentBalance: typeof account.currentBalance === 'string'
+          ? parseFloat(account.currentBalance || '0')
+          : account.currentBalance,
       })));
     } catch (error) {
       errorLogger.logError(error as Error, {
         component: 'useAccountSearch',
-        operation: 'performSearch',
-        tenantId: currentTenant.id,
+        operationId: 'performSearch',
+        tenantId: currentTenant?.id,
       });
       setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
-  }, [currentTenant, searchAccounts]);
+  }, [currentTenant?.id, searchAccounts]);
 
   const clearSearch = useCallback(() => {
     setSearchTerm('');
@@ -267,54 +318,54 @@ export function useAccountSearch() {
 
 // Account Mutations Hook
 export function useAccountMutations() {
-  const { currentTenant } = useAuth();
+  const { currentTenant } = useTenantStore();
 
-  const [createAccountMutation] = useMutation(CREATE_ACCOUNT, {
-    onError: (error) => {
+  const [createAccountMutation] = useMutation<{ createAccount: ChartOfAccount }>(CREATE_ACCOUNT, {
+    onError: (error: ApolloError) => {
       errorLogger.logError(error, {
         component: 'useAccountMutations',
-        operation: 'createAccount',
-        tenantId: currentTenant?.id,
+        operationId: 'createAccount',
+        ...(currentTenant?.id && { tenantId: currentTenant.id }),
       });
     },
   });
 
-  const [updateAccountMutation] = useMutation(UPDATE_ACCOUNT, {
-    onError: (error) => {
+  const [updateAccountMutation] = useMutation<{ updateAccount: ChartOfAccount }>(UPDATE_ACCOUNT, {
+    onError: (error: ApolloError) => {
       errorLogger.logError(error, {
         component: 'useAccountMutations',
-        operation: 'updateAccount',
-        tenantId: currentTenant?.id,
+        operationId: 'updateAccount',
+        ...(currentTenant?.id && { tenantId: currentTenant.id }),
       });
     },
   });
 
-  const [deleteAccountMutation] = useMutation(DELETE_ACCOUNT, {
-    onError: (error) => {
+  const [deleteAccountMutation] = useMutation<{ deleteAccount: { success: boolean } }>(DELETE_ACCOUNT, {
+    onError: (error: ApolloError) => {
       errorLogger.logError(error, {
         component: 'useAccountMutations',
-        operation: 'deleteAccount',
-        tenantId: currentTenant?.id,
+        operationId: 'deleteAccount',
+        ...(currentTenant?.id && { tenantId: currentTenant.id }),
       });
     },
   });
 
-  const [activateAccountMutation] = useMutation(ACTIVATE_ACCOUNT, {
-    onError: (error) => {
+  const [activateAccountMutation] = useMutation<{ activateAccount: ChartOfAccount }>(ACTIVATE_ACCOUNT, {
+    onError: (error: ApolloError) => {
       errorLogger.logError(error, {
         component: 'useAccountMutations',
-        operation: 'activateAccount',
-        tenantId: currentTenant?.id,
+        operationId: 'activateAccount',
+        ...(currentTenant?.id && { tenantId: currentTenant.id }),
       });
     },
   });
 
-  const [deactivateAccountMutation] = useMutation(DEACTIVATE_ACCOUNT, {
-    onError: (error) => {
+  const [deactivateAccountMutation] = useMutation<{ deactivateAccount: ChartOfAccount }>(DEACTIVATE_ACCOUNT, {
+    onError: (error: ApolloError) => {
       errorLogger.logError(error, {
         component: 'useAccountMutations',
-        operation: 'deactivateAccount',
-        tenantId: currentTenant?.id,
+        operationId: 'deactivateAccount',
+        ...(currentTenant?.id && { tenantId: currentTenant.id }),
       });
     },
   });
@@ -370,21 +421,22 @@ export function useAccountMutations() {
 
 // Account Balance Subscriptions Hook
 export function useAccountBalanceSubscriptions(accountIds?: string[]) {
-  const { currentTenant } = useAuth();
-  const [balanceUpdates, setBalanceUpdates] = useState<any[]>([]);
+  const { currentTenant } = useTenantStore();
+  const [balanceUpdates, setBalanceUpdates] = useState<Array<{ timestamp: Date; [key: string]: unknown }>>([]);
 
-  useSubscription(ACCOUNT_BALANCE_UPDATED, {
+  useSubscription<{ accountBalanceUpdated: { [key: string]: unknown } }>(ACCOUNT_BALANCE_UPDATED, {
     variables: { 
       tenantId: currentTenant?.id,
       accountIds,
     },
-    skip: !currentTenant,
+    skip: !currentTenant?.id,
     onData: ({ data }) => {
-      if (data.data?.accountBalanceUpdated) {
+      const balanceUpdate = data?.data?.accountBalanceUpdated;
+      if (balanceUpdate) {
         setBalanceUpdates(prev => [
           ...prev.slice(-9), // Keep last 10 updates
           {
-            ...data.data.accountBalanceUpdated,
+            ...balanceUpdate,
             timestamp: new Date(),
           },
         ]);
@@ -404,7 +456,7 @@ export function useAccountBalanceSubscriptions(accountIds?: string[]) {
 
 // Account Validation Hook
 export function useAccountValidation() {
-  const validateAccountNumber = useCallback((accountNumber: string, existingAccounts: any[] = []) => {
+  const validateAccountNumber = useCallback((accountNumber: string, existingAccounts: ChartOfAccount[] = []) => {
     const errors: string[] = [];
     
     if (!accountNumber) {
@@ -418,7 +470,7 @@ export function useAccountValidation() {
         errors.push('Account number must be between 3 and 10 digits');
       }
       
-      if (existingAccounts.some(acc => acc.accountNumber === accountNumber)) {
+      if (existingAccounts.some((acc: ChartOfAccount) => acc.accountNumber === accountNumber)) {
         errors.push('Account number already exists');
       }
     }
@@ -429,7 +481,7 @@ export function useAccountValidation() {
     };
   }, []);
 
-  const validateAccountName = useCallback((accountName: string, existingAccounts: any[] = []) => {
+  const validateAccountName = useCallback((accountName: string, existingAccounts: ChartOfAccount[] = []) => {
     const errors: string[] = [];
     
     if (!accountName) {
@@ -443,7 +495,7 @@ export function useAccountValidation() {
         errors.push('Account name must be less than 100 characters');
       }
       
-      if (existingAccounts.some(acc => acc.accountName.toLowerCase() === accountName.toLowerCase())) {
+      if (existingAccounts.some((acc: ChartOfAccount) => acc.accountName.toLowerCase() === accountName.toLowerCase())) {
         errors.push('Account name already exists');
       }
     }
@@ -454,11 +506,11 @@ export function useAccountValidation() {
     };
   }, []);
 
-  const validateAccountHierarchy = useCallback((parentAccountId: string, accountType: string, accounts: any[] = []) => {
+  const validateAccountHierarchy = useCallback((parentAccountId: string, accountType: string, accounts: ChartOfAccount[] = []) => {
     const errors: string[] = [];
     
     if (parentAccountId) {
-      const parentAccount = accounts.find(acc => acc.id === parentAccountId);
+      const parentAccount = accounts.find((acc: ChartOfAccount) => acc.id === parentAccountId);
       
       if (!parentAccount) {
         errors.push('Parent account not found');
@@ -497,31 +549,31 @@ export function useChartOfAccounts(filters: AccountFilters = {}) {
 
   const accountTypes = useMemo(() => {
     const types = [
-      { value: 'ASSET', label: 'Assets', normalBalance: 'debit' },
-      { value: 'LIABILITY', label: 'Liabilities', normalBalance: 'credit' },
-      { value: 'EQUITY', label: 'Equity', normalBalance: 'credit' },
-      { value: 'REVENUE', label: 'Revenue', normalBalance: 'credit' },
-      { value: 'EXPENSE', label: 'Expenses', normalBalance: 'debit' },
+      { value: 'ASSET', label: 'Assets', normalBalance: 'debit' as const },
+      { value: 'LIABILITY', label: 'Liabilities', normalBalance: 'credit' as const },
+      { value: 'EQUITY', label: 'Equity', normalBalance: 'credit' as const },
+      { value: 'REVENUE', label: 'Revenue', normalBalance: 'credit' as const },
+      { value: 'EXPENSE', label: 'Expenses', normalBalance: 'debit' as const },
     ];
     
-    return types.map(type => ({
+    return types.map((type) => ({
       ...type,
-      accounts: accounts.accounts.filter(acc => acc.accountType === type.value),
+      accounts: accounts.accounts.filter((acc: ChartOfAccount) => acc.accountType === type.value),
       totalBalance: accounts.accounts
-        .filter(acc => acc.accountType === type.value)
-        .reduce((sum, acc) => sum + acc.currentBalance, 0),
+        .filter((acc: ChartOfAccount) => acc.accountType === type.value)
+        .reduce((sum: number, acc: ChartOfAccount) => sum + (typeof acc.currentBalance === 'string' ? parseFloat(acc.currentBalance) : acc.currentBalance), 0),
     }));
   }, [accounts.accounts]);
 
   const accountsByType = useMemo(() => {
-    return accounts.accounts.reduce((acc, account) => {
+    return accounts.accounts.reduce((acc: Record<string, ChartOfAccount[]>, account: ChartOfAccount) => {
       const type = account.accountType;
       if (!acc[type]) {
         acc[type] = [];
       }
       acc[type].push(account);
       return acc;
-    }, {} as Record<string, any[]>);
+    }, {} as Record<string, ChartOfAccount[]>);
   }, [accounts.accounts]);
 
   return {

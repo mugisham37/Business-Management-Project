@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { useQuery, useMutation, useSubscription } from '@apollo/client';
+import { useQuery, useMutation, useSubscription, useLazyQuery } from '@apollo/client';
 import {
   GET_PIPELINES,
   GET_PIPELINE_STATUS,
@@ -29,7 +29,7 @@ import type {
 
 export function useETL(): UseETLResult {
   const [pipelines, setPipelines] = useState<ETLPipeline[]>([]);
-  const [pipelineStatus, setPipelineStatus] = useState<Record<string, any>>({});
+  const [pipelineStatus, setPipelineStatus] = useState<Record<string, Record<string, unknown>>>({});
   const [jobResults, setJobResults] = useState<ETLJobResult[]>([]);
   const [subscribedPipelineId, setSubscribedPipelineId] = useState<string | undefined>();
 
@@ -45,12 +45,11 @@ export function useETL(): UseETLResult {
   });
 
   // Lazy queries for on-demand execution
-  const [getPipelineStatusQuery, { loading: statusLoading, error: statusError }] = useQuery(
-    GET_PIPELINE_STATUS,
-    { skip: true }
+  const [getPipelineStatusQuery, { loading: statusLoading, error: statusError }] = useLazyQuery(
+    GET_PIPELINE_STATUS
   );
 
-  const [getPipelineLastRunQuery] = useQuery(GET_PIPELINE_LAST_RUN, { skip: true });
+  const [getPipelineLastRunQuery] = useLazyQuery(GET_PIPELINE_LAST_RUN);
 
   // Mutations
   const [setupETLPipelinesMutation] = useMutation(SETUP_ETL_PIPELINES);
@@ -59,8 +58,8 @@ export function useETL(): UseETLResult {
   const [createPipelineMutation] = useMutation(CREATE_PIPELINE);
   const [deletePipelineMutation] = useMutation(DELETE_PIPELINE);
 
-  // Subscriptions
-  const { data: statusSubscriptionData } = useSubscription(PIPELINE_STATUS_CHANGED, {
+  // Subscriptions (keep references active)
+  useSubscription(PIPELINE_STATUS_CHANGED, {
     variables: { pipelineId: subscribedPipelineId },
     skip: !subscribedPipelineId,
     onSubscriptionData: ({ subscriptionData }) => {
@@ -74,7 +73,7 @@ export function useETL(): UseETLResult {
     },
   });
 
-  const { data: executionSubscriptionData } = useSubscription(PIPELINE_EXECUTED, {
+  useSubscription(PIPELINE_EXECUTED, {
     variables: { pipelineId: subscribedPipelineId },
     skip: !subscribedPipelineId,
     onSubscriptionData: ({ subscriptionData }) => {
@@ -109,7 +108,7 @@ export function useETL(): UseETLResult {
   });
 
   // Actions
-  const getPipelines = useCallback(async (): Promise<any> => {
+  const getPipelines = useCallback(async (): Promise<ETLPipeline[]> => {
     try {
       const { data } = await refetchPipelines();
       if (data?.getPipelines) {
@@ -124,7 +123,7 @@ export function useETL(): UseETLResult {
     }
   }, [refetchPipelines]);
 
-  const getPipelineStatus = useCallback(async (pipelineId: string): Promise<any> => {
+  const getPipelineStatus = useCallback(async (pipelineId: string): Promise<Record<string, unknown>> => {
     try {
       const { data } = await getPipelineStatusQuery({
         variables: { pipelineId },
@@ -135,21 +134,34 @@ export function useETL(): UseETLResult {
         setPipelineStatus(prev => ({ ...prev, [pipelineId]: status }));
         return status;
       }
-      return null;
+      return {};
     } catch (error) {
       console.error('Failed to get pipeline status:', error);
       throw error;
     }
   }, [getPipelineStatusQuery]);
 
-  const getPipelineLastRun = useCallback(async (pipelineId: string): Promise<any> => {
+  const getPipelineLastRun = useCallback(async (pipelineId: string): Promise<ETLJobResult | null> => {
     try {
       const { data } = await getPipelineLastRunQuery({
         variables: { pipelineId },
       });
       
       if (data?.getPipelineLastRun) {
-        return JSON.parse(data.getPipelineLastRun);
+        const rawData = JSON.parse(data.getPipelineLastRun);
+        const jobResult: ETLJobResult = {
+          id: rawData.id || rawData.executionId || `exec_${Date.now()}`,
+          pipelineId: rawData.pipelineId,
+          status: rawData.status || 'COMPLETED',
+          startedAt: new Date(rawData.startedAt || Date.now()),
+          completedAt: rawData.completedAt ? new Date(rawData.completedAt) : new Date(),
+          recordsProcessed: rawData.recordsProcessed || 0,
+          recordsSuccessful: rawData.recordsSuccessful || 0,
+          recordsFailed: rawData.recordsFailed || 0,
+          errorMessage: rawData.error,
+          executionLog: rawData.log,
+        };
+        return jobResult;
       }
       return null;
     } catch (error) {
@@ -274,9 +286,9 @@ export function useETL(): UseETLResult {
     executionLoading,
     
     // Error states
-    pipelinesError: pipelinesError || undefined,
-    statusError: statusError || undefined,
-    executionError: executionError || undefined,
+    ...(pipelinesError && { pipelinesError }),
+    ...(statusError && { statusError }),
+    ...(executionError && { executionError }),
     
     // Actions
     getPipelines,

@@ -3,7 +3,7 @@
  * Custom hooks for financial report generation and management
  */
 
-import { useQuery, useLazyQuery, useMutation, useSubscription } from '@apollo/client';
+import { useQuery, useSubscription } from '@apollo/client';
 import { useState, useCallback, useMemo } from 'react';
 import {
   GENERATE_BALANCE_SHEET,
@@ -18,7 +18,7 @@ import {
   FINANCIAL_REPORT_GENERATED,
   FINANCIAL_REPORT_FAILED,
 } from '@/graphql/subscriptions/financial';
-import { useAuth } from './useAuth';
+import { useTenantStore } from '@/lib/stores/tenant-store';
 import { errorLogger } from '@/lib/error-handling';
 
 export interface FinancialReportOptions {
@@ -39,7 +39,7 @@ export interface ReportGenerationStatus {
 
 // Balance Sheet Hook
 export function useBalanceSheet(options: FinancialReportOptions = {}) {
-  const { currentTenant } = useAuth();
+  const currentTenant = useTenantStore(state => state.currentTenant);
   const [reportStatus, setReportStatus] = useState<ReportGenerationStatus>({
     isGenerating: false,
     progress: 0,
@@ -59,10 +59,9 @@ export function useBalanceSheet(options: FinancialReportOptions = {}) {
     skip: !currentTenant,
     errorPolicy: 'all',
     onError: (error) => {
-      errorLogger.logError(error, {
-        component: 'useBalanceSheet',
-        tenantId: currentTenant?.id,
-      });
+      errorLogger.logError(error, currentTenant?.id
+        ? { component: 'useBalanceSheet', tenantId: currentTenant.id }
+        : { component: 'useBalanceSheet' });
       setReportStatus(prev => ({ ...prev, error: error.message, isGenerating: false }));
     },
   });
@@ -121,7 +120,7 @@ export function useBalanceSheet(options: FinancialReportOptions = {}) {
 
 // Income Statement Hook
 export function useIncomeStatement(options: FinancialReportOptions = {}) {
-  const { currentTenant } = useAuth();
+  const currentTenant = useTenantStore(state => state.currentTenant);
   const [reportStatus, setReportStatus] = useState<ReportGenerationStatus>({
     isGenerating: false,
     progress: 0,
@@ -142,10 +141,9 @@ export function useIncomeStatement(options: FinancialReportOptions = {}) {
     skip: !currentTenant || !options.periodStart || !options.periodEnd,
     errorPolicy: 'all',
     onError: (error) => {
-      errorLogger.logError(error, {
-        component: 'useIncomeStatement',
-        tenantId: currentTenant?.id,
-      });
+      errorLogger.logError(error, currentTenant?.id
+        ? { component: 'useIncomeStatement', tenantId: currentTenant.id }
+        : { component: 'useIncomeStatement' });
       setReportStatus(prev => ({ ...prev, error: error.message, isGenerating: false }));
     },
   });
@@ -211,7 +209,7 @@ export function useIncomeStatement(options: FinancialReportOptions = {}) {
 
 // Cash Flow Statement Hook
 export function useCashFlowStatement(options: FinancialReportOptions = {}) {
-  const { currentTenant } = useAuth();
+  const currentTenant = useTenantStore(state => state.currentTenant);
   const [reportStatus, setReportStatus] = useState<ReportGenerationStatus>({
     isGenerating: false,
     progress: 0,
@@ -232,10 +230,9 @@ export function useCashFlowStatement(options: FinancialReportOptions = {}) {
     skip: !currentTenant || !options.periodStart || !options.periodEnd,
     errorPolicy: 'all',
     onError: (error) => {
-      errorLogger.logError(error, {
-        component: 'useCashFlowStatement',
-        tenantId: currentTenant?.id,
-      });
+      errorLogger.logError(error, currentTenant?.id
+        ? { component: 'useCashFlowStatement', tenantId: currentTenant.id }
+        : { component: 'useCashFlowStatement' });
       setReportStatus(prev => ({ ...prev, error: error.message, isGenerating: false }));
     },
   });
@@ -285,7 +282,7 @@ export function useCashFlowStatement(options: FinancialReportOptions = {}) {
 
 // Trial Balance Hook
 export function useTrialBalance(options: FinancialReportOptions = {}) {
-  const { currentTenant } = useAuth();
+  const currentTenant = useTenantStore(state => state.currentTenant);
 
   const {
     data,
@@ -324,7 +321,7 @@ export function useTrialBalance(options: FinancialReportOptions = {}) {
 
 // Financial Ratios Hook
 export function useFinancialRatios(options: FinancialReportOptions = {}) {
-  const { currentTenant } = useAuth();
+  const currentTenant = useTenantStore(state => state.currentTenant);
 
   const {
     data,
@@ -388,7 +385,7 @@ export function useFinancialRatios(options: FinancialReportOptions = {}) {
 
 // Financial Summary Hook
 export function useFinancialSummary(options: FinancialReportOptions = {}) {
-  const { currentTenant } = useAuth();
+  const currentTenant = useTenantStore(state => state.currentTenant);
 
   const {
     data,
@@ -435,7 +432,7 @@ export function useFinancialSummary(options: FinancialReportOptions = {}) {
 
 // Accounting Integrity Hook
 export function useAccountingIntegrity() {
-  const { currentTenant } = useAuth();
+  const currentTenant = useTenantStore(state => state.currentTenant);
 
   const {
     data,
@@ -456,7 +453,7 @@ export function useAccountingIntegrity() {
       ...validation,
       overallHealth: validation.isValid ? 'healthy' : 
                     validation.errors?.length > 0 ? 'critical' : 'warning',
-      criticalIssues: validation.errors?.filter(e => e.type === 'critical') || [],
+      criticalIssues: validation.errors?.filter((e: Record<string, unknown> & { type?: string }) => e.type === 'critical') || [],
       warningIssues: validation.warnings || [],
     };
   }, [data]);
@@ -471,8 +468,8 @@ export function useAccountingIntegrity() {
 
 // Report Subscription Hook
 export function useFinancialReportSubscriptions() {
-  const { currentTenant } = useAuth();
-  const [reportNotifications, setReportNotifications] = useState<any[]>([]);
+  const currentTenant = useTenantStore(state => state.currentTenant);
+  const [reportNotifications, setReportNotifications] = useState<Array<Record<string, unknown>>>([]);
 
   useSubscription(FINANCIAL_REPORT_GENERATED, {
     variables: { tenantId: currentTenant?.id },

@@ -7,32 +7,21 @@ import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useSubscription, useApolloClient } from '@apollo/client';
 import { useTenantStore } from '@/lib/stores/tenant-store';
 import {
-  KitDefinition,
-  AssemblyWorkOrder,
   AssemblyWorkOrderStatus,
-  KitComponent,
-  AssemblyComponent,
-  AssemblyMetrics,
   CreateKitDefinitionInput,
   CreateAssemblyWorkOrderInput,
-  UpdateAssemblyWorkOrderInput,
   OffsetPaginationArgs,
-  KitDefinitionConnection,
-  AssemblyWorkOrderConnection,
+
 } from '@/types/warehouse';
 
 // GraphQL Operations
 import {
   GET_KIT_DEFINITION,
   GET_KIT_DEFINITIONS,
-  GET_KIT_DEFINITION_BY_SKU,
   GET_ACTIVE_KIT_DEFINITIONS,
   GET_ASSEMBLY_WORK_ORDER,
   GET_ASSEMBLY_WORK_ORDERS,
-  GET_ASSEMBLY_WORK_ORDER_BY_NUMBER,
-  GET_ASSEMBLY_WORK_ORDERS_BY_KIT,
   GET_ASSEMBLY_WORK_ORDERS_BY_WAREHOUSE,
-  GET_ASSEMBLY_WORK_ORDERS_BY_ASSEMBLER,
   GET_PENDING_ASSEMBLY_WORK_ORDERS,
   GET_OVERDUE_ASSEMBLY_WORK_ORDERS,
   GET_ASSEMBLY_METRICS,
@@ -130,7 +119,10 @@ export function useKitDefinition(kitId: string) {
       await deleteKitDefinition({
         variables: { id: kitDefinition.id },
         update: (cache) => {
-          cache.evict({ id: cache.identify(kitDefinition) });
+          const kitId = cache.identify(kitDefinition);
+          if (kitId) {
+            cache.evict({ id: kitId });
+          }
           cache.gc();
         },
       });
@@ -228,7 +220,7 @@ export function useKitDefinition(kitId: string) {
  */
 export function useKitDefinitions(
   paginationArgs?: OffsetPaginationArgs,
-  filter?: any
+  filter?: Record<string, unknown>
 ) {
   const currentTenant = useTenantStore(state => state.currentTenant);
   
@@ -245,7 +237,7 @@ export function useKitDefinitions(
 
   const [createKitDefinition] = useMutation(CREATE_KIT_DEFINITION);
 
-  const kitDefinitions = data?.kitDefinitions?.edges?.map(edge => edge.node) || [];
+  const kitDefinitions = data?.kitDefinitions?.edges?.map((edge: Record<string, unknown>) => edge.node) || [];
   const pageInfo = data?.kitDefinitions?.pageInfo;
   const totalCount = data?.kitDefinitions?.totalCount || 0;
 
@@ -261,21 +253,22 @@ export function useKitDefinitions(
             });
 
             if (existingKits) {
+              const existing = existingKits as Record<string, unknown>;
               cache.writeQuery({
                 query: GET_KIT_DEFINITIONS,
                 variables: { first: 20, filter },
                 data: {
                   kitDefinitions: {
-                    ...existingKits.kitDefinitions,
+                    ...(existing.kitDefinitions as Record<string, unknown>),
                     edges: [
                       {
                         node: mutationData.createKitDefinition,
                         cursor: `kit-${Date.now()}`,
                         __typename: 'KitDefinitionEdge',
                       },
-                      ...existingKits.kitDefinitions.edges,
+                      ...((existing.kitDefinitions as Record<string, unknown>).edges as unknown[]),
                     ],
-                    totalCount: existingKits.kitDefinitions.totalCount + 1,
+                    totalCount: (((existing.kitDefinitions as Record<string, unknown>).totalCount) as number) + 1,
                   },
                 },
               });
@@ -395,7 +388,7 @@ export function useAssemblyWorkOrder(workOrderId: string) {
     },
   });
 
-  const update = useCallback(async (input: UpdateAssemblyWorkOrderInput) => {
+  const update = useCallback(async (input: Record<string, unknown>) => {
     if (!workOrder?.id) return null;
     
     try {
@@ -423,7 +416,10 @@ export function useAssemblyWorkOrder(workOrderId: string) {
       await deleteWorkOrder({
         variables: { id: workOrder.id },
         update: (cache) => {
-          cache.evict({ id: cache.identify(workOrder) });
+          const woId = cache.identify(workOrder);
+          if (woId) {
+            cache.evict({ id: woId });
+          }
           cache.gc();
         },
       });
@@ -499,7 +495,7 @@ export function useAssemblyWorkOrder(workOrderId: string) {
     }
   }, [cancelWorkOrder, workOrder]);
 
-  const allocateWorkOrderComponents = useCallback(async (components: any[]) => {
+  const allocateWorkOrderComponents = useCallback(async (components: Record<string, unknown>[]) => {
     if (!workOrder?.id) return null;
     
     try {
@@ -513,7 +509,7 @@ export function useAssemblyWorkOrder(workOrderId: string) {
     }
   }, [allocateComponents, workOrder]);
 
-  const consumeWorkOrderComponents = useCallback(async (components: any[]) => {
+  const consumeWorkOrderComponents = useCallback(async (components: Record<string, unknown>[]) => {
     if (!workOrder?.id) return null;
     
     try {
@@ -527,7 +523,7 @@ export function useAssemblyWorkOrder(workOrderId: string) {
     }
   }, [consumeComponents, workOrder]);
 
-  const recordQuality = useCallback(async (qualityCheck: any) => {
+  const recordQuality = useCallback(async (qualityCheck: Record<string, unknown>) => {
     if (!workOrder?.id) return null;
     
     try {
@@ -651,7 +647,7 @@ export function useAssemblyWorkOrder(workOrderId: string) {
  */
 export function useAssemblyWorkOrders(
   paginationArgs?: OffsetPaginationArgs,
-  filter?: any
+  filter?: Record<string, unknown>
 ) {
   const currentTenant = useTenantStore(state => state.currentTenant);
   
@@ -668,7 +664,7 @@ export function useAssemblyWorkOrders(
 
   const [createWorkOrder] = useMutation(CREATE_ASSEMBLY_WORK_ORDER);
 
-  const workOrders = data?.assemblyWorkOrders?.edges?.map(edge => edge.node) || [];
+  const workOrders = data?.assemblyWorkOrders?.edges?.map((edge: Record<string, unknown>) => edge.node) || [];
   const pageInfo = data?.assemblyWorkOrders?.pageInfo;
   const totalCount = data?.assemblyWorkOrders?.totalCount || 0;
 
@@ -684,21 +680,22 @@ export function useAssemblyWorkOrders(
             });
 
             if (existingWorkOrders) {
+              const existing = existingWorkOrders as Record<string, unknown>;
               cache.writeQuery({
                 query: GET_ASSEMBLY_WORK_ORDERS,
                 variables: { first: 20, filter },
                 data: {
                   assemblyWorkOrders: {
-                    ...existingWorkOrders.assemblyWorkOrders,
+                    ...(existing.assemblyWorkOrders as Record<string, unknown>),
                     edges: [
                       {
                         node: mutationData.createAssemblyWorkOrder,
                         cursor: `workorder-${Date.now()}`,
                         __typename: 'AssemblyWorkOrderEdge',
                       },
-                      ...existingWorkOrders.assemblyWorkOrders.edges,
+                      ...((existing.assemblyWorkOrders as Record<string, unknown>).edges as unknown[]),
                     ],
-                    totalCount: existingWorkOrders.assemblyWorkOrders.totalCount + 1,
+                    totalCount: (((existing.assemblyWorkOrders as Record<string, unknown>).totalCount) as number) + 1,
                   },
                 },
               });
@@ -1016,28 +1013,28 @@ export function useKittingAssemblyManagement(warehouseId?: string) {
     const relevantWorkOrders = warehouseId ? warehouseWorkOrders : workOrders;
     
     const totalWorkOrders = relevantWorkOrders.length;
-    const pendingCount = relevantWorkOrders.filter(wo => wo.status === AssemblyWorkOrderStatus.PENDING).length;
-    const plannedCount = relevantWorkOrders.filter(wo => wo.status === AssemblyWorkOrderStatus.PLANNED).length;
-    const inProgressCount = relevantWorkOrders.filter(wo => wo.status === AssemblyWorkOrderStatus.IN_PROGRESS).length;
-    const completedCount = relevantWorkOrders.filter(wo => wo.status === AssemblyWorkOrderStatus.COMPLETED).length;
-    const cancelledCount = relevantWorkOrders.filter(wo => wo.status === AssemblyWorkOrderStatus.CANCELLED).length;
-    const onHoldCount = relevantWorkOrders.filter(wo => wo.status === AssemblyWorkOrderStatus.ON_HOLD).length;
+    const pendingCount = relevantWorkOrders.filter((wo: Record<string, unknown>) => wo.status === AssemblyWorkOrderStatus.PENDING).length;
+    const plannedCount = relevantWorkOrders.filter((wo: Record<string, unknown>) => wo.status === AssemblyWorkOrderStatus.PLANNED).length;
+    const inProgressCount = relevantWorkOrders.filter((wo: Record<string, unknown>) => wo.status === AssemblyWorkOrderStatus.IN_PROGRESS).length;
+    const completedCount = relevantWorkOrders.filter((wo: Record<string, unknown>) => wo.status === AssemblyWorkOrderStatus.COMPLETED).length;
+    const cancelledCount = relevantWorkOrders.filter((wo: Record<string, unknown>) => wo.status === AssemblyWorkOrderStatus.CANCELLED).length;
+    const onHoldCount = relevantWorkOrders.filter((wo: Record<string, unknown>) => wo.status === AssemblyWorkOrderStatus.ON_HOLD).length;
 
-    const totalQuantityToAssemble = relevantWorkOrders.reduce((sum, wo) => sum + (wo.quantityToAssemble || 0), 0);
-    const totalQuantityAssembled = relevantWorkOrders.reduce((sum, wo) => sum + (wo.quantityAssembled || 0), 0);
+    const totalQuantityToAssemble = relevantWorkOrders.reduce((sum: number, wo: Record<string, unknown>) => sum + ((typeof wo.quantityToAssemble === 'number' ? wo.quantityToAssemble : 0) || 0), 0);
+    const totalQuantityAssembled = relevantWorkOrders.reduce((sum: number, wo: Record<string, unknown>) => sum + ((typeof wo.quantityAssembled === 'number' ? wo.quantityAssembled : 0) || 0), 0);
 
-    const completedWorkOrders = relevantWorkOrders.filter(wo => 
+    const completedWorkOrders = relevantWorkOrders.filter((wo: Record<string, unknown>) => 
       wo.status === AssemblyWorkOrderStatus.COMPLETED && wo.actualDuration
     );
     
     const averageAssemblyTime = completedWorkOrders.length > 0
-      ? completedWorkOrders.reduce((sum, wo) => sum + (wo.actualDuration || 0), 0) / completedWorkOrders.length
+      ? completedWorkOrders.reduce((sum: number, wo: Record<string, unknown>) => sum + ((typeof wo.actualDuration === 'number' ? wo.actualDuration : 0) || 0), 0) / completedWorkOrders.length
       : 0;
 
     const qualityPassRate = completedWorkOrders.length > 0
-      ? completedWorkOrders.reduce((sum, wo) => {
-          const total = wo.qualityChecksTotal || 0;
-          const passed = wo.qualityChecksPassed || 0;
+      ? completedWorkOrders.reduce((sum: number, wo: Record<string, unknown>) => {
+          const total = typeof wo.qualityChecksTotal === 'number' ? wo.qualityChecksTotal : 0;
+          const passed = typeof wo.qualityChecksPassed === 'number' ? wo.qualityChecksPassed : 0;
           return sum + (total > 0 ? (passed / total) * 100 : 100);
         }, 0) / completedWorkOrders.length
       : 0;
@@ -1060,11 +1057,11 @@ export function useKittingAssemblyManagement(warehouseId?: string) {
 
   const kitStats = useMemo(() => {
     const totalKits = kitDefinitions.length;
-    const activeKits = kitDefinitions.filter(kit => kit.isActive).length;
-    const inactiveKits = kitDefinitions.filter(kit => !kit.isActive).length;
+    const activeKits = kitDefinitions.filter((kit: Record<string, unknown>) => kit.isActive).length;
+    const inactiveKits = kitDefinitions.filter((kit: Record<string, unknown>) => !kit.isActive).length;
 
-    const totalComponents = kitDefinitions.reduce((sum, kit) => 
-      sum + (kit.components?.length || 0), 0
+    const totalComponents = kitDefinitions.reduce((sum: number, kit: Record<string, unknown>) => 
+      sum + ((Array.isArray(kit.components) ? kit.components.length : 0) || 0), 0
     );
 
     const averageComponentsPerKit = totalKits > 0 ? totalComponents / totalKits : 0;

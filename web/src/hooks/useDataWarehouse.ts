@@ -3,7 +3,7 @@
  * Comprehensive hook for data warehouse operations
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import {
   GET_DATA_CUBES,
@@ -26,7 +26,7 @@ import type {
 export function useDataWarehouse(): UseDataWarehouseResult {
   const [dataCubes, setDataCubes] = useState<DataCube[]>([]);
   const [warehouseStats, setWarehouseStats] = useState<WarehouseStatistics | undefined>();
-  const [queryResults, setQueryResults] = useState<Record<string, any>>({});
+  const [queryResults, setQueryResults] = useState<Record<string, Record<string, unknown>>>({});
 
   // Queries
   const {
@@ -40,16 +40,26 @@ export function useDataWarehouse(): UseDataWarehouseResult {
   });
 
   // Lazy queries for on-demand execution
-  const [getDataCubeQuery, { loading: cubeLoading }] = useQuery(GET_DATA_CUBE, { skip: true });
-  const [queryWarehouseQuery, { loading: queryLoading, error: queryError }] = useQuery(
-    QUERY_WAREHOUSE,
-    { skip: true }
-  );
-  const [getWarehouseStatsQuery, { loading: statsLoading, error: statsError }] = useQuery(
-    GET_WAREHOUSE_STATISTICS,
-    { skip: true }
-  );
-  const [testConnectionQuery] = useQuery(TEST_WAREHOUSE_CONNECTION, { skip: true });
+  const {
+    refetch: getDataCubeQuery,
+    loading: cubeLoading,
+  } = useQuery(GET_DATA_CUBE, { skip: true });
+
+  const {
+    refetch: queryWarehouseQuery,
+    loading: queryLoading,
+    error: queryError,
+  } = useQuery(QUERY_WAREHOUSE, { skip: true });
+
+  const {
+    refetch: getWarehouseStatsQuery,
+    loading: statsLoading,
+    error: statsError,
+  } = useQuery(GET_WAREHOUSE_STATISTICS, { skip: true });
+
+  const {
+    refetch: testConnectionQuery,
+  } = useQuery(TEST_WAREHOUSE_CONNECTION, { skip: true });
 
   // Mutations
   const [createTenantSchemaMutation] = useMutation(CREATE_TENANT_SCHEMA);
@@ -57,11 +67,11 @@ export function useDataWarehouse(): UseDataWarehouseResult {
   const [createPartitionsMutation] = useMutation(CREATE_PARTITIONS);
 
   // Update state when query data changes
-  useState(() => {
+  useEffect(() => {
     if (cubesData?.getDataCubes) {
       setDataCubes(cubesData.getDataCubes);
     }
-  });
+  }, [cubesData]);
 
   // Actions
   const getDataCubes = useCallback(async (): Promise<DataCube[]> => {
@@ -90,34 +100,38 @@ export function useDataWarehouse(): UseDataWarehouseResult {
     }
   }, [getDataCubeQuery]);
 
-  const queryWarehouse = useCallback(async (query: string): Promise<any> => {
+  const queryWarehouse = useCallback(async (query: string): Promise<Record<string, unknown>> => {
     try {
       const { data } = await queryWarehouseQuery({
         variables: { query },
       });
       
       if (data?.queryWarehouse) {
-        const result = JSON.parse(data.queryWarehouse);
+        const result = typeof data.queryWarehouse === 'string' 
+          ? JSON.parse(data.queryWarehouse) 
+          : data.queryWarehouse;
         setQueryResults(prev => ({ ...prev, [query]: result }));
         return result;
       }
-      return null;
+      return {};
     } catch (error) {
       console.error('Failed to query warehouse:', error);
       throw error;
     }
   }, [queryWarehouseQuery]);
 
-  const getWarehouseStatistics = useCallback(async (): Promise<any> => {
+  const getWarehouseStatistics = useCallback(async (): Promise<WarehouseStatistics> => {
     try {
       const { data } = await getWarehouseStatsQuery();
       
       if (data?.getWarehouseStatistics) {
-        const stats = JSON.parse(data.getWarehouseStatistics);
+        const stats = typeof data.getWarehouseStatistics === 'string'
+          ? JSON.parse(data.getWarehouseStatistics)
+          : data.getWarehouseStatistics;
         setWarehouseStats(stats);
         return stats;
       }
-      return null;
+      throw new Error('Failed to retrieve warehouse statistics');
     } catch (error) {
       console.error('Failed to get warehouse statistics:', error);
       throw error;
@@ -176,7 +190,7 @@ export function useDataWarehouse(): UseDataWarehouseResult {
   return {
     // Data
     dataCubes,
-    warehouseStats,
+    ...(warehouseStats && { warehouseStats }),
     queryResults,
     
     // Loading states
@@ -185,9 +199,9 @@ export function useDataWarehouse(): UseDataWarehouseResult {
     queryLoading,
     
     // Error states
-    cubesError: cubesError || undefined,
-    statsError: statsError || undefined,
-    queryError: queryError || undefined,
+    ...(cubesError && { cubesError: cubesError as Error }),
+    ...(statsError && { statsError: statsError as Error }),
+    ...(queryError && { queryError: queryError as Error }),
     
     // Actions
     getDataCubes,

@@ -6,7 +6,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useApolloClient } from '@apollo/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useTenantStore } from '@/lib/stores/tenant-store';
 import { 
   CommunicationChannel,
   CommunicationChannelConfig,
@@ -46,12 +46,11 @@ import {
 } from '@/graphql/subscriptions/communication';
 
 export const useCommunication = (options: CommunicationHookOptions = {}): UseCommunicationReturn => {
-  const { currentUser } = useAuth();
+  const { currentTenant } = useTenantStore();
   const apolloClient = useApolloClient();
   
   const {
-    tenantId = currentUser?.tenantId,
-    userId = currentUser?.id,
+    tenantId = currentTenant?.id,
     autoRefresh = true,
     refreshInterval = 30000,
     enableRealtime = true,
@@ -65,7 +64,6 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
 
   // Queries
   const { 
-    data: channelsData, 
     loading: channelsLoading, 
     error: channelsError,
     refetch: refetchChannels 
@@ -85,7 +83,6 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
   });
 
   const { 
-    data: statsData,
     loading: statsLoading,
     refetch: refetchStats 
   } = useQuery(GET_COMMUNICATION_STATS, {
@@ -194,7 +191,7 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
         ...notification,
         metadata: CommunicationUtils.createCommunicationMetadata(
           tenantId,
-          userId || '',
+          '',
           notification.metadata
         ),
       };
@@ -221,7 +218,7 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
     } finally {
       setLoading(false);
     }
-  }, [tenantId, userId, sendMultiChannelNotificationMutation, refetchStats]);
+  }, [tenantId, sendMultiChannelNotificationMutation, refetchStats]);
 
   const sendAlert = useCallback(async (alert: Alert): Promise<BulkCommunicationResult> => {
     if (!tenantId) {
@@ -242,7 +239,7 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
         ...alert,
         metadata: CommunicationUtils.createCommunicationMetadata(
           tenantId,
-          userId || '',
+          '',
           {
             ...alert.metadata,
             alertType: 'system_alert',
@@ -273,7 +270,7 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
     } finally {
       setLoading(false);
     }
-  }, [tenantId, userId, sendAlertMutation, refetchStats]);
+  }, [tenantId, sendAlertMutation, refetchStats]);
 
   const sendBusinessNotification = useCallback(async (
     notification: BusinessNotification
@@ -296,7 +293,7 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
         ...notification,
         metadata: CommunicationUtils.createCommunicationMetadata(
           tenantId,
-          userId || '',
+          '',
           {
             ...notification.metadata,
             notificationType: notification.type,
@@ -326,7 +323,7 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
     } finally {
       setLoading(false);
     }
-  }, [tenantId, userId, sendBusinessNotificationMutation, refetchStats]);
+  }, [tenantId, sendBusinessNotificationMutation, refetchStats]);
 
   // Channel management
   const getChannels = useCallback(async (): Promise<CommunicationChannel[]> => {
@@ -347,8 +344,8 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
   const configureChannels = useCallback(async (
     channelConfigs: CommunicationChannelConfig[]
   ): Promise<void> => {
-    if (!tenantId || !userId) {
-      throw new Error('Tenant ID and User ID are required');
+    if (!tenantId) {
+      throw new Error('Tenant ID is required');
     }
 
     setLoading(true);
@@ -366,7 +363,6 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
         variables: {
           tenantId,
           channels: channelConfigs,
-          updatedBy: userId,
         },
       });
     } catch (error) {
@@ -376,7 +372,7 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
     } finally {
       setLoading(false);
     }
-  }, [tenantId, userId, configureChannelsMutation]);
+  }, [tenantId, configureChannelsMutation]);
 
   const testChannels = useCallback(async (): Promise<ChannelTestResult[]> => {
     if (!tenantId) {
@@ -406,8 +402,8 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
   const enableChannel = useCallback(async (
     channelType: CommunicationChannelType
   ): Promise<void> => {
-    if (!tenantId || !userId) {
-      throw new Error('Tenant ID and User ID are required');
+    if (!tenantId) {
+      throw new Error('Tenant ID is required');
     }
 
     setLoading(true);
@@ -418,7 +414,6 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
         variables: {
           tenantId,
           channelType,
-          updatedBy: userId,
         },
       });
     } catch (error) {
@@ -428,13 +423,13 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
     } finally {
       setLoading(false);
     }
-  }, [tenantId, userId, enableChannelMutation]);
+  }, [tenantId, enableChannelMutation]);
 
   const disableChannel = useCallback(async (
     channelType: CommunicationChannelType
   ): Promise<void> => {
-    if (!tenantId || !userId) {
-      throw new Error('Tenant ID and User ID are required');
+    if (!tenantId) {
+      throw new Error('Tenant ID is required');
     }
 
     setLoading(true);
@@ -445,7 +440,6 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
         variables: {
           tenantId,
           channelType,
-          updatedBy: userId,
         },
       });
     } catch (error) {
@@ -455,7 +449,7 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
     } finally {
       setLoading(false);
     }
-  }, [tenantId, userId, disableChannelMutation]);
+  }, [tenantId, disableChannelMutation]);
 
   // Analytics
   const getStats = useCallback(async (
@@ -507,28 +501,6 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
     }
   }, [tenantId, apolloClient]);
 
-  // Clear error
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
-  // Refresh all data
-  const refresh = useCallback(async () => {
-    if (!tenantId) return;
-
-    setLoading(true);
-    try {
-      await Promise.all([
-        refetchChannels(),
-        refetchStats(),
-      ]);
-    } catch (error) {
-      console.error('Failed to refresh communication data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [tenantId, refetchChannels, refetchStats]);
-
   // Update loading state based on queries
   useEffect(() => {
     setLoading(channelsLoading || statsLoading);
@@ -563,9 +535,5 @@ export const useCommunication = (options: CommunicationHookOptions = {}): UseCom
     error,
     channels,
     stats,
-    
-    // Utility methods
-    clearError,
-    refresh,
   };
 };

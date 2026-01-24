@@ -3,6 +3,11 @@ import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import { 
   Contract, 
   ContractStatus,
+  ContractQueryInput,
+  CreateContractInput,
+  UpdateContractInput,
+  RenewContractInput,
+  SignContractInput,
   UseContractsResult 
 } from '@/types/crm';
 import {
@@ -25,80 +30,6 @@ import {
 } from '@/graphql/subscriptions/b2b-subscriptions';
 import { useTenantStore } from '@/lib/stores/tenant-store';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
-
-export interface ContractQueryInput {
-  search?: string;
-  status?: ContractStatus;
-  customerId?: string;
-  salesRepId?: string;
-  contractType?: string;
-  expiringWithinDays?: number;
-  autoRenewal?: boolean;
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-}
-
-export interface CreateContractInput {
-  customerId: string;
-  salesRepId?: string;
-  accountManagerId?: string;
-  contractType: string;
-  startDate: Date;
-  endDate: Date;
-  contractValue: number;
-  currency?: string;
-  paymentTerms: string;
-  autoRenewal?: boolean;
-  renewalNoticeDays?: number;
-  pricingTerms?: Record<string, any>;
-  terms?: string;
-  notes?: string;
-}
-
-export interface UpdateContractInput {
-  salesRepId?: string;
-  accountManagerId?: string;
-  contractType?: string;
-  startDate?: Date;
-  endDate?: Date;
-  contractValue?: number;
-  currency?: string;
-  paymentTerms?: string;
-  autoRenewal?: boolean;
-  renewalNoticeDays?: number;
-  customerSignedAt?: Date;
-  companySignedAt?: Date;
-  pricingTerms?: Record<string, any>;
-  terms?: string;
-  notes?: string;
-}
-
-export interface RenewContractInput {
-  newEndDate: Date;
-  contractValue?: number;
-  pricingTerms?: string;
-}
-
-export interface SignContractInput {
-  customerSignedAt?: Date;
-  digitalSignature?: string;
-}
-
-export interface UseContractsResult {
-  contracts: Contract[];
-  loading: boolean;
-  error?: Error;
-  totalCount: number;
-  createContract: (input: CreateContractInput) => Promise<Contract>;
-  updateContract: (id: string, input: UpdateContractInput) => Promise<Contract>;
-  approveContract: (id: string, approvalNotes?: string) => Promise<Contract>;
-  signContract: (id: string, input: SignContractInput) => Promise<Contract>;
-  renewContract: (id: string, input: RenewContractInput) => Promise<Contract>;
-  terminateContract: (id: string, terminationReason: string, terminationDate?: Date) => Promise<Contract>;
-  refetch: () => Promise<void>;
-}
 
 /**
  * Hook for managing contracts with comprehensive operations
@@ -223,13 +154,16 @@ export function useContracts(query?: ContractQueryInput): UseContractsResult {
         },
         update: (cache, { data }) => {
           if (data?.updateContract) {
-            cache.modify({
-              id: cache.identify(data.updateContract),
-              fields: {
-                ...input,
-                updatedAt: () => new Date().toISOString(),
-              },
-            });
+            const cacheId = cache.identify(data.updateContract);
+            if (cacheId) {
+              cache.modify({
+                id: cacheId,
+                fields: {
+                  ...input as Record<string, unknown>,
+                  updatedAt: () => new Date().toISOString(),
+                },
+              });
+            }
           }
         },
       });
