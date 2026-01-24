@@ -3,6 +3,8 @@
  * Comprehensive type definitions for Customer Relationship Management
  */
 
+import type { ApolloError } from '@apollo/client';
+
 // Base Types
 export interface BaseEntity {
   id: string;
@@ -455,6 +457,8 @@ export interface CreateCampaignInput {
   metadata?: Record<string, unknown>;
 }
 
+export type UpdateCampaignInput = Partial<CreateCampaignInput>;
+
 export interface LoyaltyReward extends BaseEntity {
   name: string;
   description?: string;
@@ -742,9 +746,9 @@ export interface UseLoyaltyResult {
 export interface UseCampaignsResult {
   campaigns: Campaign[];
   loading: boolean;
-  error?: Error;
+  error?: ApolloError | null;
   createCampaign: (input: CreateCampaignInput) => Promise<Campaign>;
-  updateCampaign: (id: string, input: CreateCampaignInput) => Promise<Campaign>;
+  updateCampaign: (id: string, input: UpdateCampaignInput) => Promise<Campaign>;
   deleteCampaign: (id: string) => Promise<boolean>;
   activateCampaign: (id: string) => Promise<Campaign>;
   pauseCampaign: (id: string) => Promise<Campaign>;
@@ -765,7 +769,7 @@ export interface UseCustomerAnalyticsResult {
 export interface UseB2BCustomersResult {
   customers: B2BCustomer[];
   loading: boolean;
-  error?: Error;
+  error?: Error | null;
   metrics?: B2BCustomerMetrics;
   createCustomer: (input: CreateB2BCustomerInput) => Promise<B2BCustomer>;
   updateCustomer: (id: string, input: UpdateB2BCustomerInput) => Promise<B2BCustomer>;
@@ -774,6 +778,65 @@ export interface UseB2BCustomersResult {
   getCustomersByIndustry: (industry: string) => Promise<B2BCustomer[]>;
   getCustomersBySalesRep: (salesRepId: string) => Promise<B2BCustomer[]>;
   getCustomersWithExpiringContracts: (days?: number) => Promise<B2BCustomer[]>;
+}
+
+export interface UseB2BOrdersResult {
+  orders: B2BOrder[];
+  loading: boolean;
+  error?: Error | null;
+  totalCount?: number;
+  hasNextPage?: boolean;
+  hasPreviousPage?: boolean;
+  analytics?: Record<string, unknown>;
+  createOrder: (input: CreateB2BOrderInput) => Promise<B2BOrder>;
+  updateOrder: (id: string, input: UpdateB2BOrderInput) => Promise<B2BOrder>;
+  approveOrder?: (id: string, approvalNotes?: string) => Promise<B2BOrder>;
+  rejectOrder?: (id: string, rejectionReason?: string) => Promise<B2BOrder>;
+  shipOrder?: (id: string, trackingNumber: string, estimatedDeliveryDate?: Date) => Promise<B2BOrder>;
+  cancelOrder?: (id: string, cancellationReason?: string) => Promise<B2BOrder>;
+  deleteOrder?: (id: string) => Promise<boolean>;
+  getOrderByNumber?: (orderNumber: string) => Promise<B2BOrder | null>;
+  getOrdersRequiringApproval?: () => Promise<B2BOrder[]>;
+  getB2BOrderAnalytics?: (startDate?: Date, endDate?: Date) => Promise<Record<string, unknown>>;
+  refetch?: () => Promise<void>;
+}
+
+export interface UseB2BPricingResult {
+  pricingRules: PricingRule[];
+  loading: boolean;
+  error?: Error | null;
+  totalCount: number;
+  getCustomerPricing: (customerId: string, productId: string, quantity: number) => Promise<CustomerPricing>;
+  getBulkPricing: (customerId: string, items: Array<{ productId: string; quantity: number }>) => Promise<Record<string, unknown>>;
+  createPricingRule: (input: CreatePricingRuleInput) => Promise<PricingRule>;
+  updatePricingRule: (id: string, input: UpdatePricingRuleInput) => Promise<PricingRule>;
+  deletePricingRule: (id: string) => Promise<boolean>;
+  getApplicableRules: (customerId: string, productId: string, quantity: number, amount: number) => Promise<PricingRule[]>;
+  setPricingRuleActive: (id: string, isActive: boolean) => Promise<boolean>;
+  refetch: () => Promise<void>;
+}
+
+export interface ApprovalStepInput {
+  approvalNotes?: string;
+}
+
+export interface ReassignApprovalInput {
+  newApproverId: string;
+  reassignmentReason: string;
+  notes?: string;
+}
+
+export interface UseB2BWorkflowsResult {
+  workflows: Workflow[];
+  loading: boolean;
+  error?: Error | null;
+  approveStep: (workflowId: string, stepId: string, input: ApprovalStepInput) => Promise<{ step: ApprovalStep; workflow: Workflow }>;
+  rejectStep: (workflowId: string, stepId: string, rejectionReason: string, input?: ApprovalStepInput) => Promise<{ step: ApprovalStep; workflow: Workflow }>;
+  reassignApproval: (workflowId: string, stepId: string, input: ReassignApprovalInput) => Promise<{ step: ApprovalStep; workflow: Workflow }>;
+  getPendingApprovals: () => Promise<WorkflowApproval[]>;
+  getWorkflowHistory: (entityId: string, entityType: EntityType) => Promise<WorkflowHistoryEntry[]>;
+  getWorkflowAnalytics: (startDate?: Date, endDate?: Date) => Promise<Record<string, unknown>>;
+  refetch: () => Promise<void>;
 }
 
 export interface UseCommunicationsResult {
@@ -866,6 +929,35 @@ export interface B2BOrder extends BaseEntity {
   totalSavings?: number;
   fulfillmentPercentage?: number;
   availableActions?: string[];
+}
+
+export interface CreateB2BOrderInput {
+  customerId: string;
+  salesRepId?: string;
+  accountManagerId?: string;
+  quoteId?: string;
+  orderDate: Date;
+  requestedDeliveryDate?: Date;
+  paymentTerms: string;
+  currency: string;
+  items: Array<{ productId: string; quantity: number; unitPrice: number; notes?: string }>;
+  shippingAddress?: Address;
+  billingAddress?: Address;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateB2BOrderInput {
+  status?: B2BOrderStatus;
+  requestedDeliveryDate?: Date;
+  paymentTerms?: string;
+  approvalNotes?: string;
+  rejectionReason?: string;
+  cancellationReason?: string;
+  shippingAddress?: Address;
+  billingAddress?: Address;
+  notes?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface B2BOrderItem extends BaseEntity {
@@ -1054,6 +1146,39 @@ export interface CustomerPricing {
   savingsPercentage: number;
 }
 
+export interface CreatePricingRuleInput {
+  name: string;
+  description?: string;
+  ruleType: PricingRuleType;
+  targetType: PricingTargetType;
+  targetId?: string;
+  discountType: DiscountType;
+  discountValue: number;
+  minimumQuantity?: number;
+  maximumQuantity?: number;
+  minimumAmount?: number;
+  effectiveDate: Date;
+  expirationDate?: Date;
+  priority?: number;
+}
+
+export interface UpdatePricingRuleInput {
+  name?: string;
+  description?: string;
+  ruleType?: PricingRuleType;
+  targetType?: PricingTargetType;
+  targetId?: string;
+  discountType?: DiscountType;
+  discountValue?: number;
+  minimumQuantity?: number;
+  maximumQuantity?: number;
+  minimumAmount?: number;
+  effectiveDate?: Date;
+  expirationDate?: Date;
+  priority?: number;
+  isActive?: boolean;
+}
+
 // Territory Types
 export interface Territory extends BaseEntity {
   territoryCode: string;
@@ -1175,6 +1300,26 @@ export enum EntityType {
   CONTRACT = 'contract',
   PRICING_RULE = 'pricing_rule',
   CUSTOMER = 'customer'
+}
+
+export interface WorkflowApproval extends ApprovalStep {
+  workflowType: WorkflowType;
+  entityType: EntityType;
+  entityId: string;
+  initiatedBy: string;
+  approvalNotes?: string;
+}
+
+export interface WorkflowHistoryEntry extends BaseEntity {
+  workflowId: string;
+  entityId: string;
+  entityType: EntityType;
+  action: string;
+  actor: string;
+  timestamp: Date;
+  details?: Record<string, unknown>;
+  previousStatus?: string;
+  newStatus?: string;
 }
 
 export enum WorkflowStatus {

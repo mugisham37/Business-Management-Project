@@ -24,7 +24,7 @@ import {
   BUDGET_APPROVED,
   BUDGET_VARIANCE_ALERT,
 } from '@/graphql/subscriptions/financial';
-import { useAuth } from './useAuth';
+import { useTenantStore } from '@/lib/stores/tenant-store';
 import { errorLogger } from '@/lib/error-handling';
 
 export interface BudgetFilters {
@@ -63,7 +63,7 @@ export interface UpdateBudgetLineInput {
 
 // Single Budget Hook
 export function useBudget(budgetId: string) {
-  const { currentTenant } = useAuth();
+  const { currentTenant } = useTenantStore();
 
   const {
     data,
@@ -72,7 +72,7 @@ export function useBudget(budgetId: string) {
     refetch,
   } = useQuery(GET_BUDGET, {
     variables: { id: budgetId },
-    skip: !currentTenant || !budgetId,
+    skip: !currentTenant?.id || !budgetId,
     errorPolicy: 'all',
   });
 
@@ -94,13 +94,13 @@ export function useBudget(budgetId: string) {
       utilizationPercentage: totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0,
       remainingBudget: variance,
       isOverBudget: totalActual > totalBudget,
-      budgetLines: budgetData.budgetLines?.map((line: any) => ({
+      budgetLines: budgetData.budgetLines?.map((line: Record<string, unknown>) => ({
         ...line,
-        budgetAmount: parseFloat(line.budgetAmount || '0'),
-        actualAmount: parseFloat(line.actualAmount || '0'),
-        variance: parseFloat(line.budgetAmount || '0') - parseFloat(line.actualAmount || '0'),
-        variancePercentage: parseFloat(line.budgetAmount || '0') > 0 ? 
-          ((parseFloat(line.budgetAmount || '0') - parseFloat(line.actualAmount || '0')) / parseFloat(line.budgetAmount || '0')) * 100 : 0,
+        budgetAmount: parseFloat((line.budgetAmount as string) || '0'),
+        actualAmount: parseFloat((line.actualAmount as string) || '0'),
+        variance: parseFloat((line.budgetAmount as string) || '0') - parseFloat((line.actualAmount as string) || '0'),
+        variancePercentage: parseFloat((line.budgetAmount as string) || '0') > 0 ? 
+          ((parseFloat((line.budgetAmount as string) || '0') - parseFloat((line.actualAmount as string) || '0')) / parseFloat((line.budgetAmount as string) || '0')) * 100 : 0,
       })) || [],
     };
   }, [data]);
@@ -115,7 +115,7 @@ export function useBudget(budgetId: string) {
 
 // Multiple Budgets Hook
 export function useBudgets(filters: BudgetFilters = {}) {
-  const { currentTenant } = useAuth();
+  const { currentTenant } = useTenantStore();
 
   const {
     data,
@@ -124,16 +124,16 @@ export function useBudgets(filters: BudgetFilters = {}) {
     refetch,
   } = useQuery(GET_BUDGETS, {
     variables: filters,
-    skip: !currentTenant,
+    skip: !currentTenant?.id,
     errorPolicy: 'all',
   });
 
   const budgets = useMemo(() => {
     if (!data?.budgets) return [];
     
-    return data.budgets.map((budget: any) => {
-      const totalBudget = parseFloat(budget.totalBudgetAmount || '0');
-      const totalActual = parseFloat(budget.totalActualAmount || '0');
+    return data.budgets.map((budget: Record<string, unknown>) => {
+      const totalBudget = parseFloat((budget.totalBudgetAmount as string) || '0');
+      const totalActual = parseFloat((budget.totalActualAmount as string) || '0');
       const variance = totalBudget - totalActual;
       
       return {
@@ -151,20 +151,20 @@ export function useBudgets(filters: BudgetFilters = {}) {
   const budgetSummary = useMemo(() => {
     if (!budgets.length) return null;
     
-    const totalBudgeted = budgets.reduce((sum, budget) => sum + budget.totalBudgetAmount, 0);
-    const totalActual = budgets.reduce((sum, budget) => sum + budget.totalActualAmount, 0);
+    const totalBudgeted = budgets.reduce((sum: number, budget: Record<string, unknown>) => sum + (budget.totalBudgetAmount as number), 0);
+    const totalActual = budgets.reduce((sum: number, budget: Record<string, unknown>) => sum + (budget.totalActualAmount as number), 0);
     const totalVariance = totalBudgeted - totalActual;
     
     return {
       totalBudgets: budgets.length,
-      activeBudgets: budgets.filter(b => b.isActive).length,
-      approvedBudgets: budgets.filter(b => b.status === 'approved').length,
-      draftBudgets: budgets.filter(b => b.status === 'draft').length,
+      activeBudgets: budgets.filter((b: Record<string, unknown>) => b.isActive).length,
+      approvedBudgets: budgets.filter((b: Record<string, unknown>) => b.status === 'approved').length,
+      draftBudgets: budgets.filter((b: Record<string, unknown>) => b.status === 'draft').length,
       totalBudgeted,
       totalActual,
       totalVariance,
       overallVariancePercentage: totalBudgeted > 0 ? (totalVariance / totalBudgeted) * 100 : 0,
-      overBudgetCount: budgets.filter(b => b.isOverBudget).length,
+      overBudgetCount: budgets.filter((b: Record<string, unknown>) => b.isOverBudget).length,
     };
   }, [budgets]);
 
@@ -179,7 +179,7 @@ export function useBudgets(filters: BudgetFilters = {}) {
 
 // Budget Variance Hook
 export function useBudgetVariance(budgetId: string, asOfDate?: Date) {
-  const { currentTenant } = useAuth();
+  const { currentTenant } = useTenantStore();
 
   const {
     data,
@@ -191,7 +191,7 @@ export function useBudgetVariance(budgetId: string, asOfDate?: Date) {
       budgetId,
       asOfDate: asOfDate || new Date(),
     },
-    skip: !currentTenant || !budgetId,
+    skip: !currentTenant?.id || !budgetId,
     errorPolicy: 'all',
   });
 
@@ -211,13 +211,13 @@ export function useBudgetVariance(budgetId: string, asOfDate?: Date) {
       variancePercentage: parseFloat(variance.variancePercentage || '0'),
       isOverBudget: totalActual > totalBudget,
       utilizationRate: totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0,
-      accountVariances: variance.accountVariances?.map((account: any) => ({
+      accountVariances: variance.accountVariances?.map((account: Record<string, unknown>) => ({
         ...account,
-        budgetAmount: parseFloat(account.budgetAmount || '0'),
-        actualAmount: parseFloat(account.actualAmount || '0'),
-        variance: parseFloat(account.variance || '0'),
-        variancePercentage: parseFloat(account.variancePercentage || '0'),
-        isOverBudget: parseFloat(account.actualAmount || '0') > parseFloat(account.budgetAmount || '0'),
+        budgetAmount: parseFloat((account.budgetAmount as string) || '0'),
+        actualAmount: parseFloat((account.actualAmount as string) || '0'),
+        variance: parseFloat((account.variance as string) || '0'),
+        variancePercentage: parseFloat((account.variancePercentage as string) || '0'),
+        isOverBudget: parseFloat((account.actualAmount as string) || '0') > parseFloat((account.budgetAmount as string) || '0'),
       })) || [],
     };
   }, [data]);
@@ -232,14 +232,15 @@ export function useBudgetVariance(budgetId: string, asOfDate?: Date) {
 
 // Budget Mutations Hook
 export function useBudgetMutations() {
-  const { currentTenant } = useAuth();
+  const { currentTenant } = useTenantStore();
+  const tenantId = currentTenant?.id;
 
   const [createBudgetMutation] = useMutation(CREATE_BUDGET, {
     onError: (error) => {
       errorLogger.logError(error, {
         component: 'useBudgetMutations',
-        operation: 'createBudget',
-        tenantId: currentTenant?.id,
+        operationId: 'createBudget',
+        ...(tenantId && { tenantId }),
       });
     },
   });
@@ -248,8 +249,8 @@ export function useBudgetMutations() {
     onError: (error) => {
       errorLogger.logError(error, {
         component: 'useBudgetMutations',
-        operation: 'updateBudget',
-        tenantId: currentTenant?.id,
+        operationId: 'updateBudget',
+        ...(tenantId && { tenantId }),
       });
     },
   });
@@ -258,8 +259,8 @@ export function useBudgetMutations() {
     onError: (error) => {
       errorLogger.logError(error, {
         component: 'useBudgetMutations',
-        operation: 'approveBudget',
-        tenantId: currentTenant?.id,
+        operationId: 'approveBudget',
+        ...(tenantId && { tenantId }),
       });
     },
   });
@@ -268,8 +269,8 @@ export function useBudgetMutations() {
     onError: (error) => {
       errorLogger.logError(error, {
         component: 'useBudgetMutations',
-        operation: 'deleteBudget',
-        tenantId: currentTenant?.id,
+        operationId: 'deleteBudget',
+        ...(tenantId && { tenantId }),
       });
     },
   });
@@ -278,8 +279,8 @@ export function useBudgetMutations() {
     onError: (error) => {
       errorLogger.logError(error, {
         component: 'useBudgetMutations',
-        operation: 'addBudgetLine',
-        tenantId: currentTenant?.id,
+        operationId: 'addBudgetLine',
+        ...(tenantId && { tenantId }),
       });
     },
   });
@@ -288,8 +289,8 @@ export function useBudgetMutations() {
     onError: (error) => {
       errorLogger.logError(error, {
         component: 'useBudgetMutations',
-        operation: 'updateBudgetLine',
-        tenantId: currentTenant?.id,
+        operationId: 'updateBudgetLine',
+        ...(tenantId && { tenantId }),
       });
     },
   });
@@ -298,8 +299,8 @@ export function useBudgetMutations() {
     onError: (error) => {
       errorLogger.logError(error, {
         component: 'useBudgetMutations',
-        operation: 'deleteBudgetLine',
-        tenantId: currentTenant?.id,
+        operationId: 'deleteBudgetLine',
+        ...(tenantId && { tenantId }),
       });
     },
   });
@@ -373,12 +374,12 @@ export function useBudgetMutations() {
 
 // Budget Subscriptions Hook
 export function useBudgetSubscriptions() {
-  const { currentTenant } = useAuth();
-  const [budgetNotifications, setBudgetNotifications] = useState<any[]>([]);
+  const { currentTenant } = useTenantStore();
+  const [budgetNotifications, setBudgetNotifications] = useState<Record<string, unknown>[]>([]);
 
   useSubscription(BUDGET_CREATED, {
     variables: { tenantId: currentTenant?.id },
-    skip: !currentTenant,
+    skip: !currentTenant?.id,
     onData: ({ data }) => {
       if (data.data?.budgetCreated) {
         setBudgetNotifications(prev => [
@@ -395,7 +396,7 @@ export function useBudgetSubscriptions() {
 
   useSubscription(BUDGET_APPROVED, {
     variables: { tenantId: currentTenant?.id },
-    skip: !currentTenant,
+    skip: !currentTenant?.id,
     onData: ({ data }) => {
       if (data.data?.budgetApproved) {
         setBudgetNotifications(prev => [
@@ -452,11 +453,11 @@ export function useBudgetManagement(budgetId?: string, filters: BudgetFilters = 
     if (!budgets.budgets.length) return null;
     
     const currentYear = new Date().getFullYear();
-    const currentYearBudgets = budgets.budgets.filter(b => b.budgetYear === currentYear);
-    const previousYearBudgets = budgets.budgets.filter(b => b.budgetYear === currentYear - 1);
+    const currentYearBudgets = budgets.budgets.filter((b: Record<string, unknown>) => (b.budgetYear as number) === currentYear);
+    const previousYearBudgets = budgets.budgets.filter((b: Record<string, unknown>) => (b.budgetYear as number) === currentYear - 1);
     
-    const currentYearTotal = currentYearBudgets.reduce((sum, b) => sum + b.totalBudgetAmount, 0);
-    const previousYearTotal = previousYearBudgets.reduce((sum, b) => sum + b.totalBudgetAmount, 0);
+    const currentYearTotal = currentYearBudgets.reduce((sum: number, b: Record<string, unknown>) => sum + (b.totalBudgetAmount as number), 0);
+    const previousYearTotal = previousYearBudgets.reduce((sum: number, b: Record<string, unknown>) => sum + (b.totalBudgetAmount as number), 0);
     
     return {
       yearOverYearGrowth: previousYearTotal > 0 ? 
@@ -464,10 +465,10 @@ export function useBudgetManagement(budgetId?: string, filters: BudgetFilters = 
       averageBudgetSize: currentYearBudgets.length > 0 ? 
         currentYearTotal / currentYearBudgets.length : 0,
       budgetAccuracy: currentYearBudgets.length > 0 ? 
-        currentYearBudgets.reduce((sum, b) => sum + Math.abs(b.variancePercentage), 0) / currentYearBudgets.length : 0,
+        currentYearBudgets.reduce((sum: number, b: Record<string, unknown>) => sum + Math.abs((b.variancePercentage as number)), 0) / currentYearBudgets.length : 0,
       topVarianceBudgets: currentYearBudgets
-        .filter(b => Math.abs(b.variancePercentage) > 10)
-        .sort((a, b) => Math.abs(b.variancePercentage) - Math.abs(a.variancePercentage))
+        .filter((b: Record<string, unknown>) => Math.abs((b.variancePercentage as number)) > 10)
+        .sort((a: Record<string, unknown>, b: Record<string, unknown>) => Math.abs((b.variancePercentage as number)) - Math.abs((a.variancePercentage as number)))
         .slice(0, 5),
     };
   }, [budgets.budgets]);

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useUnifiedCache } from '@/lib/cache';
 import { DocumentNode } from '@apollo/client';
+import { GetCurrentUserDocument } from '@/types/generated/graphql';
 
 interface CacheWarmingConfig {
   key: string;
   query?: DocumentNode;
-  variables?: any;
-  loader?: () => Promise<any>;
+  variables?: Record<string, unknown>;
+  loader?: () => Promise<unknown>;
   priority?: 'high' | 'medium' | 'low';
   tenantId?: string;
   dependencies?: string[];
@@ -31,7 +32,7 @@ export function useCacheWarming(
   configs: CacheWarmingConfig[],
   options: CacheWarmingOptions = {}
 ) {
-  const { warmCache, getMetrics } = useUnifiedCache();
+  const { warmCache } = useUnifiedCache();
   const {
     enabled = true,
     batchSize = 5,
@@ -48,7 +49,7 @@ export function useCacheWarming(
     if (!enabled) return;
 
     try {
-      let loader: () => Promise<any>;
+      let loader: () => Promise<unknown>;
 
       if (config.loader) {
         loader = config.loader;
@@ -58,7 +59,7 @@ export function useCacheWarming(
           const { apolloClient } = await import('@/lib/apollo/client');
           const result = await apolloClient.query({
             query: config.query!,
-            variables: config.variables,
+            variables: config.variables || {},
             fetchPolicy: 'network-only',
             errorPolicy: 'ignore',
           });
@@ -69,10 +70,15 @@ export function useCacheWarming(
         return;
       }
 
+      if (!config.tenantId) {
+        console.warn(`Cache warming config for key "${config.key}" has no tenantId`);
+        return;
+      }
+
       await warmCache([{
         key: config.key,
         loader,
-        priority: config.priority,
+        priority: config.priority || 'medium',
         tenantId: config.tenantId,
       }]);
 
@@ -198,6 +204,9 @@ export function useCacheWarming(
   useEffect(() => {
     if (!enabled) return;
 
+    // Save ref value for cleanup
+    const intervalsMap = intervalsRef.current;
+
     // Warm caches that should be warmed on mount
     const onMountConfigs = configs.filter(config => config.schedule?.onMount);
     if (onMountConfigs.length > 0) {
@@ -208,9 +217,9 @@ export function useCacheWarming(
     setupScheduledWarming();
 
     return () => {
-      // Cleanup intervals
-      intervalsRef.current.forEach(interval => clearInterval(interval));
-      intervalsRef.current.clear();
+      // Cleanup intervals using saved reference
+      intervalsMap.forEach(interval => clearInterval(interval));
+      intervalsMap.clear();
     };
   }, [configs, enabled, warmCacheBatch, setupScheduledWarming]);
 
@@ -228,7 +237,7 @@ export function useCacheWarming(
  * Hook for warming critical business data
  */
 export function useCriticalDataWarming(tenantId?: string) {
-  const criticalConfigs: CacheWarmingConfig[] = [
+  const criticalConfigs: CacheWarmingConfig[] = tenantId ? [
     {
       key: 'currentUser',
       priority: 'high',
@@ -239,9 +248,8 @@ export function useCriticalDataWarming(tenantId?: string) {
       },
       loader: async () => {
         const { apolloClient } = await import('@/lib/apollo/client');
-        const { GET_CURRENT_USER } = await import('@/graphql/queries/user.graphql');
         const result = await apolloClient.query({
-          query: GET_CURRENT_USER,
+          query: GetCurrentUserDocument,
           fetchPolicy: 'network-only',
         });
         return result.data;
@@ -257,7 +265,6 @@ export function useCriticalDataWarming(tenantId?: string) {
       },
       dependencies: ['currentUser'],
       loader: async () => {
-        if (!tenantId) return null;
         // Load tenant settings
         return { tenantId, settings: {} }; // Placeholder
       },
@@ -275,10 +282,10 @@ export function useCriticalDataWarming(tenantId?: string) {
         return { permissions: [] }; // Placeholder
       },
     },
-  ];
+  ] : [];
 
   return useCacheWarming(criticalConfigs, {
-    enabled: true,
+    enabled: !!tenantId,
     batchSize: 3,
     delayBetweenBatches: 500,
   });
@@ -292,7 +299,7 @@ export function useBusinessModuleWarming(
   tenantId?: string,
   priority: 'high' | 'medium' | 'low' = 'medium'
 ) {
-  const moduleConfigs: CacheWarmingConfig[] = modules.map(module => ({
+  const moduleConfigs: CacheWarmingConfig[] = tenantId ? modules.map(module => ({
     key: `${module}Stats`,
     priority,
     tenantId,
@@ -304,10 +311,10 @@ export function useBusinessModuleWarming(
       // Load module statistics
       return { module, stats: {} }; // Placeholder
     },
-  }));
+  })) : [];
 
   return useCacheWarming(moduleConfigs, {
-    enabled: true,
+    enabled: !!tenantId,
     batchSize: 2,
     delayBetweenBatches: 1000,
   });

@@ -138,6 +138,19 @@ export interface TenantContext {
   features: FeatureFlag[];
 }
 
+// Pagination Types
+export interface OffsetPaginationArgs {
+  offset?: number;
+  limit?: number;
+}
+
+export interface CursorPaginationArgs {
+  after?: string;
+  before?: string;
+  first?: number;
+  last?: number;
+}
+
 // GraphQL Types
 export interface GraphQLOperation {
   query: string;

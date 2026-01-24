@@ -3,7 +3,8 @@ import { useQuery, useMutation } from '@apollo/client';
 import { 
   B2BCustomer, 
   B2BCustomerFilterInput,
-  B2BCustomerMetrics,
+  CreateB2BCustomerInput,
+  UpdateB2BCustomerInput,
   UseB2BCustomersResult 
 } from '@/types/crm';
 import {
@@ -21,7 +22,7 @@ import {
   UPDATE_B2B_CUSTOMER_CREDIT_STATUS,
 } from '@/graphql/mutations/crm-mutations';
 import { useTenantStore } from '@/lib/stores/tenant-store';
-import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { useErrorHandler, type ErrorType } from './useErrorHandler';
 
 /**
  * Hook for managing B2B customers with comprehensive operations
@@ -34,8 +35,7 @@ export function useB2BCustomers(filters?: B2BCustomerFilterInput): UseB2BCustome
   const { 
     data, 
     loading, 
-    error, 
-    refetch 
+    error,
   } = useQuery(GET_B2B_CUSTOMERS, {
     variables: { filter: filters },
     skip: !currentTenant?.id,
@@ -58,6 +58,24 @@ export function useB2BCustomers(filters?: B2BCustomerFilterInput): UseB2BCustome
     },
   });
 
+  // Separate query for getting customers by industry
+  const { refetch: refetchByIndustry } = useQuery(GET_B2B_CUSTOMERS_BY_INDUSTRY, {
+    skip: true,
+    errorPolicy: 'all',
+  });
+
+  // Separate query for getting customers by sales rep
+  const { refetch: refetchBySalesRep } = useQuery(GET_B2B_CUSTOMERS_BY_SALES_REP, {
+    skip: true,
+    errorPolicy: 'all',
+  });
+
+  // Separate query for getting customers with expiring contracts
+  const { refetch: refetchExpiringContracts } = useQuery(GET_B2B_CUSTOMERS_WITH_EXPIRING_CONTRACTS, {
+    skip: true,
+    errorPolicy: 'all',
+  });
+
   // Mutations
   const [createCustomerMutation] = useMutation(CREATE_B2B_CUSTOMER, {
     onError: (error) => handleError(error, 'Failed to create B2B customer'),
@@ -78,7 +96,7 @@ export function useB2BCustomers(filters?: B2BCustomerFilterInput): UseB2BCustome
   });
 
   // Callbacks
-  const createCustomer = useCallback(async (input: any): Promise<B2BCustomer> => {
+  const createCustomer = useCallback(async (input: CreateB2BCustomerInput): Promise<B2BCustomer> => {
     try {
       const result = await createCustomerMutation({
         variables: { input },
@@ -105,7 +123,7 @@ export function useB2BCustomers(filters?: B2BCustomerFilterInput): UseB2BCustome
 
   const updateCustomer = useCallback(async (
     id: string, 
-    input: any
+    input: UpdateB2BCustomerInput
   ): Promise<B2BCustomer> => {
     try {
       const result = await updateCustomerMutation({
@@ -114,20 +132,18 @@ export function useB2BCustomers(filters?: B2BCustomerFilterInput): UseB2BCustome
           updateB2BCustomer: {
             __typename: 'B2BCustomer',
             id,
+            companyName: input.companyName || '',
+            creditLimit: input.creditLimit || 0,
+            availableCredit: 0,
+            outstandingBalance: 0,
+            paymentTerms: input.paymentTerms || '',
+            creditStatus: '',
+            contractExpiringSoon: false,
+            daysUntilContractExpiry: 0,
             ...input,
             updatedAt: new Date().toISOString(),
-          },
-        },
-        update: (cache, { data }) => {
-          if (data?.updateB2BCustomer) {
-            cache.modify({
-              id: cache.identify(data.updateB2BCustomer),
-              fields: {
-                ...input,
-                updatedAt: () => new Date().toISOString(),
-              },
-            });
-          }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any,
         },
       });
 
@@ -171,47 +187,41 @@ export function useB2BCustomers(filters?: B2BCustomerFilterInput): UseB2BCustome
 
   const getCustomersByIndustry = useCallback(async (industry: string): Promise<B2BCustomer[]> => {
     try {
-      const { data } = await refetch({
-        query: GET_B2B_CUSTOMERS_BY_INDUSTRY,
-        variables: { industry },
-      });
+      const { data } = await refetchByIndustry({ industry });
 
-      return data.b2bCustomersByIndustry;
+      return data.b2bCustomersByIndustry || [];
     } catch (error) {
+      handleError(error as ErrorType, 'Failed to fetch customers by industry');
       throw error;
     }
-  }, []);
+  }, [refetchByIndustry, handleError]);
 
   const getCustomersBySalesRep = useCallback(async (salesRepId: string): Promise<B2BCustomer[]> => {
     try {
-      const { data } = await refetch({
-        query: GET_B2B_CUSTOMERS_BY_SALES_REP,
-        variables: { salesRepId },
-      });
+      const { data } = await refetchBySalesRep({ salesRepId });
 
-      return data.b2bCustomersBySalesRep;
+      return data.b2bCustomersBySalesRep || [];
     } catch (error) {
+      handleError(error as ErrorType, 'Failed to fetch customers by sales rep');
       throw error;
     }
-  }, []);
+  }, [refetchBySalesRep, handleError]);
 
   const getCustomersWithExpiringContracts = useCallback(async (days = 30): Promise<B2BCustomer[]> => {
     try {
-      const { data } = await refetch({
-        query: GET_B2B_CUSTOMERS_WITH_EXPIRING_CONTRACTS,
-        variables: { days },
-      });
+      const { data } = await refetchExpiringContracts({ days });
 
-      return data.b2bCustomersWithExpiringContracts;
+      return data.b2bCustomersWithExpiringContracts || [];
     } catch (error) {
+      handleError(error as ErrorType, 'Failed to fetch customers with expiring contracts');
       throw error;
     }
-  }, []);
+  }, [refetchExpiringContracts, handleError]);
 
   return {
     customers: data?.b2bCustomers || [],
     loading: loading || metricsLoading,
-    error: error || metricsError || undefined,
+    error: error || metricsError || null,
     metrics: metricsData?.b2bCustomerMetrics,
     createCustomer,
     updateCustomer,

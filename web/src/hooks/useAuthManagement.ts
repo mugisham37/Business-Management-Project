@@ -65,7 +65,8 @@ export function useAuthManagement() {
             status: 'failed',
           },
         ]);
-      } catch (err) {
+      } catch (_err: unknown) {
+        void _err;
         setError('Failed to fetch authentication data');
       } finally {
         setLoading(false);
@@ -75,22 +76,26 @@ export function useAuthManagement() {
     fetchAuthData();
   }, []);
 
-  const revokeSession = async (sessionId: string) => {
+  const revokeSession = async (_sessionId: string): Promise<void> => {
+    void _sessionId;
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 500));
       // Update local state or refetch data
-    } catch (err) {
+    } catch (_err: unknown) {
+      void _err;
       throw new Error('Failed to revoke session');
     }
   };
 
-  const resetUserMFA = async (userId: string) => {
+  const resetUserMFA = async (_userId: string): Promise<void> => {
+    void _userId;
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 500));
       // Update local state or refetch data
-    } catch (err) {
+    } catch (_err: unknown) {
+      void _err;
       throw new Error('Failed to reset MFA');
     }
   };

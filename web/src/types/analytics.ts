@@ -516,9 +516,9 @@ export interface UseAnalyticsResult {
   trendsLoading: boolean;
   
   // Error states
-  metricsError?: Error;
-  kpisError?: Error;
-  trendsError?: Error;
+  metricsError?: Error | undefined;
+  kpisError?: Error | undefined;
+  trendsError?: Error | undefined;
   
   // Actions
   getMetrics: (filter?: MetricsFilter) => Promise<Metric[]>;

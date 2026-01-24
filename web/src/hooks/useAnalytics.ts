@@ -3,15 +3,12 @@
  * Comprehensive hook for analytics data and operations
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { useQuery, useMutation, useSubscription } from '@apollo/client';
+import { useState, useCallback } from 'react';
+import { useQuery, useMutation, useSubscription, ApolloError } from '@apollo/client';
 import {
   GET_METRICS,
   GET_KPIS,
   GET_TRENDS,
-  GET_ANALYTICS_HEALTH,
-  GET_AVAILABLE_FIELDS,
-  EXECUTE_ANALYTICS_QUERY,
 } from '@/graphql/queries/analytics-queries';
 import {
   INITIALIZE_ANALYTICS,
@@ -28,13 +25,10 @@ import type {
   KPIFilter,
   TrendFilter,
   UseAnalyticsResult,
+  AnalyticsConfiguration,
 } from '@/types/analytics';
 
 export function useAnalytics(): UseAnalyticsResult {
-  const [metrics, setMetrics] = useState<Metric[]>([]);
-  const [kpis, setKPIs] = useState<KPI[]>([]);
-  const [trends, setTrends] = useState<Trend[]>([]);
-
   // Queries
   const {
     data: metricsData,
@@ -66,17 +60,20 @@ export function useAnalytics(): UseAnalyticsResult {
     notifyOnNetworkStatusChange: true,
   });
 
+  // Use local state only for subscription updates
+  const [metrics, setMetrics] = useState<Metric[]>(metricsData?.getMetrics || []);
+
   // Mutations
   const [initializeAnalyticsMutation] = useMutation(INITIALIZE_ANALYTICS);
   const [trackEventMutation] = useMutation(TRACK_EVENT);
 
   // Subscriptions
-  const { data: metricsSubscriptionData } = useSubscription(METRICS_UPDATED, {
+  useSubscription(METRICS_UPDATED, {
     onSubscriptionData: ({ subscriptionData }) => {
       if (subscriptionData.data?.metricsUpdated) {
         const updatedMetric = subscriptionData.data.metricsUpdated;
         setMetrics(prev => {
-          const existingIndex = prev.findIndex(m => m.id === updatedMetric.id);
+          const existingIndex = prev.findIndex((m: Metric) => m.id === updatedMetric.id);
           if (existingIndex >= 0) {
             const updated = [...prev];
             updated[existingIndex] = updatedMetric;
@@ -87,25 +84,6 @@ export function useAnalytics(): UseAnalyticsResult {
       }
     },
   });
-
-  // Update state when query data changes
-  useEffect(() => {
-    if (metricsData?.getMetrics) {
-      setMetrics(metricsData.getMetrics);
-    }
-  }, [metricsData]);
-
-  useEffect(() => {
-    if (kpisData?.getKPIs) {
-      setKPIs(kpisData.getKPIs);
-    }
-  }, [kpisData]);
-
-  useEffect(() => {
-    if (trendsData?.getTrends) {
-      setTrends(trendsData.getTrends);
-    }
-  }, [trendsData]);
 
   // Actions
   const getMetrics = useCallback(async (filter?: MetricsFilter): Promise<Metric[]> => {
@@ -138,7 +116,7 @@ export function useAnalytics(): UseAnalyticsResult {
     }
   }, [refetchTrends]);
 
-  const trackEvent = useCallback(async (eventName: string, eventData: any): Promise<void> => {
+  const trackEvent = useCallback(async (eventName: string, eventData: Record<string, unknown>): Promise<void> => {
     try {
       await trackEventMutation({
         variables: {
@@ -152,7 +130,7 @@ export function useAnalytics(): UseAnalyticsResult {
     }
   }, [trackEventMutation]);
 
-  const initializeAnalytics = useCallback(async (config: any): Promise<void> => {
+  const initializeAnalytics = useCallback(async (config: AnalyticsConfiguration): Promise<void> => {
     try {
       await initializeAnalyticsMutation({
         variables: {
@@ -177,18 +155,18 @@ export function useAnalytics(): UseAnalyticsResult {
   return {
     // Data
     metrics,
-    kpis,
-    trends,
+    kpis: kpisData?.getKPIs || [],
+    trends: trendsData?.getTrends || [],
     
     // Loading states
     metricsLoading,
     kpisLoading,
     trendsLoading,
     
-    // Error states
-    metricsError: metricsError || undefined,
-    kpisError: kpisError || undefined,
-    trendsError: trendsError || undefined,
+    // Error states - cast to undefined if not present, as ApolloError is compatible with Error
+    metricsError: metricsError as (ApolloError | undefined),
+    kpisError: kpisError as (ApolloError | undefined),
+    trendsError: trendsError as (ApolloError | undefined),
     
     // Actions
     getMetrics,

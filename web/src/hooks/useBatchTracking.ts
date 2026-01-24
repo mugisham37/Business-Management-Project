@@ -12,7 +12,6 @@ import {
   CreateBatchInput,
   UpdateBatchInput,
   OffsetPaginationArgs,
-  BatchTrackingsResponse,
   BatchStatus,
 } from '@/types/inventory';
 
@@ -141,7 +140,10 @@ export function useBatchTrackings(
 
   const [createBatchTracking] = useMutation(CREATE_BATCH_TRACKING);
 
-  const batches = data?.batchTrackings || [];
+  const batches: BatchTracking[] = useMemo(
+    () => data?.batchTrackings || [],
+    [data?.batchTrackings]
+  );
 
   const create = useCallback(async (input: CreateBatchInput) => {
     try {
@@ -220,15 +222,15 @@ export function useBatchTrackings(
   // Statistics
   const stats = useMemo(() => {
     const totalBatches = batches.length;
-    const activeBatches = batches.filter(b => b.status === BatchStatus.ACTIVE).length;
-    const expiredBatches = batches.filter(b => b.status === BatchStatus.EXPIRED).length;
-    const consumedBatches = batches.filter(b => b.status === BatchStatus.CONSUMED).length;
-    const recalledBatches = batches.filter(b => b.status === BatchStatus.RECALLED).length;
+    const activeBatches = batches.filter((b: BatchTracking) => b.status === BatchStatus.ACTIVE).length;
+    const expiredBatches = batches.filter((b: BatchTracking) => b.status === BatchStatus.EXPIRED).length;
+    const consumedBatches = batches.filter((b: BatchTracking) => b.status === BatchStatus.CONSUMED).length;
+    const recalledBatches = batches.filter((b: BatchTracking) => b.status === BatchStatus.RECALLED).length;
     
-    const totalQuantity = batches.reduce((sum, b) => sum + b.currentQuantity, 0);
-    const totalValue = batches.reduce((sum, b) => sum + b.totalCost, 0);
+    const totalQuantity = batches.reduce((sum: number, b: BatchTracking) => sum + b.currentQuantity, 0);
+    const totalValue = batches.reduce((sum: number, b: BatchTracking) => sum + b.totalCost, 0);
 
-    const expiringSoon = batches.filter(b => {
+    const expiringSoon = batches.filter((b: BatchTracking) => {
       if (!b.expiryDate) return false;
       const expiryDate = new Date(b.expiryDate);
       const warningDate = new Date();
@@ -276,7 +278,10 @@ export function useExpiringBatches(daysAhead = 30, locationId?: string) {
     errorPolicy: 'all',
   });
 
-  const expiringBatches = data?.expiringBatches || [];
+  const expiringBatches: BatchTracking[] = useMemo(
+    () => data?.expiringBatches || [],
+    [data?.expiringBatches]
+  );
 
   const groupByDaysUntilExpiry = useMemo(() => {
     const groups: Record<string, BatchTracking[]> = {
@@ -288,7 +293,7 @@ export function useExpiringBatches(daysAhead = 30, locationId?: string) {
       '30+': [],
     };
 
-    expiringBatches.forEach(batch => {
+    expiringBatches.forEach((batch: BatchTracking) => {
       if (!batch.expiryDate) return;
       
       const expiryDate = new Date(batch.expiryDate);
@@ -297,17 +302,17 @@ export function useExpiringBatches(daysAhead = 30, locationId?: string) {
       const daysUntilExpiry = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       if (daysUntilExpiry < 0) {
-        groups.expired.push(batch);
+        if (groups.expired) groups.expired.push(batch);
       } else if (daysUntilExpiry <= 3) {
-        groups['1-3'].push(batch);
+        if (groups['1-3']) groups['1-3'].push(batch);
       } else if (daysUntilExpiry <= 7) {
-        groups['4-7'].push(batch);
+        if (groups['4-7']) groups['4-7'].push(batch);
       } else if (daysUntilExpiry <= 14) {
-        groups['8-14'].push(batch);
+        if (groups['8-14']) groups['8-14'].push(batch);
       } else if (daysUntilExpiry <= 30) {
-        groups['15-30'].push(batch);
+        if (groups['15-30']) groups['15-30'].push(batch);
       } else {
-        groups['30+'].push(batch);
+        if (groups['30+']) groups['30+'].push(batch);
       }
     });
 
@@ -335,7 +340,10 @@ export function useFIFOBatches(productId: string, locationId: string, variantId?
     errorPolicy: 'all',
   });
 
-  const fifoBatches = data?.fifoBatches || [];
+  const fifoBatches: BatchTracking[] = useMemo(
+    () => data?.fifoBatches || [],
+    [data?.fifoBatches]
+  );
 
   const getNextBatchToConsume = useCallback((quantityNeeded: number) => {
     let remainingQuantity = quantityNeeded;

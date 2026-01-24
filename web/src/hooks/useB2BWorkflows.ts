@@ -8,7 +8,9 @@ import {
   WorkflowPriority,
   EntityType,
   ApprovalStepStatus,
-  UseB2BWorkflowsResult 
+  UseB2BWorkflowsResult,
+  WorkflowApproval,
+  WorkflowHistoryEntry,
 } from '@/types/crm';
 import {
   GET_WORKFLOWS,
@@ -29,7 +31,7 @@ import {
   NEW_PENDING_APPROVAL_SUBSCRIPTION,
 } from '@/graphql/subscriptions/b2b-subscriptions';
 import { useTenantStore } from '@/lib/stores/tenant-store';
-import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { useErrorHandler } from './useErrorHandler';
 
 export interface WorkflowQueryInput {
   workflowType?: WorkflowType;
@@ -56,21 +58,6 @@ export interface ReassignApprovalInput {
   notes?: string;
 }
 
-export interface UseB2BWorkflowsResult {
-  workflows: Workflow[];
-  pendingApprovals: ApprovalStep[];
-  loading: boolean;
-  error?: Error;
-  totalCount: number;
-  pendingCount: number;
-  approveStep: (workflowId: string, stepId: string, input: ApprovalStepInput) => Promise<{ step: ApprovalStep; workflow: Workflow }>;
-  rejectStep: (workflowId: string, stepId: string, rejectionReason: string, input?: ApprovalStepInput) => Promise<{ step: ApprovalStep; workflow: Workflow }>;
-  reassignApproval: (workflowId: string, stepId: string, input: ReassignApprovalInput) => Promise<{ step: ApprovalStep; workflow: Workflow }>;
-  getWorkflowHistory: (entityId: string, entityType: EntityType) => Promise<any>;
-  getWorkflowAnalytics: (startDate?: Date, endDate?: Date, entityType?: EntityType) => Promise<any>;
-  refetch: () => Promise<void>;
-}
-
 /**
  * Hook for managing B2B workflows with comprehensive operations
  */
@@ -89,13 +76,12 @@ export function useB2BWorkflows(query?: WorkflowQueryInput): UseB2BWorkflowsResu
     skip: !currentTenant?.id,
     errorPolicy: 'all',
     onError: (error) => {
-      handleError(error, 'Failed to fetch workflows');
+      handleError(error);
     },
   });
 
   // Query pending approvals
   const { 
-    data: approvalsData, 
     loading: approvalsLoading, 
     error: approvalsError,
     refetch: refetchApprovals 
@@ -104,13 +90,13 @@ export function useB2BWorkflows(query?: WorkflowQueryInput): UseB2BWorkflowsResu
     errorPolicy: 'all',
     pollInterval: 30000, // Refresh every 30 seconds
     onError: (error) => {
-      handleError(error, 'Failed to fetch pending approvals');
+      handleError(error);
     },
   });
 
   // Mutations
   const [approveStepMutation] = useMutation(APPROVE_STEP, {
-    onError: (error) => handleError(error, 'Failed to approve workflow step'),
+    onError: (error) => handleError(error),
     refetchQueries: [
       { query: GET_WORKFLOWS, variables: { query: query || {} } },
       { query: GET_PENDING_APPROVALS },
@@ -119,7 +105,7 @@ export function useB2BWorkflows(query?: WorkflowQueryInput): UseB2BWorkflowsResu
   });
 
   const [rejectStepMutation] = useMutation(REJECT_STEP, {
-    onError: (error) => handleError(error, 'Failed to reject workflow step'),
+    onError: (error) => handleError(error),
     refetchQueries: [
       { query: GET_WORKFLOWS, variables: { query: query || {} } },
       { query: GET_PENDING_APPROVALS },
@@ -128,7 +114,7 @@ export function useB2BWorkflows(query?: WorkflowQueryInput): UseB2BWorkflowsResu
   });
 
   const [reassignApprovalMutation] = useMutation(REASSIGN_APPROVAL, {
-    onError: (error) => handleError(error, 'Failed to reassign approval'),
+    onError: (error) => handleError(error),
     refetchQueries: [
       { query: GET_WORKFLOWS, variables: { query: query || {} } },
       { query: GET_PENDING_APPROVALS },
@@ -292,10 +278,19 @@ export function useB2BWorkflows(query?: WorkflowQueryInput): UseB2BWorkflowsResu
     }
   }, [reassignApprovalMutation]);
 
+  const getPendingApprovals = useCallback(async (): Promise<WorkflowApproval[]> => {
+    try {
+      const { data } = await refetchApprovals();
+      return data.getPendingApprovals?.approvals || [];
+    } catch (error) {
+      throw error;
+    }
+  }, [refetchApprovals]);
+
   const getWorkflowHistory = useCallback(async (
     entityId: string,
     entityType: EntityType
-  ): Promise<any> => {
+  ): Promise<WorkflowHistoryEntry[]> => {
     try {
       const { data } = await refetchWorkflows({
         query: GET_WORKFLOW_HISTORY,
@@ -306,13 +301,13 @@ export function useB2BWorkflows(query?: WorkflowQueryInput): UseB2BWorkflowsResu
     } catch (error) {
       throw error;
     }
-  }, []);
+  }, [refetchWorkflows]);
 
   const getWorkflowAnalytics = useCallback(async (
     startDate?: Date,
     endDate?: Date,
     entityType?: EntityType
-  ): Promise<any> => {
+  ): Promise<Record<string, unknown>> => {
     try {
       const { data } = await refetchWorkflows({
         query: GET_WORKFLOW_ANALYTICS,
@@ -323,18 +318,16 @@ export function useB2BWorkflows(query?: WorkflowQueryInput): UseB2BWorkflowsResu
     } catch (error) {
       throw error;
     }
-  }, []);
+  }, [refetchWorkflows]);
 
   return {
     workflows: workflowsData?.getWorkflows?.workflows || [],
-    pendingApprovals: approvalsData?.getPendingApprovals?.approvals || [],
     loading: workflowsLoading || approvalsLoading,
-    error: workflowsError || approvalsError || undefined,
-    totalCount: workflowsData?.getWorkflows?.total || 0,
-    pendingCount: approvalsData?.getPendingApprovals?.total || 0,
+    error: (workflowsError || approvalsError) ?? null,
     approveStep,
     rejectStep,
     reassignApproval,
+    getPendingApprovals,
     getWorkflowHistory,
     getWorkflowAnalytics,
     refetch: async () => {
@@ -356,7 +349,7 @@ export function useB2BWorkflow(id: string) {
     skip: !currentTenant?.id || !id,
     errorPolicy: 'all',
     onError: (error) => {
-      handleError(error, 'Failed to fetch workflow');
+      handleError(error);
     },
   });
 }
@@ -374,7 +367,7 @@ export function usePendingApprovals(entityType?: EntityType) {
     errorPolicy: 'all',
     pollInterval: 30000, // Refresh every 30 seconds
     onError: (error) => {
-      handleError(error, 'Failed to fetch pending approvals');
+      handleError(error);
     },
   });
 }
@@ -395,7 +388,7 @@ export function useWorkflowAnalytics(
     skip: !currentTenant?.id,
     errorPolicy: 'all',
     onError: (error) => {
-      handleError(error, 'Failed to fetch workflow analytics');
+      handleError(error);
     },
   });
 }
@@ -412,7 +405,7 @@ export function useWorkflowHistory(entityId: string, entityType: EntityType) {
     skip: !currentTenant?.id || !entityId,
     errorPolicy: 'all',
     onError: (error) => {
-      handleError(error, 'Failed to fetch workflow history');
+      handleError(error);
     },
   });
 }

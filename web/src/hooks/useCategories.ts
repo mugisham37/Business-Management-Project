@@ -12,7 +12,6 @@ import {
   CreateCategoryInput,
   UpdateCategoryInput,
   OffsetPaginationArgs,
-  CategoriesResponse,
 } from '@/types/inventory';
 
 // GraphQL Operations
@@ -164,7 +163,7 @@ export function useCategories(
 
   const [createCategory] = useMutation(CREATE_CATEGORY);
 
-  const categories = data?.categories || [];
+  const categories = useMemo(() => data?.categories || [], [data?.categories]);
 
   const create = useCallback(async (input: CreateCategoryInput) => {
     try {
@@ -225,9 +224,9 @@ export function useCategories(
   // Statistics
   const stats = useMemo(() => {
     const totalCategories = categories.length;
-    const activeCategories = categories.filter(c => c.isActive).length;
-    const rootCategories = categories.filter(c => !c.parentId).length;
-    const childCategories = categories.filter(c => c.parentId).length;
+    const activeCategories = categories.filter((c: Category) => c.isActive).length;
+    const rootCategories = categories.filter((c: Category) => !c.parentId).length;
+    const childCategories = categories.filter((c: Category) => c.parentId).length;
 
     return {
       totalCategories,
@@ -262,7 +261,7 @@ export function useCategoryTree() {
     errorPolicy: 'all',
   });
 
-  const categoryTree = data?.categoryTree || [];
+  const categoryTree = useMemo(() => data?.categoryTree || [], [data?.categoryTree]);
 
   const findCategoryById = useCallback((id: string): Category | null => {
     const findInTree = (categories: Category[]): Category | null => {
@@ -319,7 +318,7 @@ export function useCategoryTree() {
 
   const getSubcategories = useCallback((parentId?: string): Category[] => {
     if (!parentId) {
-      return categoryTree.filter(c => !c.parentId);
+      return categoryTree.filter((c: Category) => !c.parentId);
     }
     
     const parent = findCategoryById(parentId);
@@ -378,10 +377,15 @@ export function useCategorySearch(initialFilter?: CategoryFilterInput) {
     return () => clearTimeout(timer);
   });
 
-  const filter = useMemo(() => ({
-    ...initialFilter,
-    search: debouncedSearchTerm || undefined,
-  }), [initialFilter, debouncedSearchTerm]);
+  const filter = useMemo(() => {
+    const baseFilter: CategoryFilterInput = {
+      ...initialFilter,
+    };
+    if (debouncedSearchTerm) {
+      baseFilter.search = debouncedSearchTerm;
+    }
+    return baseFilter;
+  }, [initialFilter, debouncedSearchTerm]);
 
   const { categories, loading, error, refetch } = useCategories(filter);
 

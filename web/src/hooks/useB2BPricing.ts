@@ -5,8 +5,9 @@ import {
   CustomerPricing,
   PricingRuleType,
   PricingTargetType,
-  DiscountType,
-  UseB2BPricingResult 
+  UseB2BPricingResult,
+  CreatePricingRuleInput,
+  UpdatePricingRuleInput,
 } from '@/types/crm';
 import {
   GET_CUSTOMER_PRICING,
@@ -26,7 +27,7 @@ import {
   PRICING_CHANGED_SUBSCRIPTION,
 } from '@/graphql/subscriptions/b2b-subscriptions';
 import { useTenantStore } from '@/lib/stores/tenant-store';
-import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { useErrorHandler } from './useErrorHandler';
 
 export interface PricingRuleQueryInput {
   search?: string;
@@ -56,51 +57,6 @@ export interface BulkPricingQueryInput {
   }>;
 }
 
-export interface CreatePricingRuleInput {
-  name: string;
-  description?: string;
-  ruleType: PricingRuleType;
-  targetType: PricingTargetType;
-  targetId?: string;
-  discountType: DiscountType;
-  discountValue: number;
-  minimumQuantity?: number;
-  maximumQuantity?: number;
-  minimumAmount?: number;
-  effectiveDate: Date;
-  expirationDate?: Date;
-  priority?: number;
-}
-
-export interface UpdatePricingRuleInput {
-  name?: string;
-  description?: string;
-  discountType?: DiscountType;
-  discountValue?: number;
-  minimumQuantity?: number;
-  maximumQuantity?: number;
-  minimumAmount?: number;
-  effectiveDate?: Date;
-  expirationDate?: Date;
-  priority?: number;
-  isActive?: boolean;
-}
-
-export interface UseB2BPricingResult {
-  pricingRules: PricingRule[];
-  loading: boolean;
-  error?: Error;
-  totalCount: number;
-  getCustomerPricing: (customerId: string, productId: string, quantity: number) => Promise<CustomerPricing>;
-  getBulkPricing: (customerId: string, items: Array<{ productId: string; quantity: number }>) => Promise<any>;
-  createPricingRule: (input: CreatePricingRuleInput) => Promise<PricingRule>;
-  updatePricingRule: (id: string, input: UpdatePricingRuleInput) => Promise<PricingRule>;
-  deletePricingRule: (id: string) => Promise<boolean>;
-  setPricingRuleActive: (id: string, isActive: boolean) => Promise<PricingRule>;
-  getApplicableRules: (customerId: string, productId: string, quantity: number, amount: number) => Promise<PricingRule[]>;
-  refetch: () => Promise<void>;
-}
-
 /**
  * Hook for managing B2B pricing with comprehensive operations
  */
@@ -119,29 +75,29 @@ export function useB2BPricing(query?: PricingRuleQueryInput): UseB2BPricingResul
     skip: !currentTenant?.id,
     errorPolicy: 'all',
     onError: (error) => {
-      handleError(error, 'Failed to fetch pricing rules');
+      handleError(error);
     },
   });
 
   // Mutations
   const [createPricingRuleMutation] = useMutation(CREATE_PRICING_RULE, {
-    onError: (error) => handleError(error, 'Failed to create pricing rule'),
+    onError: (error) => handleError(error),
     refetchQueries: [{ query: GET_PRICING_RULES, variables: { query: query || {} } }],
     awaitRefetchQueries: true,
   });
 
   const [updatePricingRuleMutation] = useMutation(UPDATE_PRICING_RULE, {
-    onError: (error) => handleError(error, 'Failed to update pricing rule'),
+    onError: (error) => handleError(error),
   });
 
   const [deletePricingRuleMutation] = useMutation(DELETE_PRICING_RULE, {
-    onError: (error) => handleError(error, 'Failed to delete pricing rule'),
+    onError: (error) => handleError(error),
     refetchQueries: [{ query: GET_PRICING_RULES, variables: { query: query || {} } }],
     awaitRefetchQueries: true,
   });
 
   const [setPricingRuleActiveMutation] = useMutation(SET_PRICING_RULE_ACTIVE, {
-    onError: (error) => handleError(error, 'Failed to update pricing rule status'),
+    onError: (error) => handleError(error),
   });
 
   // Subscriptions for real-time updates
@@ -179,12 +135,12 @@ export function useB2BPricing(query?: PricingRuleQueryInput): UseB2BPricingResul
     } catch (error) {
       throw error;
     }
-  }, []);
+  }, [refetch]);
 
   const getBulkPricing = useCallback(async (
     customerId: string,
     items: Array<{ productId: string; quantity: number }>
-  ): Promise<any> => {
+  ): Promise<Record<string, unknown>> => {
     try {
       const { data } = await refetch({
         query: GET_BULK_PRICING,
@@ -197,7 +153,7 @@ export function useB2BPricing(query?: PricingRuleQueryInput): UseB2BPricingResul
     } catch (error) {
       throw error;
     }
-  }, []);
+  }, [refetch]);
 
   const createPricingRule = useCallback(async (input: CreatePricingRuleInput): Promise<PricingRule> => {
     try {
@@ -256,14 +212,16 @@ export function useB2BPricing(query?: PricingRuleQueryInput): UseB2BPricingResul
           },
         },
         update: (cache, { data }) => {
-          if (data?.updatePricingRule?.rule) {
-            cache.modify({
-              id: cache.identify(data.updatePricingRule.rule),
-              fields: {
-                ...input,
-                updatedAt: () => new Date().toISOString(),
-              },
-            });
+          if (data?.updatePricingRule?.rule && id) {
+            const cacheId = cache.identify({ __typename: 'PricingRuleType', id });
+            if (cacheId) {
+              cache.modify({
+                id: cacheId,
+                fields: {
+                  updatedAt: () => new Date().toISOString(),
+                },
+              });
+            }
           }
         },
       });
@@ -279,8 +237,13 @@ export function useB2BPricing(query?: PricingRuleQueryInput): UseB2BPricingResul
       const result = await deletePricingRuleMutation({
         variables: { id },
         update: (cache) => {
-          cache.evict({ id: cache.identify({ __typename: 'PricingRuleType', id }) });
-          cache.gc();
+          if (id) {
+            const cacheId = cache.identify({ __typename: 'PricingRuleType', id });
+            if (cacheId) {
+              cache.evict({ id: cacheId });
+              cache.gc();
+            }
+          }
         },
       });
 
@@ -293,9 +256,9 @@ export function useB2BPricing(query?: PricingRuleQueryInput): UseB2BPricingResul
   const setPricingRuleActive = useCallback(async (
     id: string, 
     isActive: boolean
-  ): Promise<PricingRule> => {
+  ): Promise<boolean> => {
     try {
-      const result = await setPricingRuleActiveMutation({
+      await setPricingRuleActiveMutation({
         variables: { id, isActive },
         optimisticResponse: {
           setPricingRuleActive: {
@@ -310,20 +273,23 @@ export function useB2BPricing(query?: PricingRuleQueryInput): UseB2BPricingResul
           },
         },
         update: (cache, { data }) => {
-          if (data?.setPricingRuleActive?.rule) {
-            cache.modify({
-              id: cache.identify(data.setPricingRuleActive.rule),
-              fields: {
-                isActive: () => isActive,
-                isCurrentlyActive: () => isActive,
-                updatedAt: () => new Date().toISOString(),
-              },
-            });
+          if (data?.setPricingRuleActive?.rule && id) {
+            const cacheId = cache.identify({ __typename: 'PricingRuleType', id });
+            if (cacheId) {
+              cache.modify({
+                id: cacheId,
+                fields: {
+                  isActive: () => isActive,
+                  isCurrentlyActive: () => isActive,
+                  updatedAt: () => new Date().toISOString(),
+                },
+              });
+            }
           }
         },
       });
 
-      return result.data.setPricingRuleActive.rule;
+      return true;
     } catch (error) {
       throw error;
     }
@@ -345,12 +311,12 @@ export function useB2BPricing(query?: PricingRuleQueryInput): UseB2BPricingResul
     } catch (error) {
       throw error;
     }
-  }, []);
+  }, [refetch]);
 
   return {
     pricingRules: data?.getPricingRules?.rules || [],
     loading,
-    error: error || undefined,
+    error: error ?? null,
     totalCount: data?.getPricingRules?.total || 0,
     getCustomerPricing,
     getBulkPricing,
@@ -377,7 +343,7 @@ export function useCustomerPricing(customerId: string, productId: string, quanti
     skip: !currentTenant?.id || !customerId || !productId || !quantity,
     errorPolicy: 'all',
     onError: (error) => {
-      handleError(error, 'Failed to fetch customer pricing');
+      handleError(error);
     },
   });
 }
@@ -394,7 +360,7 @@ export function useBulkPricing(customerId: string, items: Array<{ productId: str
     skip: !currentTenant?.id || !customerId || !items?.length,
     errorPolicy: 'all',
     onError: (error) => {
-      handleError(error, 'Failed to fetch bulk pricing');
+      handleError(error);
     },
   });
 }
@@ -409,7 +375,7 @@ export function usePricingChangeNotifications(customerId?: string, productId?: s
   const { data: pricingData } = useSubscription(PRICING_CHANGED_SUBSCRIPTION, {
     variables: { customerId, productId },
     onError: (error) => {
-      handleError(error, 'Pricing change subscription error');
+      handleError(error);
     },
   });
 

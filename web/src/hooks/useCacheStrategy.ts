@@ -1,4 +1,4 @@
-import { useApolloClient, FetchPolicy, WatchQueryFetchPolicy } from '@apollo/client';
+import { useApolloClient, FetchPolicy, WatchQueryFetchPolicy, DocumentNode } from '@apollo/client';
 import { useCallback, useEffect } from 'react';
 import { cacheInvalidation } from '@/lib/apollo/cache-utils';
 import { getUnifiedCacheManager } from '@/lib/cache';
@@ -51,29 +51,36 @@ export function useCacheStrategy(options: CacheStrategyOptions = {}) {
 
   // Cache warming for critical data with multi-tier support
   const warmCache = useCallback(async (queries: Array<{
-    query: any;
-    variables?: any;
+    query: DocumentNode;
+    variables?: Record<string, unknown>;
     priority?: 'high' | 'medium' | 'low';
     tenantId?: string;
   }>) => {
-    const warmingConfigs = queries.map(({ query, variables, priority = 'medium', tenantId }) => ({
-      key: `query_${query.definitions[0]?.name?.value || 'unknown'}_${JSON.stringify(variables || {})}`,
-      loader: async () => {
-        const result = await client.query({
-          query,
-          variables,
-          fetchPolicy: 'network-only',
-          errorPolicy: 'ignore',
-        });
-        return result.data;
-      },
-      priority,
-      tenantId,
-    }));
+    const warmingConfigs = queries
+      .filter((q): q is typeof q & { tenantId: string } => !!q.tenantId)
+      .map(({ query, variables, priority = 'medium', tenantId }) => {
+        const definition = query.definitions[0] as unknown as { name?: { value?: string } };
+        return {
+          key: `query_${definition?.name?.value || 'unknown'}_${JSON.stringify(variables || {})}`,
+          loader: async () => {
+            const result = await client.query({
+              query,
+              variables: variables || {},
+              fetchPolicy: 'network-only',
+              errorPolicy: 'ignore',
+            });
+            return result.data;
+          },
+          priority,
+          tenantId,
+        };
+      });
 
     try {
-      await unifiedCache.warmCache(warmingConfigs);
-      console.log('Multi-tier cache warming completed');
+      if (warmingConfigs.length > 0) {
+        await unifiedCache.warmCache(warmingConfigs);
+        console.log('Multi-tier cache warming completed');
+      }
     } catch (error) {
       console.warn('Multi-tier cache warming failed:', error);
     }
@@ -178,8 +185,8 @@ export function useCacheStrategy(options: CacheStrategyOptions = {}) {
   // Cache preloading for anticipated user actions with multi-tier support
   const preloadData = useCallback(async (
     preloadQueries: Array<{
-      query: any;
-      variables?: any;
+      query: DocumentNode;
+      variables?: Record<string, unknown>;
       priority?: 'high' | 'medium' | 'low';
       tenantId?: string;
     }>

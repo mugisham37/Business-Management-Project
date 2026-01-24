@@ -719,6 +719,27 @@ export interface CreateBinLocationInput {
   pickingSequence?: number;
 }
 
+export interface UpdateBinLocationInput {
+  displayName?: string;
+  aisle?: string;
+  bay?: string;
+  level?: string;
+  position?: string;
+  xCoordinate?: number;
+  yCoordinate?: number;
+  zCoordinate?: number;
+  length?: number;
+  width?: number;
+  height?: number;
+  maxCapacity?: number;
+  maxWeight?: number;
+  accessEquipment?: string[];
+  temperatureControlled?: boolean;
+  hazmatApproved?: boolean;
+  pickingSequence?: number;
+  status?: BinLocationStatus;
+}
+
 export interface CreatePickingWaveInput {
   warehouseId: string;
   name?: string;

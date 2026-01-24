@@ -11,8 +11,6 @@ import {
   BinLocationStatus,
   CreateBinLocationInput,
   UpdateBinLocationInput,
-  BinLocationConnection,
-  OffsetPaginationArgs,
 } from '@/types/warehouse';
 
 // GraphQL Operations
@@ -78,11 +76,15 @@ export function useBinLocation(binLocationId: string) {
     if (!binLocation?.id) return false;
     
     try {
+      const id = binLocation.id;
       await deleteBinLocation({
-        variables: { id: binLocation.id },
+        variables: { id },
         update: (cache) => {
-          cache.evict({ id: cache.identify(binLocation) });
-          cache.gc();
+          const cacheId = cache.identify({ __typename: 'BinLocation', id });
+          if (cacheId) {
+            cache.evict({ id: cacheId });
+            cache.gc();
+          }
         },
       });
       return true;
@@ -250,7 +252,10 @@ export function useBinInventory(warehouseId: string, zoneId?: string) {
   const [createBinLocation] = useMutation(CREATE_BIN_LOCATION);
   const [bulkCreateBinLocations] = useMutation(BULK_CREATE_BIN_LOCATIONS);
 
-  const binLocations = data?.binInventory || [];
+  const binLocations: BinLocation[] = useMemo(
+    () => data?.binInventory || [],
+    [data?.binInventory]
+  );
 
   const create = useCallback(async (input: CreateBinLocationInput) => {
     try {
@@ -327,7 +332,7 @@ export function useBinInventory(warehouseId: string, zoneId?: string) {
       [BinLocationStatus.DAMAGED]: [],
     };
 
-    binLocations.forEach(bin => {
+    binLocations.forEach((bin: BinLocation) => {
       if (bin.status && grouped[bin.status]) {
         grouped[bin.status].push(bin);
       }
@@ -339,7 +344,7 @@ export function useBinInventory(warehouseId: string, zoneId?: string) {
   const binsByAisle = useMemo(() => {
     const grouped: Record<string, BinLocation[]> = {};
     
-    binLocations.forEach(bin => {
+    binLocations.forEach((bin: BinLocation) => {
       const aisle = bin.aisle || 'Unassigned';
       if (!grouped[aisle]) {
         grouped[aisle] = [];
@@ -359,7 +364,7 @@ export function useBinInventory(warehouseId: string, zoneId?: string) {
       full: [] as BinLocation[],
     };
 
-    binLocations.forEach(bin => {
+    binLocations.forEach((bin: BinLocation) => {
       const occupancy = bin.occupancyPercentage || 0;
       if (occupancy === 0) grouped.empty.push(bin);
       else if (occupancy < 50) grouped.low.push(bin);

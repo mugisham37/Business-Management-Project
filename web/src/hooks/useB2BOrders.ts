@@ -3,7 +3,9 @@ import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import { 
   B2BOrder, 
   B2BOrderStatus,
-  UseB2BOrdersResult 
+  UseB2BOrdersResult,
+  CreateB2BOrderInput,
+  UpdateB2BOrderInput,
 } from '@/types/crm';
 import {
   GET_B2B_ORDERS,
@@ -23,11 +25,9 @@ import {
 import {
   B2B_ORDER_CREATED_SUBSCRIPTION,
   B2B_ORDER_STATUS_CHANGED_SUBSCRIPTION,
-  B2B_ORDER_APPROVED_SUBSCRIPTION,
-  B2B_ORDER_SHIPPED_SUBSCRIPTION,
 } from '@/graphql/subscriptions/b2b-subscriptions';
 import { useTenantStore } from '@/lib/stores/tenant-store';
-import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { useErrorHandler } from './useErrorHandler';
 
 export interface B2BOrderQueryInput {
   search?: string;
@@ -41,86 +41,6 @@ export interface B2BOrderQueryInput {
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
-}
-
-export interface CreateB2BOrderInput {
-  customerId: string;
-  salesRepId?: string;
-  accountManagerId?: string;
-  quoteId?: string;
-  requestedDeliveryDate?: Date;
-  paymentTerms: string;
-  items: Array<{
-    productId: string;
-    quantity: number;
-    unitPrice?: number;
-    notes?: string;
-  }>;
-  shippingAddress?: {
-    line1: string;
-    line2?: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string;
-  };
-  billingAddress?: {
-    line1: string;
-    line2?: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string;
-  };
-  notes?: string;
-}
-
-export interface UpdateB2BOrderInput {
-  salesRepId?: string;
-  accountManagerId?: string;
-  requestedDeliveryDate?: Date;
-  paymentTerms?: string;
-  items?: Array<{
-    id?: string;
-    productId: string;
-    quantity: number;
-    unitPrice?: number;
-    notes?: string;
-  }>;
-  shippingAddress?: {
-    line1: string;
-    line2?: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string;
-  };
-  billingAddress?: {
-    line1: string;
-    line2?: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string;
-  };
-  notes?: string;
-}
-
-export interface UseB2BOrdersResult {
-  orders: B2BOrder[];
-  loading: boolean;
-  error?: Error;
-  totalCount: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
-  analytics?: any;
-  createOrder: (input: CreateB2BOrderInput) => Promise<B2BOrder>;
-  updateOrder: (id: string, input: UpdateB2BOrderInput) => Promise<B2BOrder>;
-  approveOrder: (id: string, approvalNotes?: string) => Promise<B2BOrder>;
-  rejectOrder: (id: string, rejectionReason: string) => Promise<B2BOrder>;
-  shipOrder: (id: string, trackingNumber: string, estimatedDeliveryDate?: Date) => Promise<B2BOrder>;
-  cancelOrder: (id: string, cancellationReason: string) => Promise<B2BOrder>;
-  refetch: () => Promise<void>;
 }
 
 /**
@@ -283,20 +203,23 @@ export function useB2BOrders(query?: B2BOrderQueryInput): UseB2BOrdersResult {
           updateB2BOrder: {
             __typename: 'B2BOrderType',
             id,
+            orderNumber: '',
+            customerId: '',
+            status: B2BOrderStatus.DRAFT,
+            orderDate: new Date().toISOString(),
+            paymentTerms: '',
+            subtotal: 0,
+            taxAmount: 0,
+            shippingAmount: 0,
+            discountAmount: 0,
+            totalAmount: 0,
+            currency: 'USD',
+            requiresApproval: false,
+            items: [],
             ...input,
             updatedAt: new Date().toISOString(),
-          },
-        },
-        update: (cache, { data }) => {
-          if (data?.updateB2BOrder) {
-            cache.modify({
-              id: cache.identify(data.updateB2BOrder),
-              fields: {
-                ...input,
-                updatedAt: () => new Date().toISOString(),
-              },
-            });
-          }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any,
         },
       });
 
@@ -326,13 +249,13 @@ export function useB2BOrders(query?: B2BOrderQueryInput): UseB2BOrdersResult {
 
   const rejectOrder = useCallback(async (
     id: string, 
-    rejectionReason: string
+    rejectionReason?: string
   ): Promise<B2BOrder> => {
     try {
       const result = await rejectOrderMutation({
         variables: { 
           id, 
-          input: { rejectionReason } 
+          input: { rejectionReason: rejectionReason || '' } 
         },
       });
 
@@ -366,11 +289,11 @@ export function useB2BOrders(query?: B2BOrderQueryInput): UseB2BOrdersResult {
 
   const cancelOrder = useCallback(async (
     id: string, 
-    cancellationReason: string
+    cancellationReason?: string
   ): Promise<B2BOrder> => {
     try {
       const result = await cancelOrderMutation({
-        variables: { id, cancellationReason },
+        variables: { id, input: { cancellationReason: cancellationReason || '' } },
       });
 
       return result.data.cancelB2BOrder;
@@ -382,10 +305,10 @@ export function useB2BOrders(query?: B2BOrderQueryInput): UseB2BOrdersResult {
   return {
     orders: data?.getB2BOrders?.orders || [],
     loading: loading || analyticsLoading,
-    error: error || analyticsError || undefined,
-    totalCount: data?.getB2BOrders?.total || 0,
-    hasNextPage: data?.getB2BOrders?.hasNextPage || false,
-    hasPreviousPage: data?.getB2BOrders?.hasPreviousPage || false,
+    error: error || analyticsError || null,
+    totalCount: data?.getB2BOrders?.total,
+    hasNextPage: data?.getB2BOrders?.hasNextPage,
+    hasPreviousPage: data?.getB2BOrders?.hasPreviousPage,
     analytics: analyticsData?.getOrderAnalytics,
     createOrder,
     updateOrder,

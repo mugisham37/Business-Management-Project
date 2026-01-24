@@ -6,13 +6,12 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { useTenantStore } from '@/lib/stores/tenant-store';
+import { OffsetPaginationArgs } from '@/types/core';
 import {
   Brand,
   BrandFilterInput,
   CreateBrandInput,
   UpdateBrandInput,
-  OffsetPaginationArgs,
-  BrandsResponse,
 } from '@/types/inventory';
 
 // GraphQL Operations
@@ -142,7 +141,10 @@ export function useBrands(
 
   const [createBrand] = useMutation(CREATE_BRAND);
 
-  const brands = data?.brands || [];
+  const brands: Brand[] = useMemo(
+    () => data?.brands || [],
+    [data?.brands]
+  );
 
   const create = useCallback(async (input: CreateBrandInput) => {
     try {
@@ -193,9 +195,9 @@ export function useBrands(
   // Statistics
   const stats = useMemo(() => {
     const totalBrands = brands.length;
-    const activeBrands = brands.filter(b => b.isActive).length;
-    const brandsWithLogo = brands.filter(b => b.logoUrl).length;
-    const brandsWithWebsite = brands.filter(b => b.websiteUrl).length;
+    const activeBrands = brands.filter((b: Brand) => b.isActive).length;
+    const brandsWithLogo = brands.filter((b: Brand) => b.logoUrl).length;
+    const brandsWithWebsite = brands.filter((b: Brand) => b.websiteUrl).length;
 
     return {
       totalBrands,
@@ -240,10 +242,15 @@ export function useBrandSearch(initialFilter?: BrandFilterInput) {
     return () => clearTimeout(timer);
   });
 
-  const filter = useMemo(() => ({
-    ...initialFilter,
-    search: debouncedSearchTerm || undefined,
-  }), [initialFilter, debouncedSearchTerm]);
+  const filter = useMemo(() => {
+    const result: BrandFilterInput = {
+      ...initialFilter,
+    };
+    if (debouncedSearchTerm) {
+      result.search = debouncedSearchTerm;
+    }
+    return result;
+  }, [initialFilter, debouncedSearchTerm]);
 
   const { brands, loading, error, refetch } = useBrands(filter);
 

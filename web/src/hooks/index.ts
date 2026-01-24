@@ -3,8 +3,16 @@
  * Central exports for all custom React hooks
  */
 
+export { useIsMobile } from './use-mobile';
 export { useCacheStrategy } from './useCacheStrategy';
-export { useGraphQLMutations } from './useGraphQLMutations';
+export { useErrorHandler, withErrorHandler, type ErrorType, type ErrorContext, type UseErrorHandlerResult } from './useErrorHandler';
+export { 
+  useEnhancedMutation,
+  useCreateMutation,
+  useUpdateMutation,
+  useDeleteMutation,
+  useCacheInvalidation
+} from './useGraphQLMutations';
 export { 
   useAuth, 
   useMFA, 
@@ -19,13 +27,7 @@ export {
 // Analytics hooks
 export {
   useAnalytics,
-  useReports,
-  useDashboards,
-  usePredictiveAnalytics,
-  useComparativeAnalysis,
-  useDataWarehouse,
-  useETL,
-} from '@/modules/analytics';
+} from './useAnalytics';
 
 // Financial hooks
 export {
@@ -92,16 +94,6 @@ export {
   useFinancialDashboard,
 } from './useFinancialDashboard';
 
-// Communication hooks
-export { 
-  useCommunication, 
-  useNotifications, 
-  useEmail, 
-  useSMS,
-  useSlack,
-  useTeams
-} from '@/modules/communication';
-
 // Supplier hooks
 export {
   useSuppliers,
@@ -136,7 +128,6 @@ export {
   useSupplierCommunicationsList,
   useSupplierCommunication,
   usePendingFollowUps,
-  useCommunicationStats,
   useCommunicationByTypeStats,
   useCreateSupplierCommunication,
   useUpdateSupplierCommunication,
@@ -189,13 +180,13 @@ export { useCRM } from './useCRM';
 export { useCustomers, useCustomer, useCustomerByEmail, useCustomerByPhone, useCustomerSearch, useCustomerStats } from './useCustomers';
 export { useLoyalty, useCustomerLoyalty, useCampaignLoyalty, useLoyaltyStats, useLoyaltyTiers } from './useLoyalty';
 export { useCampaigns, useCampaign, useActiveCampaignsForCustomer, useCampaignPerformance, useCampaignStats, useCampaignValidation } from './useCampaigns';
-export { useCustomerAnalytics, useCustomerLifetimeValue, useCustomersLifetimeValue, useCustomerPurchasePatterns, useCustomerChurnRisk, useSegmentAnalytics, useAllSegmentsAnalytics, useHighChurnRiskCustomers, useCustomerMetrics, useAnalyticsInsights, usePredictiveAnalytics } from './useCustomerAnalytics';
+export { useCustomerAnalytics, useCustomerLifetimeValue, useCustomersLifetimeValue, useCustomerPurchasePatterns, useCustomerChurnRisk, useSegmentAnalytics, useAllSegmentsAnalytics, useHighChurnRiskCustomers, useCustomerMetrics, useAnalyticsInsights } from './useCustomerAnalytics';
 export { useB2BCustomers, useB2BCustomer, useB2BCustomerMetrics, useB2BCustomersByIndustry, useB2BCustomersBySalesRep, useB2BCustomersWithExpiringContracts, useB2BCreditManagement } from './useB2BCustomers';
 export { useB2BOrders, useB2BOrder, useB2BOrderByNumber, useOrdersRequiringApproval, useB2BOrderAnalytics } from './useB2BOrders';
 export { useQuotes, useQuote, useQuoteSubscriptions } from './useQuotes';
 export { useContracts, useContract, useExpiringContracts, useContractExpirationNotifications } from './useContracts';
 export { useB2BPricing, useCustomerPricing, useBulkPricing, usePricingChangeNotifications } from './useB2BPricing';
-export { useTerritories, useTerritory, useTerritoryPerformance, useTerritoryCustomers } from './useTerritories';
+export { useTerritories, useTerritory, useTerritoryMutations, useTerritoryValidation, useTerritoryManagement } from './useTerritories';
 export { useB2BWorkflows, useB2BWorkflow, usePendingApprovals, useWorkflowAnalytics, useWorkflowHistory } from './useB2BWorkflows';
 export { useCommunications, useCustomerCommunications, useCommunicationStats, useCommunicationTemplates, useCommunicationAutomation } from './useCommunications';
 export { useSegmentation, useSegment, useSegmentMembers, useSegmentCriteriaBuilder, useSegmentTemplates } from './useSegmentation';
@@ -300,14 +291,6 @@ export {
   useFranchiseValidation,
   useFranchiseManagement,
 } from './useFranchises';
-
-export {
-  useTerritory,
-  useTerritories,
-  useTerritoryMutations,
-  useTerritoryValidation,
-  useTerritoryManagement,
-} from './useTerritories';
 
 export {
   useLocationPricing,

@@ -4,7 +4,9 @@ import {
   Campaign, 
   CampaignPerformance,
   CampaignFilterInput,
-  UseCampaignsResult 
+  UseCampaignsResult,
+  CreateCampaignInput,
+  UpdateCampaignInput
 } from '@/types/crm';
 import {
   GET_CAMPAIGNS,
@@ -25,14 +27,12 @@ import {
   CAMPAIGN_ACTIVATED,
 } from '@/graphql/subscriptions/crm-subscriptions';
 import { useTenantStore } from '@/lib/stores/tenant-store';
-import { useErrorHandler } from '@/hooks/useErrorHandler';
 
 /**
  * Hook for managing campaigns with comprehensive CRUD operations
  */
 export function useCampaigns(filters?: CampaignFilterInput): UseCampaignsResult {
   const { currentTenant } = useTenantStore();
-  const { handleError } = useErrorHandler();
 
   // Query campaigns with filters
   const { 
@@ -44,34 +44,26 @@ export function useCampaigns(filters?: CampaignFilterInput): UseCampaignsResult 
     variables: { filter: filters },
     skip: !currentTenant?.id,
     errorPolicy: 'all',
-    onError: (error) => {
-      handleError(error, 'Failed to fetch campaigns');
-    },
   });
 
   // Mutations
   const [createCampaignMutation] = useMutation(CREATE_CAMPAIGN, {
-    onError: (error) => handleError(error, 'Failed to create campaign'),
     refetchQueries: [{ query: GET_CAMPAIGNS, variables: { filter: filters } }],
     awaitRefetchQueries: true,
   });
 
   const [updateCampaignMutation] = useMutation(UPDATE_CAMPAIGN, {
-    onError: (error) => handleError(error, 'Failed to update campaign'),
   });
 
   const [deleteCampaignMutation] = useMutation(DELETE_CAMPAIGN, {
-    onError: (error) => handleError(error, 'Failed to delete campaign'),
     refetchQueries: [{ query: GET_CAMPAIGNS, variables: { filter: filters } }],
     awaitRefetchQueries: true,
   });
 
   const [activateCampaignMutation] = useMutation(ACTIVATE_CAMPAIGN, {
-    onError: (error) => handleError(error, 'Failed to activate campaign'),
   });
 
   const [pauseCampaignMutation] = useMutation(PAUSE_CAMPAIGN, {
-    onError: (error) => handleError(error, 'Failed to pause campaign'),
   });
 
   // Subscriptions for real-time updates
@@ -100,7 +92,7 @@ export function useCampaigns(filters?: CampaignFilterInput): UseCampaignsResult 
   });
 
   // Callbacks
-  const createCampaign = useCallback(async (input: any): Promise<Campaign> => {
+  const createCampaign = useCallback(async (input: CreateCampaignInput): Promise<Campaign> => {
     try {
       const result = await createCampaignMutation({
         variables: { input },
@@ -124,7 +116,7 @@ export function useCampaigns(filters?: CampaignFilterInput): UseCampaignsResult 
 
   const updateCampaign = useCallback(async (
     id: string, 
-    input: any
+    input: UpdateCampaignInput
   ): Promise<Campaign> => {
     try {
       const result = await updateCampaignMutation({
@@ -139,13 +131,15 @@ export function useCampaigns(filters?: CampaignFilterInput): UseCampaignsResult 
         },
         update: (cache, { data }) => {
           if (data?.updateCampaign) {
-            cache.modify({
-              id: cache.identify(data.updateCampaign),
-              fields: {
-                ...input,
-                updatedAt: () => new Date().toISOString(),
-              },
-            });
+            const cacheId = cache.identify(data.updateCampaign);
+            if (cacheId) {
+              cache.modify({
+                id: cacheId,
+                fields: {
+                  updatedAt: () => new Date().toISOString(),
+                },
+              });
+            }
           }
         },
       });
@@ -164,8 +158,11 @@ export function useCampaigns(filters?: CampaignFilterInput): UseCampaignsResult 
           deleteCampaign: true,
         },
         update: (cache) => {
-          cache.evict({ id: cache.identify({ __typename: 'Campaign', id }) });
-          cache.gc();
+          const cacheId = cache.identify({ __typename: 'Campaign', id: id as string });
+          if (cacheId) {
+            cache.evict({ id: cacheId });
+            cache.gc();
+          }
         },
       });
 
@@ -226,12 +223,12 @@ export function useCampaigns(filters?: CampaignFilterInput): UseCampaignsResult 
     } catch (error) {
       throw error;
     }
-  }, []);
+  }, [refetch]);
 
   return {
     campaigns: data?.campaigns || [],
     loading,
-    error: error || undefined,
+    error: error ?? null,
     createCampaign,
     updateCampaign,
     deleteCampaign,
@@ -246,15 +243,11 @@ export function useCampaigns(filters?: CampaignFilterInput): UseCampaignsResult 
  */
 export function useCampaign(id: string) {
   const { currentTenant } = useTenantStore();
-  const { handleError } = useErrorHandler();
 
   return useQuery(GET_CAMPAIGN, {
     variables: { id },
     skip: !currentTenant?.id || !id,
     errorPolicy: 'all',
-    onError: (error) => {
-      handleError(error, 'Failed to fetch campaign');
-    },
   });
 }
 
@@ -267,7 +260,6 @@ export function useActiveCampaignsForCustomer(
   customerSegments?: string[]
 ) {
   const { currentTenant } = useTenantStore();
-  const { handleError } = useErrorHandler();
 
   return useQuery(GET_ACTIVE_CAMPAIGNS_FOR_CUSTOMER, {
     variables: { 
@@ -277,9 +269,6 @@ export function useActiveCampaignsForCustomer(
     },
     skip: !currentTenant?.id || !customerId,
     errorPolicy: 'all',
-    onError: (error) => {
-      handleError(error, 'Failed to fetch active campaigns for customer');
-    },
   });
 }
 
@@ -288,15 +277,11 @@ export function useActiveCampaignsForCustomer(
  */
 export function useCampaignPerformance(id: string) {
   const { currentTenant } = useTenantStore();
-  const { handleError } = useErrorHandler();
 
   return useQuery(GET_CAMPAIGN_PERFORMANCE, {
     variables: { id },
     skip: !currentTenant?.id || !id,
     errorPolicy: 'all',
-    onError: (error) => {
-      handleError(error, 'Failed to fetch campaign performance');
-    },
   });
 }
 
