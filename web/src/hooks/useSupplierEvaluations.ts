@@ -206,14 +206,17 @@ export function useCreateSupplierEvaluation() {
     CREATE_SUPPLIER_EVALUATION,
     GET_SUPPLIER_EVALUATIONS,
     'supplierEvaluations',
-    (variables) => ({
-      id: `temp-${Date.now()}`,
-      ...variables.input,
-      evaluationDate: variables.input.evaluationDate || new Date().toISOString(),
-      status: 'draft',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })
+    (variables: Record<string, unknown>) => {
+      const input = variables.input as CreateSupplierEvaluationInput;
+      return {
+        id: `temp-${Date.now()}`,
+        ...input,
+        evaluationDate: input.evaluationDate || new Date().toISOString(),
+        status: 'draft',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
   );
 
   const create = useCallback(
@@ -266,25 +269,32 @@ export function useDeleteSupplierEvaluation() {
 export function useApproveSupplierEvaluation() {
   const [approveEvaluation, { loading, error }] = useMutation(APPROVE_SUPPLIER_EVALUATION, {
     errorPolicy: 'all',
-    update: (cache, { data }, { variables }) => {
-      if (!data?.approveSupplierEvaluation || !variables?.id) return;
+    update: (cache, { data }, mutationResult) => {
+      if (!data?.approveSupplierEvaluation) return;
+
+      const variables = mutationResult.variables as Record<string, unknown> | undefined;
+      if (!variables?.id) return;
 
       // Update the evaluation status in cache
-      const evaluationId = variables.id;
-      cache.modify({
-        id: cache.identify({ __typename: 'SupplierEvaluation', id: evaluationId }),
-        fields: {
-          status: () => 'approved',
-          approvedAt: () => new Date().toISOString(),
-        },
-      });
+      const evaluationId = variables.id as string;
+      const cacheId = cache.identify({ __typename: 'SupplierEvaluation', id: evaluationId });
+      
+      if (cacheId) {
+        cache.modify({
+          id: cacheId,
+          fields: {
+            status: () => 'approved',
+            approvedAt: () => new Date().toISOString(),
+          },
+        });
+      }
 
       // Remove from pending evaluations list
       cache.modify({
         fields: {
-          pendingEvaluations(existingEvaluations = [], { readField }) {
-            return existingEvaluations.filter(
-              (evalRef: any) => readField('id', evalRef) !== evaluationId
+          pendingEvaluations(existingEvaluations: unknown[] = [], { readField }) {
+            return (existingEvaluations as unknown[]).filter(
+              (evalRef: unknown) => readField('id', evalRef) !== evaluationId
             );
           },
         },
@@ -306,24 +316,31 @@ export function useApproveSupplierEvaluation() {
 export function useRejectSupplierEvaluation() {
   const [rejectEvaluation, { loading, error }] = useMutation(REJECT_SUPPLIER_EVALUATION, {
     errorPolicy: 'all',
-    update: (cache, { data }, { variables }) => {
-      if (!data?.rejectSupplierEvaluation || !variables?.id) return;
+    update: (cache, { data }, mutationResult) => {
+      if (!data?.rejectSupplierEvaluation) return;
+
+      const variables = mutationResult.variables as Record<string, unknown> | undefined;
+      if (!variables?.id) return;
 
       // Update the evaluation status in cache
-      const evaluationId = variables.id;
-      cache.modify({
-        id: cache.identify({ __typename: 'SupplierEvaluation', id: evaluationId }),
-        fields: {
-          status: () => 'rejected',
-        },
-      });
+      const evaluationId = variables.id as string;
+      const cacheId = cache.identify({ __typename: 'SupplierEvaluation', id: evaluationId });
+      
+      if (cacheId) {
+        cache.modify({
+          id: cacheId,
+          fields: {
+            status: () => 'rejected',
+          },
+        });
+      }
 
       // Remove from pending evaluations list
       cache.modify({
         fields: {
-          pendingEvaluations(existingEvaluations = [], { readField }) {
-            return existingEvaluations.filter(
-              (evalRef: any) => readField('id', evalRef) !== evaluationId
+          pendingEvaluations(existingEvaluations: unknown[] = [], { readField }) {
+            return (existingEvaluations as unknown[]).filter(
+              (evalRef: unknown) => readField('id', evalRef) !== evaluationId
             );
           },
         },

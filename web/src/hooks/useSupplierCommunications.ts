@@ -1,6 +1,5 @@
 import { useQuery, useMutation } from '@apollo/client';
 import { useCallback } from 'react';
-import { gql } from '@apollo/client';
 import {
   GET_SUPPLIER_COMMUNICATION,
   GET_SUPPLIER_COMMUNICATIONS,
@@ -188,13 +187,16 @@ export function useCreateSupplierCommunication() {
     CREATE_SUPPLIER_COMMUNICATION,
     GET_SUPPLIER_COMMUNICATIONS,
     'supplierCommunications',
-    (variables) => ({
-      id: `temp-${Date.now()}`,
-      ...variables.input,
-      communicationDate: variables.input.communicationDate || new Date().toISOString(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })
+    (variables: Record<string, unknown>) => {
+      const input = variables.input as CreateSupplierCommunicationInput;
+      return {
+        id: `temp-${Date.now()}`,
+        ...input,
+        communicationDate: input.communicationDate || new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
   );
 
   const create = useCallback(
@@ -251,21 +253,25 @@ export function useMarkFollowUpComplete() {
       if (!data?.markFollowUpComplete || !variables?.id) return;
 
       // Update the communication in cache
-      const communicationId = variables.id;
-      cache.modify({
-        id: cache.identify({ __typename: 'SupplierCommunication', id: communicationId }),
-        fields: {
-          followUpCompleted: () => true,
-          followUpDate: () => new Date().toISOString(),
-        },
-      });
+      const communicationId = variables.id as string;
+      const cacheId = cache.identify({ __typename: 'SupplierCommunication', id: communicationId });
+      
+      if (cacheId) {
+        cache.modify({
+          id: cacheId,
+          fields: {
+            followUpCompleted: () => true,
+            followUpDate: () => new Date().toISOString(),
+          },
+        });
+      }
 
       // Remove from pending follow-ups list
       cache.modify({
         fields: {
-          pendingFollowUps(existingFollowUps = [], { readField }) {
-            return existingFollowUps.filter(
-              (followUpRef: any) => readField('id', followUpRef) !== communicationId
+          pendingFollowUps(existingFollowUps: unknown[] = [], { readField }) {
+            return (existingFollowUps as unknown[]).filter(
+              (followUpRef: unknown) => readField('id', followUpRef) !== communicationId
             );
           },
         },
@@ -282,6 +288,7 @@ export function useMarkFollowUpComplete() {
 
   return { markFollowUpComplete, loading, error };
 }
+
 
 // Comprehensive supplier communication management hook
 export function useSupplierCommunicationManagement(supplierId: string) {

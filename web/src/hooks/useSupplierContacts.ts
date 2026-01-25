@@ -78,13 +78,17 @@ export function useCreateSupplierContact() {
     CREATE_SUPPLIER_CONTACT,
     GET_SUPPLIER_CONTACTS,
     'supplierContacts',
-    (variables) => ({
-      id: `temp-${Date.now()}`,
-      supplierId: variables.supplierId,
-      ...variables.input,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })
+    (variables: Record<string, unknown>) => {
+      const input = variables.input as CreateSupplierContactInput;
+      const supplierId = variables.supplierId as string;
+      return {
+        id: `temp-${Date.now()}`,
+        supplierId,
+        ...input,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
   );
 
   const create = useCallback(
@@ -137,23 +141,25 @@ export function useDeleteSupplierContact() {
 export function useSetPrimaryContact() {
   const [setPrimary, { loading, error }] = useMutation(SET_PRIMARY_CONTACT, {
     errorPolicy: 'all',
-    update: (cache, { data }, { variables }) => {
-      if (!data?.setPrimaryContact || !variables?.id) return;
-
-      // Update the contact in cache
-      const contactId = variables.id;
-      const updatedContact = data.setPrimaryContact;
+    update: (cache, { data }, mutationResult) => {
+      if (!data?.setPrimaryContact) return;
+      
+      const variables = mutationResult.variables as Record<string, unknown> | undefined;
+      if (!variables?.id) return;
 
       // Update all contacts for this supplier to set isPrimary correctly
       cache.modify({
         fields: {
-          supplierContacts(existingContacts = [], { readField }) {
-            return existingContacts.map((contactRef: any) => {
+          supplierContacts(existingContacts: unknown[] = [], { readField }) {
+            return (existingContacts as unknown[]).map((contactRef: unknown) => {
               const id = readField('id', contactRef);
-              if (id === contactId) {
+              const contactId = variables.id as string;
+              const cacheId = cache.identify(contactRef as Record<string, unknown>);
+              
+              if (id === contactId && cacheId) {
                 // This is the new primary contact
                 return cache.writeFragment({
-                  id: cache.identify(contactRef),
+                  id: cacheId,
                   fragment: gql`
                     fragment UpdatedContact on SupplierContact {
                       isPrimary
@@ -161,10 +167,10 @@ export function useSetPrimaryContact() {
                   `,
                   data: { isPrimary: true },
                 });
-              } else {
+              } else if (cacheId) {
                 // All other contacts should not be primary
                 return cache.writeFragment({
-                  id: cache.identify(contactRef),
+                  id: cacheId,
                   fragment: gql`
                     fragment UpdatedContact on SupplierContact {
                       isPrimary
@@ -173,6 +179,7 @@ export function useSetPrimaryContact() {
                   data: { isPrimary: false },
                 });
               }
+              return contactRef;
             });
           },
         },

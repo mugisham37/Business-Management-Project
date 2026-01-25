@@ -572,6 +572,128 @@ export interface DateRangeInput {
   endDate: string;
 }
 
+// Supplier Communication Input Types
+export interface CreateSupplierCommunicationInput {
+  supplierId: string;
+  contactId?: string;
+  type: CommunicationType;
+  direction: CommunicationDirection;
+  subject?: string;
+  content?: string;
+  fromName?: string;
+  fromEmail?: string;
+  toName?: string;
+  toEmail?: string;
+  communicationDate?: string;
+  followUpRequired?: boolean;
+  followUpDate?: string;
+  attachments?: Record<string, unknown>[];
+  tags?: string[];
+  customFields?: Record<string, unknown>;
+}
+
+export interface UpdateSupplierCommunicationInput {
+  type?: CommunicationType;
+  direction?: CommunicationDirection;
+  subject?: string;
+  content?: string;
+  fromName?: string;
+  fromEmail?: string;
+  toName?: string;
+  toEmail?: string;
+  communicationDate?: string;
+  followUpRequired?: boolean;
+  followUpDate?: string;
+  followUpCompleted?: boolean;
+  attachments?: Record<string, unknown>[];
+  tags?: string[];
+  customFields?: Record<string, unknown>;
+}
+
+// Supplier Contact Input Types
+export interface CreateSupplierContactInput {
+  supplierId: string;
+  firstName: string;
+  lastName: string;
+  title?: string;
+  department?: string;
+  email?: string;
+  phone?: string;
+  mobile?: string;
+  fax?: string;
+  isPrimary?: boolean;
+  preferredContactMethod?: CommunicationType;
+  notes?: string;
+  customFields?: Record<string, unknown>;
+}
+
+export interface UpdateSupplierContactInput {
+  firstName?: string;
+  lastName?: string;
+  title?: string;
+  department?: string;
+  email?: string;
+  phone?: string;
+  mobile?: string;
+  fax?: string;
+  isPrimary?: boolean;
+  preferredContactMethod?: CommunicationType;
+  notes?: string;
+  customFields?: Record<string, unknown>;
+}
+
+// Supplier Evaluation Input Types
+export interface CreateSupplierEvaluationInput {
+  supplierId: string;
+  evaluationPeriodStart: string;
+  evaluationPeriodEnd: string;
+  evaluationDate?: string;
+  overallScore: number;
+  overallRating: SupplierRating;
+  qualityScore?: number;
+  deliveryScore?: number;
+  pricingScore?: number;
+  serviceScore?: number;
+  reliabilityScore?: number;
+  complianceScore?: number;
+  onTimeDeliveryRate?: number;
+  qualityDefectRate?: number;
+  responseTime?: number;
+  strengths?: string;
+  weaknesses?: string;
+  recommendations?: string;
+  actionItems?: Record<string, unknown>[];
+  customScores?: Record<string, number>;
+  attachments?: Record<string, unknown>[];
+  status?: EvaluationStatus;
+}
+
+export interface UpdateSupplierEvaluationInput {
+  evaluationPeriodStart?: string;
+  evaluationPeriodEnd?: string;
+  evaluationDate?: string;
+  overallScore?: number;
+  overallRating?: SupplierRating;
+  qualityScore?: number;
+  deliveryScore?: number;
+  pricingScore?: number;
+  serviceScore?: number;
+  reliabilityScore?: number;
+  complianceScore?: number;
+  onTimeDeliveryRate?: number;
+  qualityDefectRate?: number;
+  responseTime?: number;
+  strengths?: string;
+  weaknesses?: string;
+  recommendations?: string;
+  actionItems?: Record<string, unknown>[];
+  customScores?: Record<string, number>;
+  attachments?: Record<string, unknown>[];
+  status?: EvaluationStatus;
+  approvedBy?: string;
+  approvedAt?: string;
+}
+
 // Stats and Analytics Types
 export interface SupplierStats {
   totalSuppliers: number;

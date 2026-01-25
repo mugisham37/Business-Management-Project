@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useSubscription } from '@apollo/client';
+import { useQuery, useSubscription } from '@apollo/client';
 import { useCallback, useMemo } from 'react';
 import {
   GET_SUPPLIERS,
@@ -19,7 +19,7 @@ import {
   SUPPLIER_CREATED_SUBSCRIPTION,
   SUPPLIER_UPDATED_SUBSCRIPTION,
 } from '@/graphql/subscriptions/supplier';
-import { useEnhancedMutation, useCreateMutation, useUpdateMutation, useDeleteMutation } from './useGraphQLMutations';
+import { useCreateMutation, useUpdateMutation, useDeleteMutation } from './useGraphQLMutations';
 import type {
   Supplier,
   SupplierConnection,
@@ -48,9 +48,12 @@ export function useSuppliers(
   const loadMore = useCallback(async () => {
     if (!data?.suppliers.pageInfo.hasNextPage) return;
 
+    const endCursor = data.suppliers.pageInfo.endCursor;
+    if (!endCursor) return;
+
     return fetchMore({
       variables: {
-        after: data.suppliers.pageInfo.endCursor,
+        after: endCursor,
       },
     });
   }, [data, fetchMore]);
