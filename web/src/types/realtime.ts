@@ -491,7 +491,7 @@ export interface RealtimeConfig {
 export interface RealtimeState {
   isConnected: boolean;
   isConnecting: boolean;
-  connectionError?: Error;
+  connectionError?: Error | undefined;
   onlineUsers: OnlineUser[];
   unreadNotifications: number;
   activeSubscriptions: string[];

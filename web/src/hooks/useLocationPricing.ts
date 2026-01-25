@@ -23,6 +23,12 @@ import { useTenant } from '@/hooks/useTenant';
 import { useAuth } from '@/hooks/useAuth';
 
 // Types
+export interface PricingCondition {
+  field: string;
+  operator: string;
+  value: unknown;
+}
+
 export interface PricingRule {
   id: string;
   name: string;
@@ -36,7 +42,7 @@ export interface PricingRule {
   startDate?: string;
   endDate?: string;
   priority?: number;
-  conditions?: any[];
+  conditions?: PricingCondition[];
   isActive: boolean;
   status: string;
 }
@@ -47,19 +53,27 @@ export interface LocationPricing {
   basePrice?: number;
   rules: PricingRule[];
   effectivePrice?: number;
-  discounts?: any[];
+  discounts?: PricingDiscount[];
+}
+
+export interface PricingDiscount {
+  id: string;
+  discountType: string;
+  value: number;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface UpdatePricingInput {
   productId?: string;
   basePrice?: number;
-  rules?: any[];
+  rules?: PricingRule[];
   effectiveDate?: string;
 }
 
 // Hook for location pricing
 export function useLocationPricing(locationId: string, productId?: string, options?: QueryHookOptions) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   
   const { data, loading, error, refetch } = useQuery(GET_LOCATION_PRICING, {
     variables: { locationId, productId },
@@ -68,7 +82,7 @@ export function useLocationPricing(locationId: string, productId?: string, optio
     ...options,
   });
 
-  const pricing = data?.getLocationPricing;
+  const pricing: LocationPricing | undefined = data?.getLocationPricing;
 
   return {
     pricing,
@@ -80,7 +94,7 @@ export function useLocationPricing(locationId: string, productId?: string, optio
 
 // Hook for pricing rules
 export function usePricingRules(locationId: string, options?: QueryHookOptions) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const { data, loading, error, refetch } = useQuery(GET_PRICING_RULES, {
     variables: { locationId },
@@ -89,7 +103,7 @@ export function usePricingRules(locationId: string, options?: QueryHookOptions) 
     ...options,
   });
 
-  const rules = data?.getPricingRules || [];
+  const rules: PricingRule[] = data?.getPricingRules || [];
 
   return {
     rules,
@@ -102,7 +116,7 @@ export function usePricingRules(locationId: string, options?: QueryHookOptions) 
 // Hook for pricing mutations
 export function useLocationPricingMutations() {
   const { user } = useAuth();
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const [updateLocationPricingMutation] = useMutation(UPDATE_LOCATION_PRICING);
   const [applyPricingRuleMutation] = useMutation(APPLY_PRICING_RULE);
@@ -111,7 +125,7 @@ export function useLocationPricingMutations() {
     locationId: string,
     pricing: UpdatePricingInput,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<LocationPricing>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -127,7 +141,7 @@ export function useLocationPricingMutations() {
     locationId: string,
     ruleId: string,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<LocationPricing>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }

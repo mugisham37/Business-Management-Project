@@ -93,6 +93,42 @@ export const PICK_LIST_COMPLETED = gql`
   }
 `;
 
+export const PICK_LIST_UPDATED = gql`
+  ${PICK_LIST_FRAGMENT}
+  subscription PickListUpdated($pickListId: ID!) {
+    pickListUpdated(pickListId: $pickListId) {
+      ...PickListFragment
+    }
+  }
+`;
+
+export const PICK_RECORDED = gql`
+  ${PICK_LIST_FRAGMENT}
+  subscription PickRecorded($pickListId: ID!) {
+    pickRecorded(pickListId: $pickListId) {
+      ...PickListFragment
+    }
+  }
+`;
+
+export const PICKER_ASSIGNED_TO_WAVE = gql`
+  ${PICKING_WAVE_FRAGMENT}
+  subscription PickerAssignedToWave($waveId: ID!) {
+    pickerAssignedToWave(waveId: $waveId) {
+      ...PickingWaveFragment
+    }
+  }
+`;
+
+export const PICKING_WAVE_COMPLETED = gql`
+  ${PICKING_WAVE_FRAGMENT}
+  subscription PickingWaveCompletedSub($waveId: ID!) {
+    pickingWaveCompleted(waveId: $waveId) {
+      ...PickingWaveFragment
+    }
+  }
+`;
+
 // ===== SHIPMENT SUBSCRIPTIONS =====
 
 export const SHIPMENT_UPDATED = gql`

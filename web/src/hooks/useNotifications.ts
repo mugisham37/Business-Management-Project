@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSubscription, useApolloClient } from '@apollo/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useTenant } from '@/hooks/useTenant';
 import {
   CommunicationEvent,
   NotificationDeliveryStatus,
@@ -31,12 +31,11 @@ type EventCallback = (event: CommunicationEvent) => void;
 type DeliveryStatusCallback = (status: NotificationDeliveryStatus) => void;
 
 export const useNotifications = (options: CommunicationHookOptions = {}): UseNotificationsReturn => {
-  const { currentUser } = useAuth();
+  const { tenant } = useTenant();
   const apolloClient = useApolloClient();
   
   const {
-    tenantId = currentUser?.tenantId,
-    userId = currentUser?.id,
+    tenantId = tenant?.id,
     enableRealtime = true,
   } = options;
 
@@ -55,7 +54,7 @@ export const useNotifications = (options: CommunicationHookOptions = {}): UseNot
   const subscriptions = useRef<Set<() => void>>(new Set());
 
   // Main communication events subscription
-  const { data: communicationEventsData, error: communicationEventsError } = useSubscription(
+  const { error: communicationEventsError } = useSubscription(
     COMMUNICATION_EVENTS,
     {
       variables: { tenantId },
@@ -89,7 +88,7 @@ export const useNotifications = (options: CommunicationHookOptions = {}): UseNot
   );
 
   // Alert events subscription
-  const { data: alertEventsData, error: alertEventsError } = useSubscription(
+  const { error: alertEventsError } = useSubscription(
     ALERT_EVENTS,
     {
       variables: { tenantId },
@@ -129,6 +128,8 @@ export const useNotifications = (options: CommunicationHookOptions = {}): UseNot
 
       return () => clearTimeout(reconnectTimer);
     }
+    // No cleanup needed if no errors
+    return undefined;
   }, [communicationEventsError, alertEventsError]);
 
   // Subscribe to specific events with filters
@@ -305,13 +306,13 @@ export const useNotifications = (options: CommunicationHookOptions = {}): UseNot
   }, [enableRealtime, tenantId, apolloClient]);
 
   // Subscribe to channel-specific events
-  const subscribeToChannelEvents = useCallback((channel: 'email' | 'sms' | 'slack' | 'teams', options?: any) => {
+  const subscribeToChannelEvents = useCallback((channel: 'email' | 'sms' | 'slack' | 'teams', options?: Record<string, unknown>) => {
     if (!enableRealtime || !tenantId) {
       return () => {};
     }
 
     let query;
-    let variables = { tenantId, ...options };
+    const variables = { tenantId, ...options };
 
     switch (channel) {
       case 'email':
@@ -432,15 +433,17 @@ export const useNotifications = (options: CommunicationHookOptions = {}): UseNot
 
   // Cleanup subscriptions on unmount
   useEffect(() => {
+    const currentSubscriptions = subscriptions.current;
+    
     return () => {
-      subscriptions.current.forEach(unsubscribe => {
+      currentSubscriptions.forEach(unsubscribe => {
         try {
           unsubscribe();
         } catch (error) {
           console.error('Error unsubscribing:', error);
         }
       });
-      subscriptions.current.clear();
+      currentSubscriptions.clear();
     };
   }, []);
 

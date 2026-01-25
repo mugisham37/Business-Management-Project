@@ -27,6 +27,17 @@ import { useTenant } from '@/hooks/useTenant';
 import { useAuth } from '@/hooks/useAuth';
 
 // Types
+export interface PromotionCondition {
+  field: string;
+  operator: string;
+  value: unknown;
+}
+
+export interface PromotionAction {
+  type: string;
+  value: number;
+}
+
 export interface LocationPromotion {
   id: string;
   name: string;
@@ -47,8 +58,8 @@ export interface LocationPromotion {
   maxTotalUses?: number;
   priority?: number;
   isCombinable?: boolean;
-  conditions?: any[];
-  actions?: any[];
+  conditions?: PromotionCondition[];
+  actions?: PromotionAction[];
   promotionCode?: string;
   isActive: boolean;
   createdAt: string;
@@ -73,8 +84,8 @@ export interface CreatePromotionInput {
   maxTotalUses?: number;
   priority?: number;
   isCombinable?: boolean;
-  conditions?: any[];
-  actions?: any[];
+  conditions?: PromotionCondition[];
+  actions?: PromotionAction[];
   promotionCode?: string;
   isActive?: boolean;
 }
@@ -93,7 +104,7 @@ export interface PromotionApplication {
 
 // Hook for location promotions
 export function useLocationPromotions(locationId: string, options?: QueryHookOptions) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   
   const { data, loading, error, refetch } = useQuery(GET_LOCATION_PROMOTIONS, {
     variables: { locationId },
@@ -102,7 +113,7 @@ export function useLocationPromotions(locationId: string, options?: QueryHookOpt
     ...options,
   });
 
-  const promotions = data?.locationPromotions || [];
+  const promotions: LocationPromotion[] = data?.locationPromotions || [];
 
   return {
     promotions,
@@ -115,7 +126,7 @@ export function useLocationPromotions(locationId: string, options?: QueryHookOpt
 // Hook for promotion mutations
 export function useLocationPromotionMutations() {
   const { user } = useAuth();
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const [createLocationPromotionMutation] = useMutation(CREATE_LOCATION_PROMOTION);
   const [activatePromotionMutation] = useMutation(ACTIVATE_PROMOTION);
@@ -125,7 +136,7 @@ export function useLocationPromotionMutations() {
     locationId: string,
     promotion: CreatePromotionInput,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<LocationPromotion>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -140,7 +151,7 @@ export function useLocationPromotionMutations() {
   const activatePromotion = useCallback(async (
     promotionId: string,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<LocationPromotion>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -155,7 +166,7 @@ export function useLocationPromotionMutations() {
   const deactivatePromotion = useCallback(async (
     promotionId: string,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<LocationPromotion>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -176,7 +187,7 @@ export function useLocationPromotionMutations() {
 
 // Hook for promotion subscriptions
 export function usePromotionSubscriptions(options?: { enabled?: boolean }) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   const { enabled = true } = options || {};
 
   const { data: promotionActivatedData } = useSubscription(PROMOTION_ACTIVATED, {

@@ -42,11 +42,18 @@ export interface InventoryPolicy {
   forecastPeriodDays?: number;
   autoCreatePurchaseOrders?: boolean;
   preferredSupplierId?: string;
-  rules?: any[];
+  rules?: InventoryRule[];
   priority?: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface InventoryRule {
+  id?: string;
+  priority: number;
+  condition: string;
+  action: string;
 }
 
 export interface ReorderRule {
@@ -75,7 +82,7 @@ export interface UpdateInventoryPolicyInput {
   forecastPeriodDays?: number;
   autoCreatePurchaseOrders?: boolean;
   preferredSupplierId?: string;
-  rules?: any[];
+  rules?: InventoryRule[];
   priority?: number;
   isActive?: boolean;
   status?: string;
@@ -98,7 +105,7 @@ export interface InventoryRecommendation {
 
 // Hook for inventory policy
 export function useLocationInventoryPolicy(locationId: string, options?: QueryHookOptions) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   
   const { data, loading, error, refetch } = useQuery(GET_INVENTORY_POLICY, {
     variables: { locationId },
@@ -119,7 +126,7 @@ export function useLocationInventoryPolicy(locationId: string, options?: QueryHo
 
 // Hook for reorder rules
 export function useLocationReorderRules(locationId: string, options?: QueryHookOptions) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const { data, loading, error, refetch } = useQuery(GET_REORDER_RULES, {
     variables: { locationId },
@@ -141,7 +148,7 @@ export function useLocationReorderRules(locationId: string, options?: QueryHookO
 // Hook for inventory policy mutations
 export function useLocationInventoryPolicyMutations() {
   const { user } = useAuth();
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const [updateInventoryPolicyMutation] = useMutation(UPDATE_INVENTORY_POLICY);
   const [updateReorderRulesMutation] = useMutation(UPDATE_REORDER_RULES);
@@ -150,7 +157,7 @@ export function useLocationInventoryPolicyMutations() {
     locationId: string,
     policy: UpdateInventoryPolicyInput,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<InventoryPolicy>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -164,9 +171,9 @@ export function useLocationInventoryPolicyMutations() {
 
   const updateReorderRules = useCallback(async (
     locationId: string,
-    rules: any,
+    rules: ReorderRule[],
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<ReorderRule[]>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -391,8 +398,7 @@ export function useInventoryRecommendations() {
 
   const generateOverstockRecommendation = useCallback((
     currentStock: number,
-    maxStockLevel: number,
-    averageDailyUsage: number
+    maxStockLevel: number
   ): InventoryRecommendation | null => {
     if (maxStockLevel && currentStock > maxStockLevel) {
       const excessQuantity = currentStock - maxStockLevel;

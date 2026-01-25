@@ -3,7 +3,7 @@
  * Complete hook implementation for location reporting and analytics
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { 
   useQuery,
   QueryHookOptions
@@ -168,7 +168,7 @@ export function useLocationSalesReport(
   endDate?: Date,
   options?: QueryHookOptions
 ) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   
   const { data, loading, error, refetch } = useQuery(GET_LOCATION_SALES_REPORT, {
     variables: { 
@@ -193,7 +193,7 @@ export function useLocationSalesReport(
 
 // Hook for location inventory report
 export function useLocationInventoryReport(locationId: string, options?: QueryHookOptions) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const { data, loading, error, refetch } = useQuery(GET_LOCATION_INVENTORY_REPORT, {
     variables: { locationId },
@@ -218,7 +218,7 @@ export function useLocationPerformanceReport(
   period: string = 'monthly',
   options?: QueryHookOptions
 ) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const { data, loading, error, refetch } = useQuery(GET_LOCATION_PERFORMANCE_REPORT, {
     variables: { locationId, period },
@@ -244,7 +244,7 @@ export function useLocationComparison(
   period: string = 'monthly',
   options?: QueryHookOptions
 ) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const { data, loading, error, refetch } = useQuery(COMPARE_LOCATIONS, {
     variables: { locationIds, metrics, period },
@@ -337,13 +337,13 @@ export function useReportAnalysis() {
     }
 
     const values = data.map(d => d.value);
-    const firstValue = values[0];
-    const lastValue = values[values.length - 1];
+    const firstValue = values[0] ?? 0;
+    const lastValue = values[values.length - 1] ?? 0;
     const changeRate = calculateGrowthRate(lastValue, firstValue);
 
     // Calculate volatility (standard deviation)
-    const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-    const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+    const mean = values.reduce((sum, val) => sum + (val ?? 0), 0) / values.length;
+    const variance = values.reduce((sum, val) => sum + Math.pow((val ?? 0) - mean, 2), 0) / values.length;
     const volatility = Math.sqrt(variance);
 
     let trend: 'increasing' | 'decreasing' | 'stable' = 'stable';
@@ -403,10 +403,10 @@ export function useReportFormatting() {
     return dateObj.toLocaleDateString('en-US');
   }, []);
 
-  const exportToCSV = useCallback((data: any[], filename: string): void => {
+  const exportToCSV = useCallback((data: Array<Record<string, unknown>>, filename: string): void => {
     if (!data.length) return;
 
-    const headers = Object.keys(data[0]);
+    const headers = (data && Array.isArray(data) && data.length > 0) ? Object.keys(data[0] || {}) : [];
     const csvContent = [
       headers.join(','),
       ...data.map(row => 

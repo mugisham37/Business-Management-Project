@@ -657,6 +657,7 @@ export interface UseNotificationsReturn {
   subscribeToAlerts: (severity?: AlertSeverity) => () => void;
   subscribeToBusinessNotifications: (notificationType?: string) => () => void;
   subscribeToDeliveryStatus: (notificationId: string) => () => void;
+  subscribeToChannelEvents: (channel: 'email' | 'sms' | 'slack' | 'teams', options?: Record<string, unknown>) => () => void;
   
   // Event handling
   onEvent: (callback: (event: CommunicationEvent) => void) => () => void;
@@ -668,6 +669,17 @@ export interface UseNotificationsReturn {
   alerts: CommunicationEvent[];
   deliveryStatuses: NotificationDeliveryStatus[];
   connectionStatus: 'connected' | 'disconnected' | 'reconnecting';
+  
+  // Utility methods
+  clearEvents: () => void;
+  clearAlerts: () => void;
+  clearDeliveryStatuses: () => void;
+  getEventsByChannel: (channel: string) => CommunicationEvent[];
+  getEventsByType: (type: string) => CommunicationEvent[];
+  getRecentEvents: (count?: number) => CommunicationEvent[];
+  getRecentAlerts: (count?: number) => CommunicationEvent[];
+  getFailedEvents: () => CommunicationEvent[];
+  getSuccessfulEvents: () => CommunicationEvent[];
 }
 
 // Utility Types

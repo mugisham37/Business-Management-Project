@@ -79,8 +79,8 @@ export interface SyncConflict {
   entityType: string;
   entityId: string;
   conflictType: 'UPDATE_CONFLICT' | 'DELETE_CONFLICT' | 'CREATE_CONFLICT';
-  localVersion: any;
-  remoteVersion: any;
+  localVersion: Record<string, unknown>;
+  remoteVersion: Record<string, unknown>;
   conflictFields: string[];
   timestamp: string;
   status: 'PENDING' | 'RESOLVED' | 'IGNORED';
@@ -88,7 +88,7 @@ export interface SyncConflict {
     strategy: 'LOCAL_WINS' | 'REMOTE_WINS' | 'MERGE' | 'MANUAL';
     resolvedBy?: string;
     resolvedAt?: string;
-    mergedData?: any;
+    mergedData?: Record<string, unknown>;
   };
 }
 
@@ -98,7 +98,7 @@ export interface SyncError {
   entityId: string;
   operation: 'CREATE' | 'UPDATE' | 'DELETE';
   error: string;
-  details?: any;
+  details?: Record<string, unknown>;
   timestamp: string;
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   retryable: boolean;
@@ -107,13 +107,24 @@ export interface SyncError {
 
 export interface ConflictResolution {
   strategy: 'LOCAL_WINS' | 'REMOTE_WINS' | 'MERGE' | 'MANUAL';
-  mergedData?: any;
+  mergedData?: Record<string, unknown>;
   reason?: string;
+}
+
+export interface SyncResult {
+  id?: string;
+  status?: 'IDLE' | 'SYNCING' | 'COMPLETED' | 'FAILED' | 'CONFLICT';
+  progress?: number;
+  totalItems?: number;
+  processedItems?: number;
+  failedItems?: number;
+  conflicts?: SyncConflict[];
+  errors?: SyncError[];
 }
 
 // Hook for sync status
 export function useLocationSyncStatus(locationId: string, options?: QueryHookOptions) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   
   const { data, loading, error, refetch } = useQuery(GET_SYNC_STATUS, {
     variables: { locationId },
@@ -123,7 +134,7 @@ export function useLocationSyncStatus(locationId: string, options?: QueryHookOpt
     ...options,
   });
 
-  const syncStatus = data?.getSyncStatus;
+  const syncStatus: SyncStatus | undefined = data?.getSyncStatus;
 
   return {
     syncStatus,
@@ -139,7 +150,7 @@ export function useLocationSyncHistory(
   limit: number = 50,
   options?: QueryHookOptions
 ) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const { data, loading, error, refetch } = useQuery(GET_SYNC_HISTORY, {
     variables: { locationId, limit },
@@ -161,7 +172,7 @@ export function useLocationSyncHistory(
 // Hook for sync mutations
 export function useLocationSyncMutations() {
   const { user } = useAuth();
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const [triggerSyncMutation] = useMutation(TRIGGER_SYNC);
   const [resolveSyncConflictMutation] = useMutation(RESOLVE_SYNC_CONFLICT);
@@ -170,7 +181,7 @@ export function useLocationSyncMutations() {
     locationId: string,
     syncType: 'FULL' | 'INCREMENTAL' | 'MANUAL' = 'FULL',
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<SyncResult>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -186,7 +197,7 @@ export function useLocationSyncMutations() {
     conflictId: string,
     resolution: ConflictResolution,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<SyncConflict>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -206,7 +217,7 @@ export function useLocationSyncMutations() {
 
 // Hook for sync subscriptions
 export function useLocationSyncSubscriptions(options?: { enabled?: boolean }) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   const { enabled = true } = options || {};
 
   const { data: syncStatusData } = useSubscription(SYNC_STATUS_CHANGED, {
@@ -234,8 +245,8 @@ export function useConflictResolution() {
     const remoteTimestamp = conflict.remoteVersion?.updatedAt || conflict.remoteVersion?.createdAt;
 
     if (localTimestamp && remoteTimestamp) {
-      const localDate = new Date(localTimestamp);
-      const remoteDate = new Date(remoteTimestamp);
+      const localDate = new Date(localTimestamp as string | number);
+      const remoteDate = new Date(remoteTimestamp as string | number);
       
       if (localDate > remoteDate) {
         recommendation = 'LOCAL_WINS';
@@ -293,7 +304,7 @@ export function useConflictResolution() {
     };
   }, []);
 
-  const createMergedData = useCallback((conflict: SyncConflict): any => {
+  const createMergedData = useCallback((conflict: SyncConflict): Record<string, unknown> => {
     const merged = { ...conflict.localVersion };
 
     // For each conflicting field, use a resolution strategy
@@ -303,8 +314,8 @@ export function useConflictResolution() {
 
       // Use remote value for timestamps if it's newer
       if (field.includes('At') || field.includes('Time')) {
-        const localDate = localValue ? new Date(localValue) : new Date(0);
-        const remoteDate = remoteValue ? new Date(remoteValue) : new Date(0);
+        const localDate = localValue ? new Date(localValue as string | number) : new Date(0);
+        const remoteDate = remoteValue ? new Date(remoteValue as string | number) : new Date(0);
         merged[field] = remoteDate > localDate ? remoteValue : localValue;
       }
       // Use remote value for status changes
@@ -353,7 +364,7 @@ export function useConflictResolution() {
     if (resolution.mergedData) {
       const requiredFields = ['id', 'name', 'code'];
       requiredFields.forEach(field => {
-        if (!resolution.mergedData[field]) {
+        if (!(resolution.mergedData as Record<string, unknown>)[field]) {
           errors.push(`Required field '${field}' is missing from merged data`);
         }
       });
@@ -409,7 +420,7 @@ export function useSyncMonitoring() {
 
     // Check sync frequency
     const lastSync = syncHistory[0];
-    const timeSinceLastSync = Date.now() - new Date(lastSync.endTime).getTime();
+    const timeSinceLastSync = lastSync ? (Date.now() - new Date(lastSync.endTime as string | number).getTime()) : 0;
     const hoursSinceLastSync = timeSinceLastSync / (1000 * 60 * 60);
 
     if (hoursSinceLastSync > 24) {
@@ -479,6 +490,7 @@ export function useSyncMonitoring() {
     const averageDuration = syncHistory.reduce((sum, sync) => sum + sync.duration, 0) / syncHistory.length;
     const totalItemsSynced = syncHistory.reduce((sum, sync) => sum + sync.processedItems, 0);
     const totalErrors = syncHistory.reduce((sum, sync) => sum + sync.failedItems, 0);
+    const lastSyncTime = syncHistory[0]?.endTime ? (syncHistory[0].endTime as string) : undefined;
 
     return {
       totalSyncs: syncHistory.length,
@@ -486,7 +498,7 @@ export function useSyncMonitoring() {
       averageDuration,
       totalItemsSynced,
       totalErrors,
-      lastSyncTime: syncHistory[0]?.endTime,
+      ...(lastSyncTime && { lastSyncTime }),
     };
   }, []);
 

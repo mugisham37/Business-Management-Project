@@ -103,7 +103,7 @@ export interface CreateLocationInput {
   parentLocationId?: string;
   timezone?: string;
   currency?: string;
-  operatingHours?: any;
+  operatingHours?: Record<string, string[]>;
   managerId?: string;
   latitude?: number;
   longitude?: number;
@@ -132,7 +132,7 @@ export interface UpdateLocationInput {
   parentLocationId?: string;
   timezone?: string;
   currency?: string;
-  operatingHours?: any;
+  operatingHours?: Record<string, string[]>;
   managerId?: string;
   latitude?: number;
   longitude?: number;
@@ -141,7 +141,7 @@ export interface UpdateLocationInput {
 
 // Hook for single location
 export function useLocation(id: string, options?: QueryHookOptions) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   
   const { data, loading, error, refetch } = useQuery(GET_LOCATION, {
     variables: { id },
@@ -162,7 +162,7 @@ export function useLocation(id: string, options?: QueryHookOptions) {
 
 // Hook for multiple locations with pagination
 export function useLocations(filter?: LocationFilter, options?: QueryHookOptions) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   const [pageSize] = useState(20);
 
   const { data, loading, error, refetch, fetchMore } = useQuery(GET_LOCATIONS, {
@@ -175,7 +175,7 @@ export function useLocations(filter?: LocationFilter, options?: QueryHookOptions
     ...options,
   });
 
-  const locations = data?.locations?.edges?.map((edge: any) => edge.node) || [];
+  const locations = data?.locations?.edges?.map((edge: { node: Location }) => edge.node) || [];
   const pageInfo = data?.locations?.pageInfo;
   const totalCount = data?.locations?.totalCount || 0;
 
@@ -220,7 +220,7 @@ export function useLocations(filter?: LocationFilter, options?: QueryHookOptions
 
 // Hook for location tree/hierarchy
 export function useLocationTree(rootLocationId?: string, options?: QueryHookOptions) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const { data, loading, error, refetch } = useQuery(GET_LOCATION_TREE, {
     variables: { rootLocationId },
@@ -242,7 +242,7 @@ export function useLocationTree(rootLocationId?: string, options?: QueryHookOpti
 // Hook for location mutations
 export function useLocationMutations() {
   const { user } = useAuth();
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const [createLocationMutation] = useMutation(CREATE_LOCATION);
   const [updateLocationMutation] = useMutation(UPDATE_LOCATION);
@@ -252,7 +252,7 @@ export function useLocationMutations() {
   const createLocation = useCallback(async (
     input: CreateLocationInput,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<Location>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -268,7 +268,7 @@ export function useLocationMutations() {
     id: string,
     input: UpdateLocationInput,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<Location>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -283,7 +283,7 @@ export function useLocationMutations() {
   const deleteLocation = useCallback(async (
     id: string,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<boolean>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -298,7 +298,7 @@ export function useLocationMutations() {
   const closeLocation = useCallback(async (
     id: string,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<Location>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -320,7 +320,7 @@ export function useLocationMutations() {
 
 // Hook for location subscriptions
 export function useLocationSubscriptions(options?: { enabled?: boolean }) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   const { enabled = true } = options || {};
 
   const { data: statusChangeData } = useSubscription(LOCATION_STATUS_CHANGED, {
@@ -383,7 +383,7 @@ export function useLocationValidation() {
     return null;
   }, []);
 
-  const validateAddress = useCallback((address: any): string | null => {
+  const validateAddress = useCallback((address: { street: string; city: string; state: string; country: string; postalCode: string }): string | null => {
     if (!address) return 'Address is required';
     if (!address.street) return 'Street address is required';
     if (!address.city) return 'City is required';

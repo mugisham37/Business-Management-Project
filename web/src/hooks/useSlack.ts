@@ -37,17 +37,15 @@ import {
 
 import {
   SLACK_EVENTS,
-  SLACK_NOTIFICATION_EVENTS,
-  SLACK_ALERT_EVENTS,
 } from '@/graphql/subscriptions/communication';
 
 export const useSlack = (options: CommunicationHookOptions = {}): UseSlackReturn => {
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const apolloClient = useApolloClient();
   
   const {
-    tenantId = currentUser?.tenantId,
-    userId = currentUser?.id,
+    tenantId = user?.tenantId,
+    userId = user?.id,
     autoRefresh = true,
     refreshInterval = 60000,
     enableRealtime = true,
@@ -61,7 +59,6 @@ export const useSlack = (options: CommunicationHookOptions = {}): UseSlackReturn
 
   // Queries
   const { 
-    data: configData, 
     loading: configLoading, 
     error: configError,
     refetch: refetchConfig 
@@ -81,7 +78,6 @@ export const useSlack = (options: CommunicationHookOptions = {}): UseSlackReturn
   });
 
   const { 
-    data: isConfiguredData, 
     loading: isConfiguredLoading,
     refetch: refetchIsConfigured 
   } = useQuery(IS_SLACK_CONFIGURED, {
@@ -528,27 +524,6 @@ export const useSlack = (options: CommunicationHookOptions = {}): UseSlackReturn
     }
   }, [tenantId, refetchIsConfigured]);
 
-  // Utility methods
-  const validateConfiguration = useCallback((config: SlackIntegrationConfig) => {
-    const errors: string[] = [];
-
-    if (!config.webhookUrl) {
-      errors.push('Webhook URL is required');
-    } else if (!CommunicationUtils.validateWebhookUrl(config.webhookUrl)) {
-      errors.push('Invalid webhook URL format');
-    }
-
-    if (config.defaultChannel && !CommunicationUtils.validateSlackChannel(config.defaultChannel)) {
-      errors.push('Invalid default channel format');
-    }
-
-    return errors;
-  }, []);
-
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
   // Update loading state based on queries
   useEffect(() => {
     setLoading(configLoading || isConfiguredLoading);
@@ -573,16 +548,12 @@ export const useSlack = (options: CommunicationHookOptions = {}): UseSlackReturn
     configureIntegration,
     testIntegration,
     disableIntegration,
-    isConfigured: isConfiguredCheck,
+    checkIfConfigured: isConfiguredCheck,
     
     // State
     loading,
     error,
     configuration,
     isConfigured,
-    
-    // Utility methods
-    validateConfiguration,
-    clearError,
   };
 };

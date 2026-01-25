@@ -13,7 +13,6 @@ import {
   UpdateProductInput,
   BulkUpdateProductsInput,
   OffsetPaginationArgs,
-  ProductsResponse,
   ProductStatus,
   ProductType,
 } from '@/types/inventory';
@@ -139,7 +138,7 @@ export function useProducts(
   const [createProduct] = useMutation(CREATE_PRODUCT);
   const [bulkUpdateProducts] = useMutation(BULK_UPDATE_PRODUCTS);
 
-  const products = data?.products || [];
+  const products = useMemo(() => data?.products || [], [data?.products]);
 
   const create = useCallback(async (input: CreateProductInput) => {
     try {
@@ -241,12 +240,12 @@ export function useProducts(
   // Statistics
   const stats = useMemo(() => {
     const totalProducts = products.length;
-    const activeProducts = products.filter(p => p.status === ProductStatus.ACTIVE).length;
-    const inactiveProducts = products.filter(p => p.status === ProductStatus.INACTIVE).length;
-    const discontinuedProducts = products.filter(p => p.status === ProductStatus.DISCONTINUED).length;
-    const featuredProducts = products.filter(p => p.isFeatured).length;
+    const activeProducts = products.filter((p: Product) => p.status === ProductStatus.ACTIVE).length;
+    const inactiveProducts = products.filter((p: Product) => p.status === ProductStatus.INACTIVE).length;
+    const discontinuedProducts = products.filter((p: Product) => p.status === ProductStatus.DISCONTINUED).length;
+    const featuredProducts = products.filter((p: Product) => p.isFeatured).length;
     
-    const totalValue = products.reduce((sum, p) => sum + (p.basePrice || 0), 0);
+    const totalValue = products.reduce((sum: number, p: Product) => sum + (p.basePrice || 0), 0);
     const averagePrice = totalProducts > 0 ? totalValue / totalProducts : 0;
 
     return {
@@ -300,10 +299,13 @@ export function useProductSearch(initialFilter?: ProductFilterInput) {
     return () => clearTimeout(timer);
   });
 
-  const filter = useMemo(() => ({
-    ...initialFilter,
-    search: debouncedSearchTerm || undefined,
-  }), [initialFilter, debouncedSearchTerm]);
+  const filter = useMemo(() => {
+    const filterObj: ProductFilterInput = { ...initialFilter };
+    if (debouncedSearchTerm) {
+      filterObj.search = debouncedSearchTerm;
+    }
+    return filterObj;
+  }, [initialFilter, debouncedSearchTerm]);
 
   const { products, loading, error, refetch } = useProducts(filter);
 

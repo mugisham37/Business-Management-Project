@@ -9,13 +9,10 @@ import { useTenantStore } from '@/lib/stores/tenant-store';
 import {
   PickingWave,
   PickingWaveStatus,
-  WaveStatistics,
-  WaveRecommendation,
   CreatePickingWaveInput,
   UpdatePickingWaveInput,
   PickingWaveFilterInput,
   OffsetPaginationArgs,
-  PickingWaveConnection,
 } from '@/types/warehouse';
 
 // GraphQL Operations
@@ -101,8 +98,11 @@ export function usePickingWave(waveId: string) {
       await deleteWave({
         variables: { id: wave.id },
         update: (cache) => {
-          cache.evict({ id: cache.identify(wave) });
-          cache.gc();
+          const waveId = cache.identify(wave);
+          if (waveId) {
+            cache.evict({ id: waveId });
+            cache.gc();
+          }
         },
       });
       return true;
@@ -310,8 +310,27 @@ export function usePickingWaves(
   filter?: PickingWaveFilterInput
 ) {
   const currentTenant = useTenantStore(state => state.currentTenant);
+
+  interface WaveEdge {
+    node: PickingWave;
+    cursor: string;
+    __typename: string;
+  }
+
+  interface PickingWavesResponse {
+    pickingWaves: {
+      edges: WaveEdge[];
+      pageInfo: {
+        hasNextPage: boolean;
+        hasPreviousPage: boolean;
+        endCursor: string | null;
+        startCursor: string | null;
+      };
+      totalCount: number;
+    };
+  }
   
-  const { data, loading, error, refetch, fetchMore } = useQuery(GET_PICKING_WAVES, {
+  const { data, loading, error, refetch, fetchMore } = useQuery<PickingWavesResponse>(GET_PICKING_WAVES, {
     variables: {
       first: paginationArgs?.limit || 20,
       after: null,
@@ -324,8 +343,8 @@ export function usePickingWaves(
 
   const [createWave] = useMutation(CREATE_PICKING_WAVE);
   const [planWaves] = useMutation(PLAN_PICKING_WAVES);
-
-  const waves = data?.pickingWaves?.edges?.map(edge => edge.node) || [];
+  
+  const waves = (data?.pickingWaves?.edges as WaveEdge[] | undefined)?.map((edge: WaveEdge) => edge.node) || [];
   const pageInfo = data?.pickingWaves?.pageInfo;
   const totalCount = data?.pickingWaves?.totalCount || 0;
 
@@ -338,7 +357,7 @@ export function usePickingWaves(
             const existingWaves = cache.readQuery({
               query: GET_PICKING_WAVES,
               variables: { first: 20, filter },
-            });
+            }) as PickingWavesResponse | null;
 
             if (existingWaves) {
               cache.writeQuery({
@@ -370,7 +389,7 @@ export function usePickingWaves(
     }
   }, [createWave, filter]);
 
-  const planWave = useCallback(async (input: any) => {
+  const planWave = useCallback(async (input: Record<string, unknown>) => {
     try {
       const result = await planWaves({
         variables: { input },
@@ -649,23 +668,23 @@ export function usePickingWaveManagement(warehouseId?: string) {
     const relevantWaves = warehouseId ? warehouseWaves : waves;
     
     const totalWaves = relevantWaves.length;
-    const planningWaves = relevantWaves.filter(w => w.status === PickingWaveStatus.PLANNING).length;
-    const plannedWaves = relevantWaves.filter(w => w.status === PickingWaveStatus.PLANNED).length;
-    const releasedWaves = relevantWaves.filter(w => w.status === PickingWaveStatus.RELEASED).length;
-    const inProgressWaves = relevantWaves.filter(w => w.status === PickingWaveStatus.IN_PROGRESS).length;
-    const completedWaves = relevantWaves.filter(w => w.status === PickingWaveStatus.COMPLETED).length;
-    const cancelledWaves = relevantWaves.filter(w => w.status === PickingWaveStatus.CANCELLED).length;
+    const planningWaves = relevantWaves.filter((w: PickingWave) => w.status === PickingWaveStatus.PLANNING).length;
+    const plannedWaves = relevantWaves.filter((w: PickingWave) => w.status === PickingWaveStatus.PLANNED).length;
+    const releasedWaves = relevantWaves.filter((w: PickingWave) => w.status === PickingWaveStatus.RELEASED).length;
+    const inProgressWaves = relevantWaves.filter((w: PickingWave) => w.status === PickingWaveStatus.IN_PROGRESS).length;
+    const completedWaves = relevantWaves.filter((w: PickingWave) => w.status === PickingWaveStatus.COMPLETED).length;
+    const cancelledWaves = relevantWaves.filter((w: PickingWave) => w.status === PickingWaveStatus.CANCELLED).length;
     
-    const totalOrders = relevantWaves.reduce((sum, w) => sum + (w.totalOrders || 0), 0);
-    const totalItems = relevantWaves.reduce((sum, w) => sum + (w.totalItems || 0), 0);
-    const totalQuantity = relevantWaves.reduce((sum, w) => sum + (w.totalQuantity || 0), 0);
+    const totalOrders = relevantWaves.reduce((sum: number, w: PickingWave) => sum + (w.totalOrders || 0), 0);
+    const totalItems = relevantWaves.reduce((sum: number, w: PickingWave) => sum + (w.totalItems || 0), 0);
+    const totalQuantity = relevantWaves.reduce((sum: number, w: PickingWave) => sum + (w.totalQuantity || 0), 0);
     
     const averageAccuracy = relevantWaves.length > 0 
-      ? relevantWaves.reduce((sum, w) => sum + (w.pickingAccuracy || 0), 0) / relevantWaves.length 
+      ? relevantWaves.reduce((sum: number, w: PickingWave) => sum + (w.pickingAccuracy || 0), 0) / relevantWaves.length 
       : 0;
     
     const averagePickTime = relevantWaves.length > 0 
-      ? relevantWaves.reduce((sum, w) => sum + (w.averagePickTime || 0), 0) / relevantWaves.length 
+      ? relevantWaves.reduce((sum: number, w: PickingWave) => sum + (w.averagePickTime || 0), 0) / relevantWaves.length 
       : 0;
 
     return {

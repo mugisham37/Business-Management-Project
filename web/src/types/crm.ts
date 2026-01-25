@@ -714,6 +714,18 @@ export interface SegmentJobResponse {
   createdAt: Date;
 }
 
+export interface SegmentRule {
+  field: string;
+  operator: string;
+  value: unknown;
+  type?: string;
+}
+
+export interface SegmentCriteria {
+  operator: 'AND' | 'OR';
+  rules: SegmentRule[];
+}
+
 // Hook Return Types
 export interface UseCustomersResult {
   customers: Customer[];
@@ -851,7 +863,7 @@ export interface UseCommunicationsResult {
 export interface UseSegmentationResult {
   segments: Segment[];
   loading: boolean;
-  error?: Error;
+  error?: Error | undefined;
   createSegment: (input: CreateSegmentInput) => Promise<Segment>;
   updateSegment: (id: string, input: UpdateSegmentInput) => Promise<Segment>;
   deleteSegment: (id: string) => Promise<boolean>;
@@ -1062,6 +1074,36 @@ export enum QuoteStatus {
   EXPIRED = 'expired',
   CONVERTED = 'converted',
   CANCELLED = 'cancelled'
+}
+
+export interface CreateQuoteInput {
+  customerId: string;
+  salesRepId?: string;
+  accountManagerId?: string;
+  expirationDate?: Date;
+  items?: Array<{
+    productId: string;
+    quantity: number;
+    unitPrice?: number;
+    notes?: string;
+  }>;
+  terms?: string;
+  notes?: string;
+}
+
+export interface UpdateQuoteInput {
+  salesRepId?: string;
+  accountManagerId?: string;
+  expirationDate?: Date;
+  items?: Array<{
+    id?: string;
+    productId: string;
+    quantity: number;
+    unitPrice?: number;
+    notes?: string;
+  }>;
+  terms?: string;
+  notes?: string;
 }
 
 // Contract Types
@@ -1477,4 +1519,18 @@ export interface CRMModuleConfig {
     canViewAnalytics: boolean;
     canManageSegments: boolean;
   };
+}
+
+// Hook Result Types
+export interface UseQuotesResult {
+  quotes: Quote[];
+  currentQuote: Quote;
+  loading: boolean;
+  error: Error;
+  createQuote: (input: CreateQuoteInput) => Promise<Quote>;
+  updateQuote: (id: string, input: UpdateQuoteInput) => Promise<Quote>;
+  deleteQuote: (id: string) => Promise<boolean>;
+  convertToOrder: (quoteId: string) => Promise<Order>;
+  sendQuote: (quoteId: string, email: string) => Promise<boolean>;
+  exportQuote: (quoteId: string, format: string) => Promise<string>;
 }

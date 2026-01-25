@@ -9,13 +9,14 @@ import { useTenantStore } from '@/lib/stores/tenant-store';
 import {
   LotInfo,
   LotStatus,
-  LotMovement,
   CreateLotInput,
   UpdateLotInput,
   LotFilterInput,
   OffsetPaginationArgs,
-  LotInfoConnection,
 } from '@/types/warehouse';
+
+// Type alias for convenience
+type Lot = LotInfo;
 
 // GraphQL Operations
 import {
@@ -135,7 +136,10 @@ export function useLot(lotNumber: string, productId: string) {
           productId: lot.productId 
         },
         update: (cache) => {
-          cache.evict({ id: cache.identify(lot) });
+          const lotId = cache.identify(lot);
+          if (lotId) {
+            cache.evict({ id: lotId });
+          }
           cache.gc();
         },
       });
@@ -259,7 +263,7 @@ export function useLot(lotNumber: string, productId: string) {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     return diffDays;
-  }, [lot?.expiryDate]);
+  }, [lot]);
 
   const canQuarantine = useMemo(() => {
     return lot?.status === LotStatus.ACTIVE;
@@ -320,7 +324,7 @@ export function useLots(
 
   const [createLot] = useMutation(CREATE_LOT);
 
-  const lots = data?.lots?.edges?.map(edge => edge.node) || [];
+  const lots = data?.lots?.edges?.map((edge: { node: Lot }) => edge.node) || [];
   const pageInfo = data?.lots?.pageInfo;
   const totalCount = data?.lots?.totalCount || 0;
 
@@ -336,24 +340,27 @@ export function useLots(
             });
 
             if (existingLots) {
-              cache.writeQuery({
-                query: GET_LOTS,
-                variables: { first: 20, filter },
-                data: {
-                  lots: {
-                    ...existingLots.lots,
-                    edges: [
-                      {
-                        node: mutationData.createLot,
-                        cursor: `lot-${Date.now()}`,
-                        __typename: 'LotEdge',
-                      },
-                      ...existingLots.lots.edges,
-                    ],
-                    totalCount: existingLots.lots.totalCount + 1,
+              const lotsData = (existingLots as { lots?: { edges?: Array<{ node: Lot; cursor: string }>; totalCount?: number } }).lots;
+              if (lotsData) {
+                cache.writeQuery({
+                  query: GET_LOTS,
+                  variables: { first: 20, filter },
+                  data: {
+                    lots: {
+                      ...lotsData,
+                      edges: [
+                        {
+                          node: mutationData.createLot,
+                          cursor: `lot-${Date.now()}`,
+                          __typename: 'LotEdge',
+                        },
+                        ...(lotsData.edges || []),
+                      ],
+                      totalCount: (lotsData.totalCount || 0) + 1,
+                    },
                   },
-                },
-              });
+                });
+              }
             }
           }
         },
@@ -587,7 +594,7 @@ export function useFIFORules() {
     warehouseId: string;
     enabled: boolean;
     strictMode?: boolean;
-    exceptionRules?: any;
+    exceptionRules?: Record<string, unknown>;
   }) => {
     try {
       const result = await createFIFORule({
@@ -605,7 +612,7 @@ export function useFIFORules() {
     warehouseId?: string;
     enabled?: boolean;
     strictMode?: boolean;
-    exceptionRules?: any;
+    exceptionRules?: Record<string, unknown>;
   }) => {
     try {
       const result = await updateFIFORule({
@@ -718,11 +725,11 @@ export function useLotExpiryManagement(warehouseId?: string) {
     const expiredCount = expiredLots.length;
     const nearExpiryCount = nearExpiryLots.length;
     
-    const criticalLots = nearExpiryLots.filter(lot => 
+    const criticalLots = nearExpiryLots.filter((lot: Lot) => 
       (lot.daysUntilExpiry || 0) <= 7
     ).length;
     
-    const warningLots = nearExpiryLots.filter(lot => 
+    const warningLots = nearExpiryLots.filter((lot: Lot) => 
       (lot.daysUntilExpiry || 0) > 7 && (lot.daysUntilExpiry || 0) <= 30
     ).length;
 
@@ -825,16 +832,16 @@ export function useLotTrackingManagement(warehouseId?: string) {
     const relevantLots = warehouseId ? warehouseLots : lots;
     
     const totalLots = relevantLots.length;
-    const activeLots = relevantLots.filter(lot => lot.status === LotStatus.ACTIVE).length;
-    const expiredLotsCount = relevantLots.filter(lot => lot.status === LotStatus.EXPIRED).length;
-    const quarantinedLots = relevantLots.filter(lot => lot.status === LotStatus.QUARANTINE).length;
-    const recalledLots = relevantLots.filter(lot => lot.status === LotStatus.RECALLED).length;
-    const consumedLots = relevantLots.filter(lot => lot.status === LotStatus.CONSUMED).length;
+    const activeLots = relevantLots.filter((lot: Lot) => lot.status === LotStatus.ACTIVE).length;
+    const expiredLotsCount = relevantLots.filter((lot: Lot) => lot.status === LotStatus.EXPIRED).length;
+    const quarantinedLots = relevantLots.filter((lot: Lot) => lot.status === LotStatus.QUARANTINE).length;
+    const recalledLots = relevantLots.filter((lot: Lot) => lot.status === LotStatus.RECALLED).length;
+    const consumedLots = relevantLots.filter((lot: Lot) => lot.status === LotStatus.CONSUMED).length;
 
-    const totalQuantity = relevantLots.reduce((sum, lot) => sum + (lot.quantity || 0), 0);
+    const totalQuantity = relevantLots.reduce((sum: number, lot: Lot) => sum + (lot.quantity || 0), 0);
     const activeQuantity = relevantLots
-      .filter(lot => lot.status === LotStatus.ACTIVE)
-      .reduce((sum, lot) => sum + (lot.quantity || 0), 0);
+      .filter((lot: Lot) => lot.status === LotStatus.ACTIVE)
+      .reduce((sum: number, lot: Lot) => sum + (lot.quantity || 0), 0);
 
     return {
       totalLots,

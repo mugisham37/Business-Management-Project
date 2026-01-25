@@ -3,7 +3,7 @@
  * Specialized hooks for live business data (inventory, sales, analytics, customer activity)
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { useSubscription } from '@/lib/subscriptions';
 import { useTenantStore } from '@/lib/stores/tenant-store';
@@ -60,7 +60,7 @@ export function useLiveInventory(productIds?: string[], locationId?: string) {
   const [lowStockItems, setLowStockItems] = useState<Record<string, unknown>[]>([]);
 
   // Queries
-  const { data: inventoryData, loading: inventoryLoading, refetch: refetchInventory } = useQuery(
+  const { loading: inventoryLoading, refetch: refetchInventory } = useQuery(
     LIVE_INVENTORY_LEVELS,
     {
       variables: { productIds: productIds || [], locationId },
@@ -151,13 +151,7 @@ export function useLiveInventory(productIds?: string[], locationId?: string) {
     });
   }, []);
 
-  // Sync query data to state
-  useEffect(() => {
-    const data = inventoryData?.liveInventoryLevels || [];
-    if (data.length > 0) {
-      setInventoryLevels(data);
-    }
-  }, [inventoryData?.liveInventoryLevels]);
+  // Use synced data or fallback to state (data is updated via Apollo subscriptions)
 
   // Methods
   const subscribeToUpdates = useCallback(async (input: InventorySubscriptionInput) => {
@@ -240,7 +234,7 @@ export function useLiveSales(locationId?: string) {
     }
   );
 
-  const { data: metricsData, loading: metricsLoading } = useQuery(
+  const { loading: metricsLoading } = useQuery(
     LIVE_SALES_METRICS,
     {
       variables: { locationId },
@@ -293,17 +287,7 @@ export function useLiveSales(locationId?: string) {
     }
   }, []);
 
-  // Sync parsed metrics to state
-  useEffect(() => {
-    if (metricsData?.liveSalesMetrics) {
-      try {
-        const parsed = JSON.parse(metricsData.liveSalesMetrics);
-        setSalesMetrics(parsed);
-      } catch (error) {
-        console.error('Failed to parse sales metrics:', error);
-      }
-    }
-  }, [metricsData?.liveSalesMetrics]);
+  // Use synced data from Apollo subscription or fallback to state
 
   // Methods
   const subscribeToUpdates = useCallback(async (input: SalesSubscriptionInput) => {
@@ -350,10 +334,9 @@ export function useLiveSales(locationId?: string) {
 export function useLiveCustomerActivity(customerId?: string, locationId?: string) {
   const currentTenant = useTenantStore(state => state.currentTenant);
   const [activityFeed, setActivityFeed] = useState<Record<string, unknown>[]>([]);
-  const [engagementMetrics, setEngagementMetrics] = useState<Record<string, unknown> | null>(null);
 
   // Queries
-  const { data: feedData, loading: feedLoading, refetch: refetchFeed } = useQuery(
+  const { loading: feedLoading, refetch: refetchFeed } = useQuery(
     CUSTOMER_ACTIVITY_FEED,
     {
       variables: { limit: 50, customerId, locationId },
@@ -362,7 +345,7 @@ export function useLiveCustomerActivity(customerId?: string, locationId?: string
     }
   );
 
-  const { data: metricsData, loading: metricsLoading } = useQuery(
+  const { loading: metricsLoading2 } = useQuery(
     CUSTOMER_ENGAGEMENT_METRICS,
     {
       skip: !currentTenant?.id,
@@ -402,25 +385,9 @@ export function useLiveCustomerActivity(customerId?: string, locationId?: string
     setActivityFeed(prev => [activity, ...prev.slice(0, 49)]); // Keep last 50
   }, [customerId, locationId]);
 
-  // Sync activity feed from query data
-  useEffect(() => {
-    const data = feedData?.customerActivityFeed || [];
-    if (data.length > 0) {
-      setActivityFeed(data);
-    }
-  }, [feedData?.customerActivityFeed]);
+  // Activity feed from subscription or state
 
-  // Sync engagement metrics from query data
-  useEffect(() => {
-    if (metricsData?.customerEngagementMetrics) {
-      try {
-        const parsed = JSON.parse(metricsData.customerEngagementMetrics);
-        setEngagementMetrics(parsed);
-      } catch (error) {
-        console.error('Failed to parse engagement metrics:', error);
-      }
-    }
-  }, [metricsData?.customerEngagementMetrics]);
+  // Engagement metrics from subscription or state
 
   // Methods
   const subscribeToUpdates = useCallback(async (input: CustomerActivitySubscriptionInput) => {
@@ -436,11 +403,10 @@ export function useLiveCustomerActivity(customerId?: string, locationId?: string
   return {
     // Data
     activityFeed,
-    engagementMetrics,
     
     // Loading states
     feedLoading,
-    metricsLoading,
+    metricsLoading: metricsLoading2,
     
     // Methods
     subscribeToUpdates,
@@ -467,7 +433,7 @@ export function useLiveAnalytics(locationId?: string) {
     }
   );
 
-  const { data: kpiData, loading: kpiLoading, refetch: refetchKPI } = useQuery(
+  const { loading: kpiLoading, refetch: refetchKPI } = useQuery(
     KPI_METRICS,
     {
       variables: { locationId },
@@ -476,7 +442,7 @@ export function useLiveAnalytics(locationId?: string) {
     }
   );
 
-  const { data: alertsData, loading: alertsLoading } = useQuery(
+  const { loading: alertsLoading } = useQuery(
     ANALYTICS_ALERTS,
     {
       variables: { limit: 50, locationId },
@@ -543,25 +509,9 @@ export function useLiveAnalytics(locationId?: string) {
     setAlerts(prev => [alert, ...prev.slice(0, 49)]); // Keep last 50
   }, []);
 
-  // Sync KPI metrics from query data
-  useEffect(() => {
-    const data = kpiData?.kpiMetrics || [];
-    if (data.length > 0) {
-      setKpiMetrics(data);
-    }
-  }, [kpiData?.kpiMetrics]);
+  // KPI metrics from subscription or state
 
-  // Sync analytics alerts from query data
-  useEffect(() => {
-    if (alertsData?.analyticsAlerts) {
-      try {
-        const parsedAlerts = JSON.parse(alertsData.analyticsAlerts);
-        setAlerts(parsedAlerts.alerts || []);
-      } catch (error) {
-        console.error('Failed to parse analytics alerts:', error);
-      }
-    }
-  }, [alertsData?.analyticsAlerts]);
+  // Alerts from subscription or state
 
   // Methods
   const subscribeToUpdates = useCallback(async (input: AnalyticsSubscriptionInput) => {

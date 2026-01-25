@@ -3,7 +3,7 @@
  * Complete hook implementation for franchise operations
  */
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { 
   useQuery, 
   useMutation,
@@ -28,7 +28,20 @@ export interface Franchise {
   id: string;
   name: string;
   code: string;
-  performance?: any;
+  performance?: FranchisePerformance;
+}
+
+export interface FranchisePerformance {
+  franchiseId: string;
+  period?: string;
+  totalRevenue: number;
+  operatingCosts: number;
+  netProfit: number;
+  royaltiesPaid: number;
+  marketingFeePaid: number;
+  customerSatisfactionScore?: number;
+  operationalEfficiency?: number;
+  [key: string]: unknown;
 }
 
 export interface CreateFranchiseInput {
@@ -71,7 +84,7 @@ export interface UpdateFranchiseInput {
 
 // Hook for single franchise
 export function useFranchise(id: string, options?: QueryHookOptions) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   
   const { data, loading, error, refetch } = useQuery(GET_FRANCHISE, {
     variables: { id },
@@ -92,7 +105,7 @@ export function useFranchise(id: string, options?: QueryHookOptions) {
 
 // Hook for multiple franchises
 export function useFranchises(options?: QueryHookOptions) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const { data, loading, error, refetch } = useQuery(GET_FRANCHISES, {
     skip: !currentTenant?.id,
@@ -112,7 +125,7 @@ export function useFranchises(options?: QueryHookOptions) {
 
 // Hook for franchise performance
 export function useFranchisePerformance(id: string, period?: string, options?: QueryHookOptions) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const { data, loading, error, refetch } = useQuery(GET_FRANCHISE_PERFORMANCE, {
     variables: { id, period },
@@ -121,7 +134,7 @@ export function useFranchisePerformance(id: string, period?: string, options?: Q
     ...options,
   });
 
-  const performance = data?.getFranchisePerformance;
+  const performance: FranchisePerformance | undefined = data?.getFranchisePerformance;
 
   return {
     performance,
@@ -134,7 +147,7 @@ export function useFranchisePerformance(id: string, period?: string, options?: Q
 // Hook for franchise mutations
 export function useFranchiseMutations() {
   const { user } = useAuth();
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
 
   const [createFranchiseMutation] = useMutation(CREATE_FRANCHISE);
   const [updateFranchiseMutation] = useMutation(UPDATE_FRANCHISE);
@@ -142,7 +155,7 @@ export function useFranchiseMutations() {
   const createFranchise = useCallback(async (
     input: CreateFranchiseInput,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<Franchise>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }
@@ -158,7 +171,7 @@ export function useFranchiseMutations() {
     id: string,
     input: UpdateFranchiseInput,
     options?: MutationHookOptions
-  ): Promise<FetchResult<any>> => {
+  ): Promise<FetchResult<Franchise>> => {
     if (!currentTenant?.id || !user?.id) {
       throw new Error('User must be authenticated and have a current tenant');
     }

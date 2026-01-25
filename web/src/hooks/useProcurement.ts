@@ -6,7 +6,6 @@ import {
   GET_PURCHASE_ORDERS,
   GET_PURCHASE_ORDER_STATS,
   GET_SUPPLIER_PURCHASE_STATS,
-  GET_SUPPLIER_PERFORMANCE,
   GET_ALL_SUPPLIER_PERFORMANCE,
   GET_SPEND_ANALYSIS,
   GET_COST_TRENDS,
@@ -45,6 +44,8 @@ import type {
   SupplierPerformanceMetrics,
   SpendAnalysis,
   DateRangeInput,
+  PurchaseOrderStatus,
+  PurchaseOrderPriority,
 } from '@/types/supplier';
 
 // Hook for fetching purchase orders with pagination and filtering
@@ -62,7 +63,7 @@ export function usePurchaseOrders(
   });
 
   const loadMore = useCallback(async () => {
-    if (!data?.purchaseOrders.pageInfo.hasNextPage) return;
+    if (!data?.purchaseOrders.pageInfo.hasNextPage || !data.purchaseOrders.pageInfo.endCursor) return;
 
     return fetchMore({
       variables: {
@@ -161,15 +162,18 @@ export function useCreatePurchaseOrder() {
     CREATE_PURCHASE_ORDER,
     GET_PURCHASE_ORDERS,
     'purchaseOrders',
-    (variables) => ({
-      id: `temp-${Date.now()}`,
-      poNumber: `PO-${Date.now()}`,
-      ...variables.input,
-      status: 'draft',
-      orderDate: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })
+    (variables: Record<string, unknown>) => {
+      const input = variables.input as CreatePurchaseOrderInput | undefined;
+      return {
+        id: `temp-${Date.now()}`,
+        poNumber: `PO-${Date.now()}`,
+        ...(input || {}),
+        status: 'draft',
+        orderDate: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
   );
 
   const create = useCallback(
@@ -210,7 +214,7 @@ export function useDeletePurchaseOrder() {
 
   const remove = useCallback(
     async (id: string) => {
-      return deletePurchaseOrder({ id });
+      return deletePurchaseOrder({ variables: { id } });
     },
     [deletePurchaseOrder]
   );
@@ -229,12 +233,16 @@ export function useSubmitPurchaseOrderForApproval() {
 
         // Update the purchase order status in cache
         const poId = variables.id;
-        cache.modify({
-          id: cache.identify({ __typename: 'PurchaseOrder', id: poId }),
-          fields: {
-            status: () => 'pending_approval',
-          },
-        });
+        const cacheId = cache.identify({ __typename: 'PurchaseOrder', id: poId });
+        
+        if (cacheId) {
+          cache.modify({
+            id: cacheId,
+            fields: {
+              status: () => 'pending_approval',
+            },
+          });
+        }
       },
     }
   );
@@ -272,7 +280,7 @@ export function useCreatePurchaseOrderReceipt() {
   });
 
   const create = useCallback(
-    async (input: any) => {
+    async (input: Record<string, unknown>) => {
       return createReceipt({ variables: { input } });
     },
     [createReceipt]
@@ -288,7 +296,7 @@ export function useCreatePurchaseOrderInvoice() {
   });
 
   const create = useCallback(
-    async (input: any) => {
+    async (input: Record<string, unknown>) => {
       return createInvoice({ variables: { input } });
     },
     [createInvoice]
@@ -372,21 +380,21 @@ export function useEDIOperations() {
   );
 
   const sendEDIDocument = useCallback(
-    async (input: any) => {
+    async (input: Record<string, unknown>) => {
       return sendDocument({ variables: { input } });
     },
     [sendDocument]
   );
 
   const receiveEDIDocument = useCallback(
-    async (input: any) => {
+    async (input: Record<string, unknown>) => {
       return receiveDocument({ variables: { input } });
     },
     [receiveDocument]
   );
 
   const retryEDIDocument = useCallback(
-    async (input: any) => {
+    async (input: Record<string, unknown>) => {
       return retryDocument({ variables: { input } });
     },
     [retryDocument]
@@ -496,18 +504,16 @@ export function usePurchaseOrderFilters() {
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }): PurchaseOrderFilterInput => {
-    return {
-      search: params.search || undefined,
-      status: params.status as any,
-      supplierId: params.supplierId,
-      priority: params.priority as any,
-      orderDateFrom: params.orderDateFrom,
-      orderDateTo: params.orderDateTo,
-      deliveryDateFrom: params.deliveryDateFrom,
-      deliveryDateTo: params.deliveryDateTo,
-      sortBy: params.sortBy,
-      sortOrder: params.sortOrder,
-    };
+    const filter: PurchaseOrderFilterInput = {};
+    if (params.search !== undefined) filter.search = params.search;
+    if (params.status !== undefined && params.status !== null) filter.status = params.status as PurchaseOrderStatus;
+    if (params.supplierId !== undefined) filter.supplierId = params.supplierId;
+    if (params.priority !== undefined && params.priority !== null) filter.priority = params.priority as PurchaseOrderPriority;
+    if (params.orderDateFrom !== undefined) filter.fromDate = params.orderDateFrom;
+    if (params.deliveryDateTo !== undefined) filter.toDate = params.deliveryDateTo;
+    if (params.sortBy !== undefined) filter.sortBy = params.sortBy;
+    if (params.sortOrder !== undefined) filter.sortOrder = params.sortOrder;
+    return filter;
   }, []);
 
   return { buildFilter };

@@ -3,7 +3,7 @@
  * Complete hook implementation for geospatial operations and mapping
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { 
   useQuery,
   QueryHookOptions
@@ -86,7 +86,7 @@ export function useNearbyLocations(
     queryOptions?: QueryHookOptions;
   }
 ) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   const { maxResults, locationTypes, statuses, queryOptions } = options || {};
   
   const { data, loading, error, refetch } = useQuery(FIND_NEARBY_LOCATIONS, {
@@ -123,7 +123,7 @@ export function useClosestLocation(
     queryOptions?: QueryHookOptions;
   }
 ) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   const { locationTypes, statuses, queryOptions } = options || {};
   
   const { data, loading, error, refetch } = useQuery(FIND_CLOSEST_LOCATION, {
@@ -157,7 +157,7 @@ export function useLocationsInBounds(
     queryOptions?: QueryHookOptions;
   }
 ) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   const { locationTypes, statuses, queryOptions } = options || {};
   
   const { data, loading, error, refetch } = useQuery(FIND_LOCATIONS_IN_BOUNDS, {
@@ -190,7 +190,7 @@ export function useCoverageArea(
   radiusKm: number,
   options?: QueryHookOptions
 ) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   
   const { data, loading, error, refetch } = useQuery(CALCULATE_COVERAGE_AREA, {
     variables: { locationIds, radiusKm },
@@ -215,7 +215,7 @@ export function useLocationClustering(
   minClusterSize: number = 2,
   options?: QueryHookOptions
 ) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   
   const { data, loading, error, refetch } = useQuery(CLUSTER_LOCATIONS_BY_PROXIMITY, {
     variables: { maxDistanceKm, minClusterSize },
@@ -241,7 +241,7 @@ export function useOptimalLocationSuggestions(
   populationDensityData?: Array<{ latitude: number; longitude: number; density: number }>,
   options?: QueryHookOptions
 ) {
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   
   const { data, loading, error, refetch } = useQuery(SUGGEST_OPTIMAL_LOCATION, {
     variables: { 
@@ -295,7 +295,7 @@ export function useGeospatialCalculations() {
     const y = Math.sin(dLon) * Math.cos(lat2);
     const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
     
-    let bearing = Math.atan2(y, x) * 180 / Math.PI;
+    const bearing = Math.atan2(y, x) * 180 / Math.PI;
     return (bearing + 360) % 360;
   }, []);
 
@@ -363,9 +363,9 @@ export function useGeospatialCalculations() {
     
     for (let i = 0; i < coordinates.length; i++) {
       const j = (i + 1) % coordinates.length;
-      const lat1 = coordinates[i].latitude * Math.PI / 180;
-      const lat2 = coordinates[j].latitude * Math.PI / 180;
-      const dLon = (coordinates[j].longitude - coordinates[i].longitude) * Math.PI / 180;
+      const lat1 = coordinates[i]?.latitude ?? 0 * Math.PI / 180;
+      const lat2 = coordinates[j]?.latitude ?? 0 * Math.PI / 180;
+      const dLon = ((coordinates[j]?.longitude ?? 0) - (coordinates[i]?.longitude ?? 0)) * Math.PI / 180;
       
       area += dLon * (2 + Math.sin(lat1) + Math.sin(lat2));
     }

@@ -3,25 +3,21 @@
  * Complete set of hooks for picking wave and pick list operations
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useSubscription, useApolloClient } from '@apollo/client';
 import { useTenantStore } from '@/lib/stores/tenant-store';
 import {
   PickingWave,
   PickList,
-  WaveStatus,
-  WaveType,
-  WavePriority,
+  PickingWaveStatus,
   PickListStatus,
-  PickListPriority,
-  PickingStrategy,
   CreatePickingWaveInput,
   UpdatePickingWaveInput,
   CreatePickListInput,
   UpdatePickListInput,
   PaginationArgs,
-  PickingWaveConnection,
-  PickListConnection,
+  CursorPaginationArgs,
+  Edge,
 } from '@/types/warehouse';
 
 // GraphQL Operations
@@ -29,11 +25,10 @@ import {
   GET_PICKING_WAVE,
   GET_PICKING_WAVES,
   GET_PICKING_WAVES_BY_PICKER,
-  GET_PICKING_WAVE_STATISTICS,
+  GET_WAVE_STATISTICS,
   GET_OVERDUE_PICKING_WAVES,
   GET_PICK_LIST,
   GET_PICK_LISTS,
-  GET_PICK_LISTS_BY_WAVE,
   GET_PICK_LISTS_BY_PICKER,
 } from '@/graphql/queries/warehouse-queries';
 
@@ -49,10 +44,10 @@ import {
   PLAN_PICKING_WAVES,
   OPTIMIZE_PICKING_WAVE,
   CREATE_PICK_LIST,
-  UPDATE_PICK_LIST,
   ASSIGN_PICK_LIST,
   RECORD_PICK,
   COMPLETE_PICK_LIST,
+  UPDATE_PICK_LIST,
   DELETE_PICK_LIST,
 } from '@/graphql/mutations/warehouse-mutations';
 
@@ -60,13 +55,11 @@ import {
   PICKING_WAVE_UPDATED,
   PICKING_WAVE_STATUS_CHANGED,
   PICKING_WAVE_STATISTICS_UPDATED,
-  PICKING_WAVE_COMPLETED,
-  PICKER_ASSIGNED_TO_WAVE,
-  PICK_LIST_UPDATED,
   PICK_LIST_ASSIGNED,
-  PICK_LIST_COMPLETED,
-  PICK_LIST_STATUS_CHANGED,
+  PICK_LIST_UPDATED,
   PICK_RECORDED,
+  PICKER_ASSIGNED_TO_WAVE,
+  PICKING_WAVE_COMPLETED,
 } from '@/graphql/subscriptions/warehouse-subscriptions';
 
 // ===== SINGLE PICKING WAVE HOOK =====
@@ -84,7 +77,7 @@ export function usePickingWave(waveId: string) {
     errorPolicy: 'all',
   });
 
-  const { data: statisticsData, loading: statisticsLoading } = useQuery(GET_PICKING_WAVE_STATISTICS, {
+  const { data: statisticsData, loading: statisticsLoading } = useQuery(GET_WAVE_STATISTICS, {
     variables: { waveId },
     skip: !waveId,
     errorPolicy: 'all',
@@ -135,7 +128,7 @@ export function usePickingWave(waveId: string) {
     onData: ({ data: subscriptionData }) => {
       if (subscriptionData.data?.pickingWaveStatisticsUpdated) {
         apolloClient.cache.writeQuery({
-          query: GET_PICKING_WAVE_STATISTICS,
+          query: GET_WAVE_STATISTICS,
           variables: { waveId },
           data: { pickingWaveStatistics: subscriptionData.data.pickingWaveStatisticsUpdated },
         });
@@ -270,31 +263,31 @@ export function usePickingWave(waveId: string) {
 
   // Computed properties
   const canRelease = useMemo(() => {
-    return wave?.status === WaveStatus.PLANNED;
+    return wave?.status === PickingWaveStatus.PLANNED;
   }, [wave]);
 
   const canStart = useMemo(() => {
-    return wave?.status === WaveStatus.RELEASED || wave?.status === WaveStatus.READY;
+    return wave?.status === PickingWaveStatus.RELEASED || wave?.status === PickingWaveStatus.READY;
   }, [wave]);
 
   const canComplete = useMemo(() => {
-    return wave?.status === WaveStatus.IN_PROGRESS;
+    return wave?.status === PickingWaveStatus.IN_PROGRESS;
   }, [wave]);
 
   const canCancel = useMemo(() => {
-    return [WaveStatus.PLANNED, WaveStatus.RELEASED, WaveStatus.READY].includes(wave?.status as WaveStatus);
+    return [PickingWaveStatus.PLANNED, PickingWaveStatus.RELEASED, PickingWaveStatus.READY].includes(wave?.status as PickingWaveStatus);
   }, [wave]);
 
   const isActive = useMemo(() => {
-    return [WaveStatus.RELEASED, WaveStatus.READY, WaveStatus.IN_PROGRESS].includes(wave?.status as WaveStatus);
+    return [PickingWaveStatus.RELEASED, PickingWaveStatus.READY, PickingWaveStatus.IN_PROGRESS].includes(wave?.status as PickingWaveStatus);
   }, [wave]);
 
   const isCompleted = useMemo(() => {
-    return wave?.status === WaveStatus.COMPLETED;
+    return wave?.status === PickingWaveStatus.COMPLETED;
   }, [wave]);
 
   const isCancelled = useMemo(() => {
-    return wave?.status === WaveStatus.CANCELLED;
+    return wave?.status === PickingWaveStatus.CANCELLED;
   }, [wave]);
 
   const completionPercentage = useMemo(() => {
@@ -343,17 +336,17 @@ export function usePickingWave(waveId: string) {
 export function usePickingWaves(
   warehouseId: string,
   paginationArgs?: PaginationArgs,
-  filter?: any
+  filter?: Record<string, unknown>
 ) {
   const currentTenant = useTenantStore(state => state.currentTenant);
-  const [hasNextPage, setHasNextPage] = useState(false);
-  const [hasPreviousPage, setHasPreviousPage] = useState(false);
   
-  const { data, loading, error, refetch, fetchMore } = useQuery(GET_PICKING_WAVES, {
+  const cursorPagination = paginationArgs as CursorPaginationArgs | undefined;
+  
+  const { data, loading, error, refetch } = useQuery(GET_PICKING_WAVES, {
     variables: { 
       warehouseId,
-      first: paginationArgs?.first || 20,
-      after: paginationArgs?.after,
+      first: cursorPagination?.first || 20,
+      after: cursorPagination?.after,
       filter,
     },
     skip: !currentTenant?.id || !warehouseId,
@@ -372,7 +365,7 @@ export function usePickingWaves(
   const [planPickingWaves] = useMutation(PLAN_PICKING_WAVES);
 
   const waves = useMemo(() => {
-    return data?.pickingWaves?.edges?.map(edge => edge.node) || [];
+    return data?.pickingWaves?.edges?.map((edge: Edge<PickingWave>) => edge.node) || [];
   }, [data]);
 
   const overdueWaves = overdueData?.overduePickingWaves || [];
@@ -384,13 +377,10 @@ export function usePickingWaves(
   const totalCount = useMemo(() => {
     return data?.pickingWaves?.totalCount || 0;
   }, [data]);
-
-  useEffect(() => {
-    if (pageInfo) {
-      setHasNextPage(pageInfo.hasNextPage);
-      setHasPreviousPage(pageInfo.hasPreviousPage);
-    }
-  }, [pageInfo]);
+  
+  // Compute pagination flags directly from pageInfo
+  const hasNextPage = pageInfo?.hasNextPage ?? false;
+  const hasPreviousPage = pageInfo?.hasPreviousPage ?? false;
 
   // Real-time subscriptions
   useSubscription(PICKING_WAVE_UPDATED, {
@@ -417,15 +407,13 @@ export function usePickingWaves(
     if (!hasNextPage || loading) return;
 
     try {
-      await fetchMore({
-        variables: {
-          after: pageInfo?.endCursor,
-        },
+      await refetch({
+        after: pageInfo?.endCursor,
       });
     } catch (error) {
       console.error('Failed to load more picking waves:', error);
     }
-  }, [fetchMore, hasNextPage, loading, pageInfo]);
+  }, [refetch, hasNextPage, loading, pageInfo]);
 
   const create = useCallback(async (input: CreatePickingWaveInput) => {
     try {
@@ -445,7 +433,7 @@ export function usePickingWaves(
     }
   }, [createPickingWave, warehouseId, filter]);
 
-  const planWaves = useCallback(async (input: any) => {
+  const planWaves = useCallback(async (input: CreatePickingWaveInput) => {
     try {
       const result = await planPickingWaves({
         variables: { input: { ...input, warehouseId } },
@@ -465,7 +453,10 @@ export function usePickingWaves(
 
   // Statistics
   const wavesByStatus = useMemo(() => {
-    const grouped: Record<WaveStatus, PickingWave[]> = {} as any;
+    const grouped: Record<PickingWaveStatus, PickingWave[]> = Object.values(PickingWaveStatus).reduce((acc, status) => {
+      acc[status] = [];
+      return acc;
+    }, {} as Record<PickingWaveStatus, PickingWave[]>);
     
     waves.forEach((wave: PickingWave) => {
       if (!grouped[wave.status]) {
@@ -479,20 +470,20 @@ export function usePickingWaves(
 
   const activeWaves = useMemo(() => {
     return waves.filter((wave: PickingWave) => 
-      [WaveStatus.RELEASED, WaveStatus.READY, WaveStatus.IN_PROGRESS].includes(wave.status)
+      [PickingWaveStatus.RELEASED, PickingWaveStatus.READY, PickingWaveStatus.IN_PROGRESS].includes(wave.status)
     );
   }, [waves]);
 
   const completedWaves = useMemo(() => {
-    return waves.filter((wave: PickingWave) => wave.status === WaveStatus.COMPLETED);
+    return waves.filter((wave: PickingWave) => wave.status === PickingWaveStatus.COMPLETED);
   }, [waves]);
 
   const averagePickTime = useMemo(() => {
-    const completedWithTime = completedWaves.filter((wave: PickingWave) => wave.actualPickTime);
+    const completedWithTime = completedWaves.filter((wave: PickingWave) => wave.actualDuration);
     if (completedWithTime.length === 0) return 0;
     
-    const totalTime = completedWithTime.reduce((sum, wave: PickingWave) => 
-      sum + (wave.actualPickTime || 0), 0
+    const totalTime = completedWithTime.reduce((sum: number, wave: PickingWave) => 
+      sum + (wave.actualDuration || 0), 0
     );
     return totalTime / completedWithTime.length;
   }, [completedWaves]);
@@ -501,7 +492,7 @@ export function usePickingWaves(
     const completedWithAccuracy = completedWaves.filter((wave: PickingWave) => wave.pickingAccuracy);
     if (completedWithAccuracy.length === 0) return 0;
     
-    const totalAccuracy = completedWithAccuracy.reduce((sum, wave: PickingWave) => 
+    const totalAccuracy = completedWithAccuracy.reduce((sum: number, wave: PickingWave) => 
       sum + (wave.pickingAccuracy || 0), 0
     );
     return totalAccuracy / completedWithAccuracy.length;
@@ -611,7 +602,7 @@ export function usePickList(pickListId: string) {
     }
   }, [assignPickList, pickList]);
 
-  const recordPickItem = useCallback(async (input: any) => {
+  const recordPickItem = useCallback(async (input: Record<string, unknown>) => {
     if (!pickList?.id) return null;
     
     try {
@@ -713,15 +704,16 @@ export function usePickList(pickListId: string) {
 export function usePickLists(
   warehouseId: string,
   paginationArgs?: PaginationArgs,
-  filter?: any
+  filter?: Record<string, unknown>
 ) {
   const currentTenant = useTenantStore(state => state.currentTenant);
+  const cursorPagination = paginationArgs as CursorPaginationArgs | undefined;
   
-  const { data, loading, error, refetch, fetchMore } = useQuery(GET_PICK_LISTS, {
+  const { data, loading, error, refetch } = useQuery(GET_PICK_LISTS, {
     variables: { 
       warehouseId,
-      first: paginationArgs?.first || 20,
-      after: paginationArgs?.after,
+      first: cursorPagination?.first || 20,
+      after: cursorPagination?.after,
       filter,
     },
     skip: !currentTenant?.id || !warehouseId,
@@ -732,7 +724,7 @@ export function usePickLists(
   const [createPickList] = useMutation(CREATE_PICK_LIST);
 
   const pickLists = useMemo(() => {
-    return data?.pickLists?.edges?.map(edge => edge.node) || [];
+    return data?.pickLists?.edges?.map((edge: Edge<PickList>) => edge.node) || [];
   }, [data]);
 
   const create = useCallback(async (input: CreatePickListInput) => {
@@ -782,8 +774,15 @@ export function usePickerAssignments(pickerId: string) {
     errorPolicy: 'all',
   });
 
-  const assignedWaves = waveData?.pickingWavesByPicker || [];
-  const assignedPickLists = pickListData?.pickListsByPicker || [];
+  const assignedWaves = useMemo(() => 
+    waveData?.pickingWavesByPicker || [], 
+    [waveData]
+  );
+  
+  const assignedPickLists = useMemo(() => 
+    pickListData?.pickListsByPicker || [], 
+    [pickListData]
+  );
 
   // Real-time subscriptions
   useSubscription(PICKER_ASSIGNED_TO_WAVE, {
@@ -808,7 +807,7 @@ export function usePickerAssignments(pickerId: string) {
 
   const activeAssignments = useMemo(() => {
     const activeWaves = assignedWaves.filter((wave: PickingWave) => 
-      [WaveStatus.RELEASED, WaveStatus.READY, WaveStatus.IN_PROGRESS].includes(wave.status)
+      [PickingWaveStatus.RELEASED, PickingWaveStatus.READY, PickingWaveStatus.IN_PROGRESS].includes(wave.status)
     );
     
     const activePickLists = assignedPickLists.filter((pickList: PickList) => 
@@ -823,11 +822,11 @@ export function usePickerAssignments(pickerId: string) {
   }, [assignedWaves, assignedPickLists]);
 
   const workload = useMemo(() => {
-    const totalItems = assignedPickLists.reduce((sum, pickList: PickList) => 
+    const totalItems = assignedPickLists.reduce((sum: number, pickList: PickList) => 
       sum + (pickList.totalItems || 0), 0
     );
     
-    const completedItems = assignedPickLists.reduce((sum, pickList: PickList) => 
+    const completedItems = assignedPickLists.reduce((sum: number, pickList: PickList) => 
       sum + (pickList.pickedItems || 0), 0
     );
     
@@ -938,7 +937,7 @@ export function usePickingManagement(warehouseId: string) {
       averageAccuracy,
       wavesByStatus: Object.keys(wavesByStatus).map(status => ({
         status,
-        count: wavesByStatus[status as WaveStatus].length,
+        count: wavesByStatus[status as PickingWaveStatus].length,
       })),
     };
   }, [waves, activeWaves, overdueWaves, averagePickTime, averageAccuracy, wavesByStatus]);

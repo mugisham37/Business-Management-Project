@@ -6,7 +6,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import { useAuth } from './useAuth';
-import { useTenant } from '@/lib/tenant';
+import { useTenant } from '@/hooks/useTenant';
 import { useUnifiedCache } from '@/lib/cache';
 import {
   GET_POS_SESSION,
@@ -69,7 +69,7 @@ interface UsePOSResult {
 export function usePOS(options: UsePOSOptions = {}): UsePOSResult {
   const { locationId, autoRefresh = true, enableSubscriptions = true } = options;
   const { user } = useAuth();
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   const cache = useUnifiedCache();
   
   const [currentSession, setCurrentSession] = useState<POSSession | null>(null);
@@ -167,7 +167,7 @@ export function usePOS(options: UsePOSOptions = {}): UsePOSResult {
   useEffect(() => {
     if (activeSessionsData?.activePOSSessions) {
       const sessions = activeSessionsData.activePOSSessions;
-      const userSession = sessions.find(session => session.employeeId === user?.id);
+      const userSession = sessions.find((session: POSSession) => session.employeeId === user?.id);
       setCurrentSession(userSession || null);
     }
   }, [activeSessionsData, user?.id]);
@@ -181,6 +181,8 @@ export function usePOS(options: UsePOSOptions = {}): UsePOSResult {
 
       return () => clearInterval(interval);
     }
+    // No cleanup needed if autoRefresh is disabled
+    return undefined;
   }, [autoRefresh, locationId, refetchActiveSessions, refetchDailySummary]);
 
   // Handlers

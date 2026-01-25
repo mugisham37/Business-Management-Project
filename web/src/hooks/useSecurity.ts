@@ -106,7 +106,7 @@ export function useSecurity() {
     type: SecurityIncident['type'],
     severity: SecurityIncident['severity'],
     description: string,
-    metadata: Record<string, any> = {}
+    metadata: Record<string, unknown> = {}
   ) => {
     try {
       const incident: SecurityIncident = {
@@ -171,7 +171,7 @@ export function useSecurity() {
    * Check for CSRF violations
    */
   const checkCSRFViolation = useCallback(async (
-    request: any,
+    request: Record<string, unknown>,
     expectedToken: string,
     receivedToken?: string
   ) => {

@@ -3,7 +3,7 @@
  * Custom hooks for currency management and exchange rate operations
  */
 
-import { useQuery, useMutation, useSubscription } from '@apollo/client';
+import { useLazyQuery, useQuery, useMutation, useSubscription } from '@apollo/client';
 import { useState, useCallback, useMemo } from 'react';
 import {
   CONVERT_CURRENCY,
@@ -21,7 +21,7 @@ import {
   EXCHANGE_RATE_UPDATED,
   CURRENCY_CONVERSION_ALERT,
 } from '@/graphql/subscriptions/financial';
-import { useAuth } from './useAuth';
+import { useTenant } from '@/hooks/useTenant';
 import { errorLogger } from '@/lib/error-handling';
 
 export interface CurrencyConversionInput {
@@ -54,11 +54,10 @@ export interface CreateExchangeRateInput {
 
 // Currency Conversion Hook
 export function useCurrencyConversion() {
-  const { currentTenant } = useAuth();
-  const [conversionHistory, setConversionHistory] = useState<any[]>([]);
+  const { tenant: currentTenant } = useTenant();
+  const [conversionHistory, setConversionHistory] = useState<Record<string, unknown>[]>([]);
 
-  const [convertCurrency] = useQuery(CONVERT_CURRENCY, {
-    skip: true,
+  const [convertCurrency] = useLazyQuery(CONVERT_CURRENCY, {
     errorPolicy: 'all',
   });
 
@@ -92,7 +91,7 @@ export function useCurrencyConversion() {
     } catch (error) {
       errorLogger.logError(error as Error, {
         component: 'useCurrencyConversion',
-        operation: 'performConversion',
+        operationId: 'performConversion',
         tenantId: currentTenant.id,
       });
       throw error;
@@ -116,7 +115,7 @@ export function useExchangeRates(filters: {
   toCurrencyId?: string;
   effectiveDate?: Date;
 } = {}) {
-  const { currentTenant } = useAuth();
+  const { tenant: currentTenant } = useTenant();
 
   const {
     data,
@@ -132,13 +131,17 @@ export function useExchangeRates(filters: {
   const exchangeRates = useMemo(() => {
     if (!data?.getExchangeRates) return [];
     
-    return data.getExchangeRates.map((rate: any) => ({
-      ...rate,
-      exchangeRate: parseFloat(rate.exchangeRate || '0'),
-      isExpired: rate.expirationDate ? new Date(rate.expirationDate) < new Date() : false,
-      daysUntilExpiration: rate.expirationDate ? 
-        Math.ceil((new Date(rate.expirationDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
-    }));
+    return data.getExchangeRates.map((rate: Record<string, unknown>) => {
+      const exchangeRateNum = typeof rate.exchangeRate === 'string' ? parseFloat(rate.exchangeRate) : (rate.exchangeRate as number);
+      const expirationDate = rate.expirationDate as string | null | undefined;
+      return {
+        ...rate,
+        exchangeRate: exchangeRateNum,
+        isExpired: expirationDate ? new Date(expirationDate) < new Date() : false,
+        daysUntilExpiration: expirationDate ? 
+          Math.ceil((new Date(expirationDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+      };
+    });
   }, [data]);
 
   const ratesSummary = useMemo(() => {
@@ -146,12 +149,13 @@ export function useExchangeRates(filters: {
     
     return {
       totalRates: exchangeRates.length,
-      activeRates: exchangeRates.filter(r => !r.isExpired).length,
-      expiredRates: exchangeRates.filter(r => r.isExpired).length,
-      expiringRates: exchangeRates.filter(r => 
-        r.daysUntilExpiration !== null && r.daysUntilExpiration <= 7 && r.daysUntilExpiration > 0
-      ).length,
-      rateSources: [...new Set(exchangeRates.map(r => r.rateSource))],
+      activeRates: exchangeRates.filter((r: Record<string, unknown>) => !r.isExpired).length,
+      expiredRates: exchangeRates.filter((r: Record<string, unknown>) => r.isExpired).length,
+      expiringRates: exchangeRates.filter((r: Record<string, unknown>) => {
+        const daysUntilExp = r.daysUntilExpiration as number | null | undefined;
+        return daysUntilExp !== null && daysUntilExp !== undefined && daysUntilExp <= 7 && daysUntilExp > 0;
+      }).length,
+      rateSources: [...new Set(exchangeRates.map((r: Record<string, unknown>) => r.rateSource))],
     };
   }, [exchangeRates]);
 
@@ -166,7 +170,7 @@ export function useExchangeRates(filters: {
 
 // Currencies Hook
 export function useCurrencies(activeOnly = true) {
-  const { currentTenant } = useAuth();
+  const { tenant: currentTenant } = useTenant();
 
   const {
     data,
@@ -182,7 +186,7 @@ export function useCurrencies(activeOnly = true) {
   const currencies = useMemo(() => {
     if (!data?.currencies) return [];
     
-    return data.currencies.map((currency: any) => ({
+    return data.currencies.map((currency: Record<string, unknown>) => ({
       ...currency,
       displayName: `${currency.currencyCode} - ${currency.currencyName}`,
       formattedSymbol: currency.symbolPosition === 'before' ? 
@@ -192,14 +196,15 @@ export function useCurrencies(activeOnly = true) {
   }, [data]);
 
   const baseCurrency = useMemo(() => {
-    return currencies.find(c => c.isBaseCurrency) || null;
+    return currencies.find((c: Record<string, unknown>) => c.isBaseCurrency) || null;
   }, [currencies]);
 
   const currenciesByCode = useMemo(() => {
-    return currencies.reduce((acc, currency) => {
-      acc[currency.currencyCode] = currency;
+    return currencies.reduce((acc: Record<string, Record<string, unknown>>, currency: Record<string, unknown>) => {
+      const currencyCode = currency.currencyCode as string;
+      acc[currencyCode] = currency;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, Record<string, unknown>>);
   }, [currencies]);
 
   return {
@@ -214,14 +219,14 @@ export function useCurrencies(activeOnly = true) {
 
 // Currency Mutations Hook
 export function useCurrencyMutations() {
-  const { currentTenant } = useAuth();
+  const { tenant: currentTenant } = useTenant();
 
   const [createCurrencyMutation] = useMutation(CREATE_CURRENCY, {
     onError: (error) => {
       errorLogger.logError(error, {
         component: 'useCurrencyMutations',
-        operation: 'createCurrency',
-        tenantId: currentTenant?.id,
+        operationId: 'createCurrency',
+        ...(currentTenant?.id && { tenantId: currentTenant.id }),
       });
     },
   });
@@ -230,8 +235,8 @@ export function useCurrencyMutations() {
     onError: (error) => {
       errorLogger.logError(error, {
         component: 'useCurrencyMutations',
-        operation: 'updateCurrency',
-        tenantId: currentTenant?.id,
+        operationId: 'updateCurrency',
+        ...(currentTenant?.id && { tenantId: currentTenant.id }),
       });
     },
   });
@@ -240,8 +245,8 @@ export function useCurrencyMutations() {
     onError: (error) => {
       errorLogger.logError(error, {
         component: 'useCurrencyMutations',
-        operation: 'setBaseCurrency',
-        tenantId: currentTenant?.id,
+        operationId: 'setBaseCurrency',
+        ...(currentTenant?.id && { tenantId: currentTenant.id }),
       });
     },
   });
@@ -250,8 +255,8 @@ export function useCurrencyMutations() {
     onError: (error) => {
       errorLogger.logError(error, {
         component: 'useCurrencyMutations',
-        operation: 'createExchangeRate',
-        tenantId: currentTenant?.id,
+        operationId: 'createExchangeRate',
+        ...(currentTenant?.id && { tenantId: currentTenant.id }),
       });
     },
   });
@@ -260,8 +265,8 @@ export function useCurrencyMutations() {
     onError: (error) => {
       errorLogger.logError(error, {
         component: 'useCurrencyMutations',
-        operation: 'updateExchangeRate',
-        tenantId: currentTenant?.id,
+        operationId: 'updateExchangeRate',
+        ...(currentTenant?.id && { tenantId: currentTenant.id }),
       });
     },
   });
@@ -317,8 +322,8 @@ export function useCurrencyMutations() {
 
 // Currency Subscriptions Hook
 export function useCurrencySubscriptions() {
-  const { currentTenant } = useAuth();
-  const [currencyNotifications, setCurrencyNotifications] = useState<any[]>([]);
+  const { tenant: currentTenant } = useTenant();
+  const [currencyNotifications, setCurrencyNotifications] = useState<Record<string, unknown>[]>([]);
 
   useSubscription(EXCHANGE_RATE_UPDATED, {
     variables: { tenantId: currentTenant?.id },
@@ -387,7 +392,7 @@ export function useCurrencyFormatting() {
     } = options;
 
     const currency = currencyCode ? 
-      currencies.find(c => c.currencyCode === currencyCode) : 
+      currencies.find((c: Record<string, unknown>) => c.currencyCode === currencyCode) : 
       baseCurrency;
 
     if (!currency) {
@@ -422,7 +427,7 @@ export function useCurrencyFormatting() {
     currencyCode?: string
   ): number => {
     const currency = currencyCode ? 
-      currencies.find(c => c.currencyCode === currencyCode) : 
+      currencies.find((c: Record<string, unknown>) => c.currencyCode === currencyCode) : 
       baseCurrency;
 
     if (!currency) {
@@ -462,30 +467,32 @@ export function useMultiCurrency() {
   const currencyAnalytics = useMemo(() => {
     if (!exchangeRates.exchangeRates.length) return null;
     
-    const ratesByPair = exchangeRates.exchangeRates.reduce((acc, rate) => {
-      const pair = `${rate.fromCurrency.currencyCode}/${rate.toCurrency.currencyCode}`;
+    const ratesByPair = exchangeRates.exchangeRates.reduce((acc: Record<string, Record<string, unknown>[]>, rate: Record<string, unknown>) => {
+      const pair = `${(rate.fromCurrency as Record<string, unknown>).currencyCode}/${(rate.toCurrency as Record<string, unknown>).currencyCode}`;
       if (!acc[pair]) {
         acc[pair] = [];
       }
       acc[pair].push(rate);
       return acc;
-    }, {} as Record<string, any[]>);
+    }, {} as Record<string, Record<string, unknown>[]>);
 
     const volatilePairs = Object.entries(ratesByPair)
-      .filter(([, rates]) => rates.length > 1)
+      .filter(([, rates]) => (rates as Record<string, unknown>[]).length > 1)
       .map(([pair, rates]) => {
-        const sortedRates = rates.sort((a, b) => 
-          new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime()
+        const sortedRates = (rates as Record<string, unknown>[]).sort((a: Record<string, unknown>, b: Record<string, unknown>) => 
+          new Date(b.effectiveDate as string).getTime() - new Date(a.effectiveDate as string).getTime()
         );
         const latest = sortedRates[0];
         const previous = sortedRates[1];
         
         if (latest && previous) {
-          const change = ((latest.exchangeRate - previous.exchangeRate) / previous.exchangeRate) * 100;
+          const latestRate = latest.exchangeRate as number;
+          const previousRate = previous.exchangeRate as number;
+          const change = ((latestRate - previousRate) / previousRate) * 100;
           return {
             pair,
-            latestRate: latest.exchangeRate,
-            previousRate: previous.exchangeRate,
+            latestRate,
+            previousRate,
             change,
             volatility: Math.abs(change),
           };

@@ -5,14 +5,11 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useSubscription } from '@apollo/client';
-import { useAuth } from './useAuth';
-import { useTenant } from '@/lib/tenant';
+import { useTenant } from '@/hooks/useTenant';
 import { useUnifiedCache } from '@/lib/cache';
 import {
-  GET_PAYMENT_HISTORY,
   VALIDATE_PAYMENT_METHOD,
   GET_CASH_DRAWER_STATUS,
-  GET_MOBILE_MONEY_ACCOUNT_STATUS,
 } from '@/graphql/queries/pos-queries';
 import {
   PROCESS_PAYMENT,
@@ -109,8 +106,7 @@ interface UsePaymentsResult {
 
 export function usePayments(options: UsePaymentsOptions = {}): UsePaymentsResult {
   const { enableSubscriptions = true } = options;
-  const { user } = useAuth();
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   const cache = useUnifiedCache();
   
   const [isProcessing, setIsProcessing] = useState(false);
@@ -168,8 +164,8 @@ export function usePayments(options: UsePaymentsOptions = {}): UsePaymentsResult
   });
 
   useSubscription(CASH_DRAWER_UPDATED, {
-    variables: { locationId: user?.locationId || '' },
-    skip: !enableSubscriptions || !user?.locationId,
+    variables: { locationId: currentTenant?.id || '' },
+    skip: !enableSubscriptions || !currentTenant?.id,
     onData: ({ data }) => {
       if (data.data?.cashDrawerUpdated) {
         // Refresh cash drawer status

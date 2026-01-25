@@ -1,8 +1,10 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { 
   Segment, 
   SegmentMember,
+  SegmentRule,
+  SegmentCriteria,
   CreateSegmentInput,
   UpdateSegmentInput,
   SegmentJobResponse,
@@ -107,13 +109,21 @@ export function useSegmentation(isActive?: boolean): UseSegmentationResult {
         },
         update: (cache, { data }) => {
           if (data?.updateSegment) {
-            cache.modify({
-              id: cache.identify(data.updateSegment),
-              fields: {
-                ...input,
+            const cacheId = cache.identify(data.updateSegment);
+            if (cacheId) {
+              const fields: Record<string, () => unknown> = {
                 updatedAt: () => new Date().toISOString(),
-              },
-            });
+              };
+              if (input.name !== undefined) fields.name = () => input.name;
+              if (input.description !== undefined) fields.description = () => input.description;
+              if (input.criteria !== undefined) fields.criteria = () => input.criteria;
+              if (input.isActive !== undefined) fields.isActive = () => input.isActive;
+              
+              cache.modify({
+                id: cacheId,
+                fields,
+              });
+            }
           }
         },
       });
@@ -132,8 +142,11 @@ export function useSegmentation(isActive?: boolean): UseSegmentationResult {
           deleteSegment: true,
         },
         update: (cache) => {
-          cache.evict({ id: cache.identify({ __typename: 'Segment', id }) });
-          cache.gc();
+          const cacheId = cache.identify({ __typename: 'Segment', id });
+          if (cacheId) {
+            cache.evict({ id: cacheId });
+            cache.gc();
+          }
         },
       });
 
@@ -169,7 +182,7 @@ export function useSegmentation(isActive?: boolean): UseSegmentationResult {
     } catch (error) {
       throw error;
     }
-  }, []);
+  }, [refetch]);
 
   const evaluateSegmentMembership = useCallback(async (
     segmentId: string, 
@@ -185,12 +198,12 @@ export function useSegmentation(isActive?: boolean): UseSegmentationResult {
     } catch (error) {
       throw error;
     }
-  }, []);
+  }, [refetch]);
 
   return {
     segments: data?.segments || [],
     loading,
-    error: error || undefined,
+    error: error ? new Error(error.message) : undefined,
     createSegment,
     updateSegment,
     deleteSegment,
@@ -238,7 +251,7 @@ export function useSegmentMembers(segmentId: string, limit = 100) {
  * Hook for segment criteria builder and validation
  */
 export function useSegmentCriteriaBuilder() {
-  const buildCriteria = useCallback((rules: any[]) => {
+  const buildCriteria = useCallback((rules: SegmentRule[]): SegmentCriteria => {
     return {
       operator: 'AND',
       rules: rules.map(rule => ({
@@ -250,7 +263,7 @@ export function useSegmentCriteriaBuilder() {
     };
   }, []);
 
-  const validateCriteria = useCallback((criteria: any) => {
+  const validateCriteria = useCallback((criteria: SegmentCriteria): string[] => {
     const errors: string[] = [];
 
     if (!criteria || !criteria.rules || criteria.rules.length === 0) {
@@ -258,7 +271,7 @@ export function useSegmentCriteriaBuilder() {
       return errors;
     }
 
-    criteria.rules.forEach((rule: any, index: number) => {
+    criteria.rules.forEach((rule: SegmentRule, index: number) => {
       if (!rule.field) {
         errors.push(`Rule ${index + 1}: Field is required`);
       }
@@ -355,7 +368,7 @@ export function useSegmentCriteriaBuilder() {
  * Hook for predefined segment templates
  */
 export function useSegmentTemplates() {
-  const templates = {
+  const templates = useMemo(() => ({
     highValue: {
       name: 'High Value Customers',
       description: 'Customers with total spending above $1000',
@@ -422,7 +435,7 @@ export function useSegmentTemplates() {
         ],
       },
     },
-  };
+  }), []);
 
   const createFromTemplate = useCallback((templateKey: keyof typeof templates) => {
     const template = templates[templateKey];
@@ -434,7 +447,7 @@ export function useSegmentTemplates() {
       criteria: template.criteria,
       isActive: true,
     };
-  }, []);
+  }, [templates]);
 
   return {
     templates,

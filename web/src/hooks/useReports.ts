@@ -7,9 +7,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import {
   GET_REPORTS,
-  GET_REPORT,
-  GET_REPORT_EXECUTION,
-  EXECUTE_REPORT,
 } from '@/graphql/queries/analytics-queries';
 import {
   CREATE_REPORT,
@@ -32,9 +29,13 @@ import type {
   UseReportsResult,
 } from '@/types/analytics';
 
+interface GetReportsResponse {
+  reports: Report[];
+}
+
 export function useReports(): UseReportsResult {
   const [reports, setReports] = useState<Report[]>([]);
-  const [currentReport, setCurrentReport] = useState<Report | undefined>();
+  const [currentReport, setCurrentReport] = useState<Report>();
   const [executions, setExecutions] = useState<ReportExecution[]>([]);
   const [scheduledReports, setScheduledReports] = useState<ScheduledReport[]>([]);
 
@@ -44,7 +45,7 @@ export function useReports(): UseReportsResult {
     loading: reportsLoading,
     error: reportsError,
     refetch: refetchReports,
-  } = useQuery(GET_REPORTS, {
+  } = useQuery<GetReportsResponse>(GET_REPORTS, {
     errorPolicy: 'all',
     notifyOnNetworkStatusChange: true,
   });
@@ -98,7 +99,7 @@ export function useReports(): UseReportsResult {
         variables: { input },
         update: (cache, { data }) => {
           if (data?.createReport) {
-            const existingReports = cache.readQuery({ query: GET_REPORTS });
+            const existingReports = cache.readQuery({ query: GET_REPORTS }) as GetReportsResponse | null;
             cache.writeQuery({
               query: GET_REPORTS,
               data: {
@@ -126,7 +127,7 @@ export function useReports(): UseReportsResult {
         variables: { reportId, input },
         update: (cache, { data }) => {
           if (data?.updateReport) {
-            const existingReports = cache.readQuery({ query: GET_REPORTS });
+            const existingReports = cache.readQuery({ query: GET_REPORTS }) as GetReportsResponse | null;
             const updatedReports = existingReports?.reports?.map((report: Report) =>
               report.id === reportId ? data.updateReport : report
             ) || [];
@@ -154,7 +155,7 @@ export function useReports(): UseReportsResult {
       const { data } = await deleteReportMutation({
         variables: { reportId },
         update: (cache) => {
-          const existingReports = cache.readQuery({ query: GET_REPORTS });
+          const existingReports = cache.readQuery({ query: GET_REPORTS }) as GetReportsResponse | null;
           const filteredReports = existingReports?.reports?.filter((report: Report) => 
             report.id !== reportId
           ) || [];
@@ -288,7 +289,7 @@ export function useReports(): UseReportsResult {
     executionLoading: scheduleLoading,
     
     // Error states
-    reportsError: reportsError || undefined,
+    reportsError: reportsError ? new Error(reportsError.message) : undefined,
     reportError: undefined,
     executionError: undefined,
     

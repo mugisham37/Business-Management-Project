@@ -9,36 +9,29 @@ import { useTenantStore } from '@/lib/stores/tenant-store';
 import {
   Shipment,
   ShipmentStatus,
-  TrackingEvent,
-  ShippingLabel,
-  ShippingMetrics,
   CreateShipmentInput,
   ShipmentFilterInput,
   Address,
   ShipmentDimensions,
   OffsetPaginationArgs,
-  ShipmentConnection,
 } from '@/types/warehouse';
 
 // GraphQL Operations
 import {
   GET_SHIPMENT,
   GET_SHIPMENTS,
-  GET_SHIPMENT_BY_TRACKING_NUMBER,
   GET_SHIPMENTS_BY_WAREHOUSE,
   GET_PENDING_SHIPMENTS,
   GET_IN_TRANSIT_SHIPMENTS,
   GET_DELIVERED_SHIPMENTS,
   GET_EXCEPTION_SHIPMENTS,
   GET_SHIPPING_RATES,
-  GET_SHIPPING_LABEL,
   GET_TRACKING_EVENTS,
   GET_SHIPPING_METRICS,
 } from '@/graphql/queries/warehouse-queries';
 
 import {
   CREATE_SHIPMENT,
-  CREATE_SHIPPING_LABEL,
   CANCEL_SHIPMENT,
   UPDATE_SHIPMENT_STATUS,
   TRACK_SHIPMENT,
@@ -54,7 +47,6 @@ import {
   TRACKING_EVENT_ADDED,
   SHIPMENT_DELIVERED,
   SHIPMENT_EXCEPTION,
-  SHIPPING_LABEL_CREATED,
 } from '@/graphql/subscriptions/warehouse-subscriptions';
 
 // ===== SINGLE SHIPMENT HOOK =====
@@ -251,7 +243,7 @@ export function useShipment(shipmentId: string) {
     const currentDate = shipment.actualDeliveryDate ? new Date(shipment.actualDeliveryDate) : new Date();
     
     return Math.ceil((currentDate.getTime() - shippedDate.getTime()) / (1000 * 60 * 60 * 24));
-  }, [shipment?.shippedDate, shipment?.actualDeliveryDate]);
+  }, [shipment]);
 
   const isOnTime = useMemo(() => {
     if (!shipment?.estimatedDeliveryDate || !shipment?.actualDeliveryDate) return null;
@@ -260,7 +252,7 @@ export function useShipment(shipmentId: string) {
     const actual = new Date(shipment.actualDeliveryDate);
     
     return actual <= estimated;
-  }, [shipment?.estimatedDeliveryDate, shipment?.actualDeliveryDate]);
+  }, [shipment]);
 
   return {
     shipment,
@@ -295,8 +287,24 @@ export function useShipments(
   filter?: ShipmentFilterInput
 ) {
   const currentTenant = useTenantStore(state => state.currentTenant);
+
+  interface ShipmentEdge {
+    node: Record<string, unknown>;
+    cursor: string;
+  }
+
+  interface ShipmentsResponse {
+    shipments: {
+      edges: ShipmentEdge[];
+      pageInfo: {
+        hasNextPage: boolean;
+        endCursor: string | null;
+      };
+      totalCount: number;
+    };
+  }
   
-  const { data, loading, error, refetch, fetchMore } = useQuery(GET_SHIPMENTS, {
+  const { data, loading, error, refetch, fetchMore } = useQuery<ShipmentsResponse>(GET_SHIPMENTS, {
     variables: {
       first: paginationArgs?.limit || 20,
       after: null,
@@ -323,7 +331,7 @@ export function useShipments(
             const existingShipments = cache.readQuery({
               query: GET_SHIPMENTS,
               variables: { first: 20, filter },
-            });
+            }) as ShipmentsResponse | null;
 
             if (existingShipments) {
               cache.writeQuery({
@@ -588,21 +596,21 @@ export function useShippingRates() {
  * Hook for managing shipping labels
  */
 export function useShippingLabel() {
-  const [createShippingLabel] = useMutation(CREATE_SHIPPING_LABEL);
+  const [generateReturnLabel] = useMutation(GENERATE_RETURN_LABEL);
   const [validateAddress] = useMutation(VALIDATE_ADDRESS);
   const [schedulePickup] = useMutation(SCHEDULE_PICKUP);
 
-  const createLabel = useCallback(async (input: any) => {
+  const createLabel = useCallback(async (input: Record<string, unknown>) => {
     try {
-      const result = await createShippingLabel({
+      const result = await generateReturnLabel({
         variables: { input },
       });
-      return result.data?.createShippingLabel;
+      return result.data?.generateReturnLabel;
     } catch (error) {
       console.error('Failed to create shipping label:', error);
       throw error;
     }
-  }, [createShippingLabel]);
+  }, [generateReturnLabel]);
 
   const validateShippingAddress = useCallback(async (address: Address) => {
     try {
@@ -654,7 +662,9 @@ export function useTracking(trackingNumber: string) {
     pollInterval: 300000, // Poll every 5 minutes
   });
 
-  const trackingEvents = data?.trackingEvents || [];
+  const trackingEvents = useMemo(() => {
+    return data?.trackingEvents || [];
+  }, [data?.trackingEvents]);
 
   // Real-time subscription for tracking updates
   useSubscription(TRACKING_EVENT_ADDED, {
@@ -779,30 +789,30 @@ export function useShippingManagement(warehouseId?: string) {
     const relevantShipments = warehouseId ? warehouseShipments : shipments;
     
     const totalShipments = relevantShipments.length;
-    const pendingCount = relevantShipments.filter(s => s.status === ShipmentStatus.PENDING).length;
-    const processingCount = relevantShipments.filter(s => s.status === ShipmentStatus.PROCESSING).length;
-    const shippedCount = relevantShipments.filter(s => s.status === ShipmentStatus.SHIPPED).length;
-    const inTransitCount = relevantShipments.filter(s => s.status === ShipmentStatus.IN_TRANSIT).length;
-    const deliveredCount = relevantShipments.filter(s => s.status === ShipmentStatus.DELIVERED).length;
-    const exceptionCount = relevantShipments.filter(s => s.status === ShipmentStatus.EXCEPTION).length;
-    const cancelledCount = relevantShipments.filter(s => s.status === ShipmentStatus.CANCELLED).length;
+    const pendingCount = relevantShipments.filter((s: Shipment) => s.status === ShipmentStatus.PENDING).length;
+    const processingCount = relevantShipments.filter((s: Shipment) => s.status === ShipmentStatus.PROCESSING).length;
+    const shippedCount = relevantShipments.filter((s: Shipment) => s.status === ShipmentStatus.SHIPPED).length;
+    const inTransitCount = relevantShipments.filter((s: Shipment) => s.status === ShipmentStatus.IN_TRANSIT).length;
+    const deliveredCount = relevantShipments.filter((s: Shipment) => s.status === ShipmentStatus.DELIVERED).length;
+    const exceptionCount = relevantShipments.filter((s: Shipment) => s.status === ShipmentStatus.EXCEPTION).length;
+    const cancelledCount = relevantShipments.filter((s: Shipment) => s.status === ShipmentStatus.CANCELLED).length;
 
-    const totalCost = relevantShipments.reduce((sum, s) => sum + (s.totalCost || 0), 0);
+    const totalCost = relevantShipments.reduce((sum: number, s: Shipment) => sum + ((s.totalCost as number) || 0), 0);
     const averageCost = totalShipments > 0 ? totalCost / totalShipments : 0;
 
-    const deliveredShipmentsWithTime = relevantShipments.filter(s => 
+    const deliveredShipmentsWithTime = relevantShipments.filter((s: Shipment) => 
       s.status === ShipmentStatus.DELIVERED && s.shippedDate && s.actualDeliveryDate
     );
     
     const averageTransitTime = deliveredShipmentsWithTime.length > 0
-      ? deliveredShipmentsWithTime.reduce((sum, s) => {
+      ? deliveredShipmentsWithTime.reduce((sum: number, s: Shipment) => {
           const shipped = new Date(s.shippedDate!);
           const delivered = new Date(s.actualDeliveryDate!);
           return sum + Math.ceil((delivered.getTime() - shipped.getTime()) / (1000 * 60 * 60 * 24));
         }, 0) / deliveredShipmentsWithTime.length
       : 0;
 
-    const onTimeDeliveries = deliveredShipmentsWithTime.filter(s => {
+    const onTimeDeliveries = deliveredShipmentsWithTime.filter((s: Shipment) => {
       if (!s.estimatedDeliveryDate || !s.actualDeliveryDate) return false;
       return new Date(s.actualDeliveryDate) <= new Date(s.estimatedDeliveryDate);
     }).length;

@@ -43,17 +43,15 @@ import {
 
 import {
   SMS_EVENTS,
-  SMS_DELIVERY_EVENTS,
-  SMS_BULK_EVENTS,
 } from '@/graphql/subscriptions/communication';
 
 export const useSMS = (options: CommunicationHookOptions = {}): UseSMSReturn => {
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const apolloClient = useApolloClient();
   
   const {
-    tenantId = currentUser?.tenantId,
-    userId = currentUser?.id,
+    tenantId = user?.tenantId,
+    userId = user?.id,
     autoRefresh = true,
     refreshInterval = 60000,
     enableRealtime = true,
@@ -67,7 +65,6 @@ export const useSMS = (options: CommunicationHookOptions = {}): UseSMSReturn => 
 
   // Queries
   const { 
-    data: templatesData, 
     loading: templatesLoading, 
     error: templatesError,
     refetch: refetchTemplates 
@@ -87,7 +84,6 @@ export const useSMS = (options: CommunicationHookOptions = {}): UseSMSReturn => 
   });
 
   const { 
-    data: providersData, 
     loading: providersLoading, 
     error: providersError,
     refetch: refetchProviders 
@@ -615,13 +611,13 @@ export const useSMS = (options: CommunicationHookOptions = {}): UseSMSReturn => 
       }
 
       // Basic validation based on provider type
-      const config = provider.configuration;
+      const config = (provider.configuration as Record<string, unknown>) || {};
       switch (provider.type) {
         case 'twilio':
           if (!config.accountSid || !config.authToken || !config.fromPhoneNumber) {
             throw new Error('Twilio Account SID, Auth Token, and from phone number are required');
           }
-          if (!CommunicationUtils.validatePhoneNumber(config.fromPhoneNumber)) {
+          if (!CommunicationUtils.validatePhoneNumber(config.fromPhoneNumber as string)) {
             throw new Error('Invalid from phone number format');
           }
           break;
@@ -693,41 +689,6 @@ export const useSMS = (options: CommunicationHookOptions = {}): UseSMSReturn => 
     }
   }, [tenantId, testProviderMutation]);
 
-  // Utility methods
-  const previewTemplate = useCallback((template: SMSTemplate, variables: Record<string, any>) => {
-    return CommunicationUtils.previewTemplate(template, variables);
-  }, []);
-
-  const validateTemplate = useCallback((template: SMSTemplate) => {
-    const errors: string[] = [];
-
-    if (!template.name) errors.push('Template name is required');
-    if (!template.message) errors.push('Message is required');
-    
-    const maxLength = template.maxLength || 1600;
-    if (template.message && template.message.length > maxLength) {
-      errors.push(`Message is too long (maximum ${maxLength} characters)`);
-    }
-
-    return errors;
-  }, []);
-
-  const calculateMessageParts = useCallback((message: string): number => {
-    // Basic SMS part calculation (160 chars for GSM, 70 for Unicode)
-    const hasUnicode = /[^\x00-\x7F]/.test(message);
-    const maxLength = hasUnicode ? 70 : 160;
-    return Math.ceil(message.length / maxLength);
-  }, []);
-
-  const estimateCost = useCallback((message: string, recipientCount: number, costPerSMS = 0.01): number => {
-    const parts = calculateMessageParts(message);
-    return parts * recipientCount * costPerSMS;
-  }, [calculateMessageParts]);
-
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
   // Update loading state based on queries
   useEffect(() => {
     setLoading(templatesLoading || providersLoading);
@@ -766,12 +727,5 @@ export const useSMS = (options: CommunicationHookOptions = {}): UseSMSReturn => 
     error,
     templates,
     providers,
-    
-    // Utility methods
-    previewTemplate,
-    validateTemplate,
-    calculateMessageParts,
-    estimateCost,
-    clearError,
   };
 };

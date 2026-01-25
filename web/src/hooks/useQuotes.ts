@@ -3,7 +3,8 @@ import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import { 
   Quote, 
   QuoteStatus,
-  UseQuotesResult 
+  CreateQuoteInput,
+  UpdateQuoteInput,
 } from '@/types/crm';
 import {
   GET_QUOTES,
@@ -40,36 +41,6 @@ export interface QuoteQueryInput {
   sortOrder?: 'asc' | 'desc';
 }
 
-export interface CreateQuoteInput {
-  customerId: string;
-  salesRepId?: string;
-  accountManagerId?: string;
-  expirationDate: Date;
-  items: Array<{
-    productId: string;
-    quantity: number;
-    unitPrice?: number;
-    notes?: string;
-  }>;
-  terms?: string;
-  notes?: string;
-}
-
-export interface UpdateQuoteInput {
-  salesRepId?: string;
-  accountManagerId?: string;
-  expirationDate?: Date;
-  items?: Array<{
-    id?: string;
-    productId: string;
-    quantity: number;
-    unitPrice?: number;
-    notes?: string;
-  }>;
-  terms?: string;
-  notes?: string;
-}
-
 export interface SendQuoteInput {
   recipients: string[];
   subject?: string;
@@ -80,14 +51,14 @@ export interface SendQuoteInput {
 export interface UseQuotesResult {
   quotes: Quote[];
   loading: boolean;
-  error?: Error;
+  error?: Error | null;
   totalCount: number;
   createQuote: (input: CreateQuoteInput) => Promise<Quote>;
   updateQuote: (id: string, input: UpdateQuoteInput) => Promise<Quote>;
   approveQuote: (id: string, approvalNotes?: string) => Promise<Quote>;
   rejectQuote: (id: string, rejectionReason: string) => Promise<Quote>;
   sendQuote: (id: string, input: SendQuoteInput) => Promise<Quote>;
-  convertToOrder: (id: string) => Promise<{ quote: Quote; order: any }>;
+  convertToOrder: (id: string) => Promise<{ quote: Quote; order: Record<string, unknown> }>;
   refetch: () => Promise<void>;
 }
 
@@ -172,15 +143,15 @@ export function useQuotes(query?: QuoteQueryInput): UseQuotesResult {
             accountManagerId: input.accountManagerId,
             status: QuoteStatus.DRAFT,
             quoteDate: new Date().toISOString(),
-            expirationDate: input.expirationDate.toISOString(),
-            validUntil: input.expirationDate.toISOString(),
+            expirationDate: input.expirationDate ? input.expirationDate.toISOString() : undefined,
+            validUntil: input.expirationDate ? input.expirationDate.toISOString() : undefined,
             subtotal: 0,
             taxAmount: 0,
             discountAmount: 0,
             totalAmount: 0,
             currency: 'USD',
             requiresApproval: false,
-            items: input.items.map((item, index) => ({
+            items: (input.items || []).map((item, index) => ({
               __typename: 'QuoteItemType',
               id: `temp-item-${index}`,
               quoteId: `temp-${Date.now()}`,
@@ -228,13 +199,23 @@ export function useQuotes(query?: QuoteQueryInput): UseQuotesResult {
         },
         update: (cache, { data }) => {
           if (data?.updateQuote) {
-            cache.modify({
-              id: cache.identify(data.updateQuote),
-              fields: {
-                ...input,
+            const cacheId = cache.identify(data.updateQuote);
+            if (cacheId) {
+              const fields: Record<string, () => unknown> = {
                 updatedAt: () => new Date().toISOString(),
-              },
-            });
+              };
+              if (input.salesRepId !== undefined) fields.salesRepId = () => input.salesRepId;
+              if (input.accountManagerId !== undefined) fields.accountManagerId = () => input.accountManagerId;
+              if (input.expirationDate !== undefined) fields.expirationDate = () => input.expirationDate;
+              if (input.items !== undefined) fields.items = () => input.items;
+              if (input.terms !== undefined) fields.terms = () => input.terms;
+              if (input.notes !== undefined) fields.notes = () => input.notes;
+              
+              cache.modify({
+                id: cacheId,
+                fields,
+              });
+            }
           }
         },
       });
@@ -298,7 +279,7 @@ export function useQuotes(query?: QuoteQueryInput): UseQuotesResult {
 
   const convertToOrder = useCallback(async (
     id: string
-  ): Promise<{ quote: Quote; order: any }> => {
+  ): Promise<{ quote: Quote; order: Record<string, unknown> }> => {
     try {
       const result = await convertQuoteMutation({
         variables: { id },
@@ -316,7 +297,7 @@ export function useQuotes(query?: QuoteQueryInput): UseQuotesResult {
   return {
     quotes: data?.getQuotes?.quotes || [],
     loading,
-    error: error || undefined,
+    error: error ? new Error(error.message) : null,
     totalCount: data?.getQuotes?.total || 0,
     createQuote,
     updateQuote,

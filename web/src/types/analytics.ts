@@ -561,7 +561,7 @@ export interface UseDashboardsResult {
 export interface UseReportsResult {
   // Data
   reports: Report[];
-  currentReport?: Report;
+  currentReport?: Report | undefined;
   executions: ReportExecution[];
   scheduledReports: ScheduledReport[];
   
@@ -571,9 +571,9 @@ export interface UseReportsResult {
   executionLoading: boolean;
   
   // Error states
-  reportsError?: Error;
-  reportError?: Error;
-  executionError?: Error;
+  reportsError?: Error | undefined;
+  reportError?: Error | undefined;
+  executionError?: Error | undefined;
   
   // Actions
   getReports: () => Promise<Report[]>;
@@ -607,11 +607,11 @@ export interface UsePredictiveAnalyticsResult {
   inventoryLoading: boolean;
   
   // Error states
-  forecastError?: Error;
-  anomalyError?: Error;
-  churnError?: Error;
-  pricingError?: Error;
-  inventoryError?: Error;
+  forecastError?: Error | undefined;
+  anomalyError?: Error | undefined;
+  churnError?: Error | undefined;
+  pricingError?: Error | undefined;
+  inventoryError?: Error | undefined;
   
   // Actions
   getForecast: (metricName: string, periods: number, productId?: string, locationId?: string) => Promise<Forecast[]>;

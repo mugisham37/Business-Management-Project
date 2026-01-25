@@ -471,6 +471,102 @@ export interface SupplierFilterInput {
   limit?: number;
 }
 
+export interface PurchaseOrderFilterInput {
+  status?: PurchaseOrderStatus;
+  priority?: PurchaseOrderPriority;
+  supplierId?: string;
+  search?: string;
+  fromDate?: string;
+  toDate?: string;
+  sortBy?: string;
+  sortOrder?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface CreatePurchaseOrderInput {
+  poNumber: string;
+  supplierId: string;
+  status?: PurchaseOrderStatus;
+  priority?: PurchaseOrderPriority;
+  orderDate: string;
+  requestedDeliveryDate?: string;
+  deliveryAddress?: Address;
+  billingAddress?: Address;
+  shippingMethod?: string;
+  paymentTerms?: string;
+  deliveryTerms?: string;
+  description?: string;
+  internalNotes?: string;
+  supplierNotes?: string;
+  currency?: string;
+  subtotalAmount: number;
+  taxAmount?: number;
+  shippingAmount?: number;
+  discountAmount?: number;
+  totalAmount: number;
+  tags?: string[];
+  customFields?: Record<string, unknown>;
+  lineItems?: CreatePurchaseOrderItemInput[];
+}
+
+export interface UpdatePurchaseOrderInput {
+  poNumber?: string;
+  status?: PurchaseOrderStatus;
+  priority?: PurchaseOrderPriority;
+  orderDate?: string;
+  requestedDeliveryDate?: string;
+  expectedDeliveryDate?: string;
+  actualDeliveryDate?: string;
+  deliveryAddress?: Address;
+  billingAddress?: Address;
+  shippingMethod?: string;
+  paymentTerms?: string;
+  deliveryTerms?: string;
+  description?: string;
+  internalNotes?: string;
+  supplierNotes?: string;
+  currency?: string;
+  subtotalAmount?: number;
+  taxAmount?: number;
+  shippingAmount?: number;
+  discountAmount?: number;
+  totalAmount?: number;
+  trackingNumber?: string;
+  tags?: string[];
+  customFields?: Record<string, unknown>;
+  lineItems?: UpdatePurchaseOrderItemInput[];
+}
+
+export interface CreatePurchaseOrderItemInput {
+  productId?: string;
+  itemDescription: string;
+  sku?: string;
+  quantityOrdered: number;
+  unitPrice: number;
+  uom?: string;
+  specifications?: Record<string, unknown>;
+  requestedDeliveryDate?: string;
+  notes?: string;
+  customFields?: Record<string, unknown>;
+}
+
+export interface UpdatePurchaseOrderItemInput {
+  id?: string;
+  productId?: string;
+  itemDescription?: string;
+  sku?: string;
+  quantityOrdered?: number;
+  quantityReceived?: number;
+  quantityInvoiced?: number;
+  unitPrice?: number;
+  uom?: string;
+  specifications?: Record<string, unknown>;
+  requestedDeliveryDate?: string;
+  notes?: string;
+  customFields?: Record<string, unknown>;
+}
+
 export interface DateRangeInput {
   startDate: string;
   endDate: string;

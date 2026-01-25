@@ -5,8 +5,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useSubscription } from '@apollo/client';
-import { useAuth } from './useAuth';
-import { useTenant } from '@/lib/tenant';
+import { useTenant } from '@/hooks/useTenant';
 import { useUnifiedCache } from '@/lib/cache';
 import {
   GET_OFFLINE_QUEUE,
@@ -73,7 +72,7 @@ interface UseOfflineSyncResult {
   }>;
   
   // Conflict Resolution
-  resolveConflict: (conflictId: string, resolution: 'server_wins' | 'client_wins' | 'merge', data?: any) => Promise<void>;
+  resolveConflict: (conflictId: string, resolution: 'server_wins' | 'client_wins' | 'merge', data?: Record<string, unknown>) => Promise<void>;
   
   // Cache Management
   clearOfflineCache: (categories?: string[]) => Promise<{
@@ -84,7 +83,7 @@ interface UseOfflineSyncResult {
   }>;
   
   // Queue Management
-  queueOfflineOperation: (operation: string, data: any, options?: {
+  queueOfflineOperation: (operation: string, data: Record<string, unknown>, options?: {
     maxRetries?: number;
     priority?: 'high' | 'medium' | 'low';
   }) => Promise<string>;
@@ -110,8 +109,7 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
     enableSubscriptions = true 
   } = options;
   
-  const { user } = useAuth();
-  const { currentTenant } = useTenant();
+  const { tenant: currentTenant } = useTenant();
   const cache = useUnifiedCache();
   
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -123,7 +121,6 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
 
   // Queries
   const {
-    data: offlineStatusData,
     loading: offlineStatusLoading,
     refetch: refetchOfflineStatus,
   } = useQuery(GET_OFFLINE_STATUS, {
@@ -141,7 +138,6 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
   });
 
   const {
-    data: queueData,
     loading: queueLoading,
     refetch: refetchQueue,
   } = useQuery(GET_OFFLINE_QUEUE, {
@@ -157,7 +153,6 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
   });
 
   const {
-    data: conflictsData,
     loading: conflictsLoading,
     refetch: refetchConflicts,
   } = useQuery(GET_SYNC_CONFLICTS, {
@@ -264,43 +259,7 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
     },
   });
 
-  // Effects
-  useEffect(() => {
-    // Listen to online/offline events
-    const handleOnline = () => {
-      setIsOnline(true);
-      if (autoSync) {
-        syncOfflineTransactions();
-      }
-    };
-
-    const handleOffline = () => {
-      setIsOnline(false);
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [autoSync]);
-
-  useEffect(() => {
-    // Auto-sync interval
-    if (autoSync && isOnline && syncInterval > 0) {
-      const interval = setInterval(() => {
-        if (queuedOperations.length > 0 && !isSyncing) {
-          syncOfflineTransactions();
-        }
-      }, syncInterval);
-
-      return () => clearInterval(interval);
-    }
-  }, [autoSync, isOnline, syncInterval, queuedOperations.length, isSyncing]);
-
-  // Handlers
+  // Handlers - Declared before Effects to avoid TDZ issues
   const syncOfflineTransactions = useCallback(async () => {
     if (!isOnline || isSyncing) return { success: false, processed: 0, failed: 0, conflicts: 0, results: [] };
 
@@ -336,7 +295,7 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
     }
   }, [isOnline, isSyncing, syncOfflineTransactionsMutation, deviceId, queuedOperations]);
 
-  const resolveConflict = useCallback(async (conflictId: string, resolution: 'server_wins' | 'client_wins' | 'merge', data?: any) => {
+  const resolveConflict = useCallback(async (conflictId: string, resolution: 'server_wins' | 'client_wins' | 'merge', data?: Record<string, unknown>) => {
     try {
       setError(null);
       
@@ -411,7 +370,7 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
     }
   }, [cacheEssentialDataMutation, deviceId]);
 
-  const queueOfflineOperation = useCallback(async (operation: string, data: any, options?: {
+  const queueOfflineOperation = useCallback(async (operation: string, data: Record<string, unknown>, options?: {
     maxRetries?: number;
     priority?: 'high' | 'medium' | 'low';
   }) => {
@@ -440,6 +399,43 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
       throw error;
     }
   }, [queueOfflineOperationMutation, deviceId]);
+
+  // Effects
+  useEffect(() => {
+    // Listen to online/offline events
+    const handleOnline = () => {
+      setIsOnline(true);
+      if (autoSync) {
+        syncOfflineTransactions();
+      }
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [autoSync, syncOfflineTransactions]);
+
+  useEffect(() => {
+    // Auto-sync interval
+    if (autoSync && isOnline && syncInterval > 0) {
+      const interval = setInterval(() => {
+        if (queuedOperations.length > 0 && !isSyncing) {
+          void syncOfflineTransactions();
+        }
+      }, syncInterval);
+
+      return () => clearInterval(interval);
+    }
+    return undefined;
+  }, [autoSync, isOnline, syncInterval, queuedOperations.length, isSyncing, syncOfflineTransactions]);
 
   // Data refresh functions
   const refreshOfflineStatus = useCallback(async () => {

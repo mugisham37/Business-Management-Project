@@ -1,9 +1,12 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { 
   LoyaltyTransaction, 
   LoyaltyReward,
   LoyaltyTransactionFilterInput,
+  CreateRewardInput,
+  CreateCampaignInput,
+  Campaign,
   UseLoyaltyResult 
 } from '@/types/crm';
 import {
@@ -25,14 +28,13 @@ import { useErrorHandler } from '@/hooks/useErrorHandler';
 export function useLoyalty(filters?: LoyaltyTransactionFilterInput): UseLoyaltyResult {
   const { currentTenant } = useTenantStore();
   const { handleError } = useErrorHandler();
-  const [rewards, setRewards] = useState<LoyaltyReward[]>([]);
+  const [rewards] = useState<LoyaltyReward[]>([]);
 
   // Query loyalty transactions
   const { 
     data, 
     loading, 
-    error, 
-    refetch 
+    error
   } = useQuery(GET_LOYALTY_TRANSACTIONS, {
     variables: { query: filters },
     skip: !currentTenant?.id,
@@ -166,25 +168,25 @@ export function useLoyalty(filters?: LoyaltyTransactionFilterInput): UseLoyaltyR
     }
   }, [adjustPointsMutation]);
 
-  const createReward = useCallback(async (input: any): Promise<boolean> => {
+  const createReward = useCallback(async (input: CreateRewardInput): Promise<LoyaltyReward> => {
     try {
-      await createRewardMutation({
+      const result = await createRewardMutation({
         variables: { input },
       });
 
-      return true;
+      return result.data?.createLoyaltyReward || {} as LoyaltyReward;
     } catch (error) {
       throw error;
     }
   }, [createRewardMutation]);
 
-  const createCampaign = useCallback(async (input: any): Promise<boolean> => {
+  const createCampaign = useCallback(async (input: CreateCampaignInput): Promise<Campaign> => {
     try {
-      await createCampaignMutation({
+      const result = await createCampaignMutation({
         variables: { input },
       });
 
-      return true;
+      return result.data?.createLoyaltyCampaign || {} as Campaign;
     } catch (error) {
       throw error;
     }
@@ -194,7 +196,7 @@ export function useLoyalty(filters?: LoyaltyTransactionFilterInput): UseLoyaltyR
     transactions: data?.loyaltyTransactions || [],
     rewards,
     loading,
-    error: error || undefined,
+    ...(error && { error }),
     awardPoints,
     redeemPoints,
     adjustPoints,
@@ -251,23 +253,24 @@ export function useLoyaltyStats() {
  * Hook for loyalty tier management
  */
 export function useLoyaltyTiers() {
-  const tiers = [
+  const tiers = useMemo(() => [
     { name: 'bronze', minPoints: 0, maxPoints: 999, benefits: ['Basic rewards'] },
     { name: 'silver', minPoints: 1000, maxPoints: 4999, benefits: ['5% bonus points', 'Priority support'] },
     { name: 'gold', minPoints: 5000, maxPoints: 9999, benefits: ['10% bonus points', 'Free shipping', 'Early access'] },
     { name: 'platinum', minPoints: 10000, maxPoints: 24999, benefits: ['15% bonus points', 'Exclusive offers', 'Personal shopper'] },
     { name: 'diamond', minPoints: 25000, maxPoints: Infinity, benefits: ['20% bonus points', 'VIP treatment', 'Concierge service'] },
-  ];
+  ], []);
 
   const getTierForPoints = useCallback((points: number) => {
     return tiers.find(tier => points >= tier.minPoints && points <= tier.maxPoints) || tiers[0];
-  }, []);
+  }, [tiers]);
 
   const getNextTier = useCallback((currentPoints: number) => {
     const currentTier = getTierForPoints(currentPoints);
+    if (!currentTier) return null;
     const currentIndex = tiers.findIndex(t => t.name === currentTier.name);
     return currentIndex < tiers.length - 1 ? tiers[currentIndex + 1] : null;
-  }, [getTierForPoints]);
+  }, [getTierForPoints, tiers]);
 
   const getPointsToNextTier = useCallback((currentPoints: number) => {
     const nextTier = getNextTier(currentPoints);

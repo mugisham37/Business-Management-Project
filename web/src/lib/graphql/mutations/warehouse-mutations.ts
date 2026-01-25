@@ -346,6 +346,21 @@ export const COMPLETE_PICK_LIST = gql`
   }
 `;
 
+export const UPDATE_PICK_LIST = gql`
+  ${PICK_LIST_FRAGMENT}
+  mutation UpdatePickList($id: ID!, $input: UpdatePickListInput!) {
+    updatePickList(id: $id, input: $input) {
+      ...PickListFragment
+    }
+  }
+`;
+
+export const DELETE_PICK_LIST = gql`
+  mutation DeletePickList($id: ID!) {
+    deletePickList(id: $id)
+  }
+`;
+
 // ===== SHIPMENT MUTATIONS =====
 
 export const CREATE_SHIPMENT = gql`

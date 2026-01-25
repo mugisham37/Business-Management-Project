@@ -92,6 +92,48 @@ export enum AssemblyWorkOrderStatus {
   ON_HOLD = 'on_hold',
 }
 
+// ===== ADDITIONAL ENUMS =====
+
+export enum WaveStatus {
+  PLANNING = 'planning',
+  PLANNED = 'planned',
+  RELEASED = 'released',
+  READY = 'ready',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled',
+}
+
+export enum WaveType {
+  SINGLE_ORDER = 'single_order',
+  BATCH = 'batch',
+  ROUTE = 'route',
+  ZONE = 'zone',
+  TIME_WINDOW = 'time_window',
+}
+
+export enum WavePriority {
+  LOW = 1,
+  MEDIUM = 2,
+  HIGH = 3,
+  URGENT = 4,
+}
+
+export enum PickListPriority {
+  LOW = 1,
+  MEDIUM = 2,
+  HIGH = 3,
+  URGENT = 4,
+}
+
+export enum PickingStrategy {
+  SINGLE_PICK = 'single_pick',
+  BATCH_PICK = 'batch_pick',
+  ZONE_PICK = 'zone_pick',
+  WAVE_PICK = 'wave_pick',
+  CLUSTER_PICK = 'cluster_pick',
+}
+
 // ===== CORE INTERFACES =====
 
 export interface Warehouse {
@@ -750,6 +792,16 @@ export interface CreatePickingWaveInput {
   orderIds?: string[];
 }
 
+export interface UpdatePickingWaveInput {
+  name?: string;
+  description?: string;
+  priority?: number;
+  plannedDate?: Date;
+  scheduledDate?: Date;
+  status?: PickingWaveStatus;
+  assignedPickers?: string[];
+}
+
 export interface CreatePickListInput {
   warehouseId: string;
   waveId?: string;
@@ -757,6 +809,16 @@ export interface CreatePickListInput {
   customerId?: string;
   priority: number;
   items: CreatePickListItemInput[];
+}
+
+export interface UpdatePickListInput {
+  waveId?: string;
+  orderId?: string;
+  customerId?: string;
+  priority?: number;
+  status?: PickListStatus;
+  assignedPickerId?: string;
+  items?: CreatePickListItemInput[];
 }
 
 export interface CreatePickListItemInput {
@@ -791,6 +853,15 @@ export interface CreateLotInput {
   manufacturingDate?: Date;
   expiryDate?: Date;
   supplierId?: string;
+  qualityStatus?: string;
+}
+
+export interface UpdateLotInput {
+  binLocationId?: string;
+  quantity?: number;
+  unitOfMeasure?: string;
+  expiryDate?: Date;
+  status?: LotStatus;
   qualityStatus?: string;
 }
 
@@ -837,6 +908,8 @@ export interface CursorPaginationArgs {
   last?: number;
   before?: string;
 }
+
+export type PaginationArgs = OffsetPaginationArgs | CursorPaginationArgs;
 
 export interface PageInfo {
   hasNextPage: boolean;

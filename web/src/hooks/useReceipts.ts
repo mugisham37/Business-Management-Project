@@ -5,12 +5,9 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useSubscription } from '@apollo/client';
-import { useAuth } from './useAuth';
-import { useTenant } from '@/lib/tenant';
 import { useUnifiedCache } from '@/lib/cache';
 import {
   GENERATE_RECEIPT,
-  GET_RECEIPT_HISTORY,
   PREVIEW_RECEIPT,
   GET_AVAILABLE_PRINTERS,
 } from '@/graphql/queries/pos-queries';
@@ -32,7 +29,6 @@ import type {
   ReceiptOptions,
   EmailReceiptOptions,
   SmsReceiptOptions,
-  PrintReceiptOptions,
   PrinterConfiguration,
 } from '@/types/pos';
 
@@ -132,8 +128,6 @@ interface UseReceiptsResult {
 
 export function useReceipts(options: UseReceiptsOptions = {}): UseReceiptsResult {
   const { enableSubscriptions = true } = options;
-  const { user } = useAuth();
-  const { currentTenant } = useTenant();
   const cache = useUnifiedCache();
   
   const [isGenerating, setIsGenerating] = useState(false);

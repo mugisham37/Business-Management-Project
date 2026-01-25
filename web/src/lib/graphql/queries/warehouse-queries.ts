@@ -663,6 +663,39 @@ export const GET_PICK_LISTS = gql`
   }
 `;
 
+export const GET_PICK_LISTS_BY_PICKER = gql`
+  ${PICK_LIST_FRAGMENT}
+  query GetPickListsByPicker(
+    $pickerId: ID!
+    $first: Int
+    $after: String
+    $status: String
+    $warehouseId: ID
+  ) {
+    pickListsByPicker(
+      pickerId: $pickerId
+      first: $first
+      after: $after
+      status: $status
+      warehouseId: $warehouseId
+    ) {
+      edges {
+        node {
+          ...PickListFragment
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
+    }
+  }
+`;
+
 // ===== SHIPMENT QUERIES =====
 
 export const GET_SHIPMENT = gql`

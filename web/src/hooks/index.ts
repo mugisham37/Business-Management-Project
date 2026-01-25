@@ -24,6 +24,19 @@ export {
   useTokens 
 } from './useAuth';
 
+// Tenant hooks
+export {
+  useTenant,
+  useTenantContext,
+  useFeatureFlags,
+  useTenantSwitching,
+  useBusinessTier,
+  useTenantSettings,
+  useFeatureGate,
+  useTierGate,
+  useFeatureAndTierGate,
+} from './useTenant';
+
 // Analytics hooks
 export {
   useAnalytics,

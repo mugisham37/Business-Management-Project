@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { useQuery } from '@apollo/client';
+import { useLazyQuery } from '@apollo/client';
 import {
   GET_FORECAST,
   DETECT_ANOMALIES,
@@ -30,34 +30,28 @@ export function usePredictiveAnalytics(): UsePredictiveAnalyticsResult {
   const [inventoryOptimizations, setInventoryOptimizations] = useState<InventoryOptimization[]>([]);
 
   // Lazy queries for on-demand execution
-  const [getForecastQuery, { loading: forecastLoading, error: forecastError }] = useQuery(
-    GET_FORECAST,
-    { skip: true }
+  const [getForecastQuery, { loading: forecastLoading, error: forecastError }] = useLazyQuery(
+    GET_FORECAST
   );
 
-  const [detectAnomaliesQuery, { loading: anomalyLoading, error: anomalyError }] = useQuery(
-    DETECT_ANOMALIES,
-    { skip: true }
+  const [detectAnomaliesQuery, { loading: anomalyLoading, error: anomalyError }] = useLazyQuery(
+    DETECT_ANOMALIES
   );
 
-  const [generateDemandForecastQuery, { loading: demandLoading }] = useQuery(
-    GENERATE_DEMAND_FORECAST,
-    { skip: true }
+  const [generateDemandForecastQuery, { loading: demandLoading }] = useLazyQuery(
+    GENERATE_DEMAND_FORECAST
   );
 
-  const [predictCustomerChurnQuery, { loading: churnLoading, error: churnError }] = useQuery(
-    PREDICT_CUSTOMER_CHURN,
-    { skip: true }
+  const [predictCustomerChurnQuery, { loading: churnLoading, error: churnError }] = useLazyQuery(
+    PREDICT_CUSTOMER_CHURN
   );
 
-  const [optimizeProductPricingQuery, { loading: pricingLoading, error: pricingError }] = useQuery(
-    OPTIMIZE_PRODUCT_PRICING,
-    { skip: true }
+  const [optimizeProductPricingQuery, { loading: pricingLoading, error: pricingError }] = useLazyQuery(
+    OPTIMIZE_PRODUCT_PRICING
   );
 
-  const [optimizeInventoryLevelsQuery, { loading: inventoryLoading, error: inventoryError }] = useQuery(
-    OPTIMIZE_INVENTORY_LEVELS,
-    { skip: true }
+  const [optimizeInventoryLevelsQuery, { loading: inventoryLoading, error: inventoryError }] = useLazyQuery(
+    OPTIMIZE_INVENTORY_LEVELS
   );
 
   // Actions
@@ -137,7 +131,7 @@ export function usePredictiveAnalytics(): UsePredictiveAnalyticsResult {
     }
   }, [generateDemandForecastQuery]);
 
-  const predictCustomerChurn = useCallback(async (customerId?: string): Promise<any> => {
+  const predictCustomerChurn = useCallback(async (customerId?: string): Promise<ChurnPrediction | null> => {
     try {
       const { data } = await predictCustomerChurnQuery({
         variables: {
@@ -173,7 +167,7 @@ export function usePredictiveAnalytics(): UsePredictiveAnalyticsResult {
   const optimizeProductPricing = useCallback(async (
     productId: string,
     locationId?: string
-  ): Promise<any> => {
+  ): Promise<PriceOptimization | null> => {
     try {
       const { data } = await optimizeProductPricingQuery({
         variables: {
@@ -189,7 +183,7 @@ export function usePredictiveAnalytics(): UsePredictiveAnalyticsResult {
         const priceOptimization: PriceOptimization = {
           id: `pricing_${productId}_${Date.now()}`,
           productId,
-          locationId,
+          ...(locationId && { locationId }),
           currentPrice: pricingData.currentPrice || 0,
           recommendedPrice: pricingData.recommendedPrice || 0,
           expectedRevenueLift: pricingData.expectedRevenueLift || 0,
@@ -211,7 +205,7 @@ export function usePredictiveAnalytics(): UsePredictiveAnalyticsResult {
   const optimizeInventoryLevels = useCallback(async (
     productId: string,
     locationId: string
-  ): Promise<any> => {
+  ): Promise<InventoryOptimization | null> => {
     try {
       const { data } = await optimizeInventoryLevelsQuery({
         variables: {
